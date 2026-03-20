@@ -4,13 +4,15 @@ import ManufacturersView from '../views/ManufacturersView.vue'
 import ProjectsView from '../views/ProjectsView.vue'
 import QuoteComparison from '../views/QuoteComparison.vue'
 import LoginView from '../views/LoginView.vue'
+import Sourcing from '../views/Sourcing.vue'
 
 const routes = [
   { path: '/login', component: LoginView },
   { path: '/', redirect: '/manufacturers' },
   { path: '/manufacturers', component: ManufacturersView, meta: { requiresAuth: true } },
   { path: '/projects', component: ProjectsView, meta: { requiresAuth: true } },
-  { path: '/projects/:id/quotes', component: QuoteComparison, meta: { requiresAuth: true } }
+  { path: '/projects/:id/quotes', component: QuoteComparison, meta: { requiresAuth: true } },
+  { path: '/sourcing', component: Sourcing, meta: { requiresAuth: true } }
 ]
 
 const router = createRouter({
