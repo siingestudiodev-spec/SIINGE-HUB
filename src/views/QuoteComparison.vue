@@ -7,9 +7,12 @@
         <p class="subtitle" v-if="clientName">👤 {{ clientName }}</p>
         <a v-if="techPackUrl" :href="techPackUrl" target="_blank" class="tech-pack-link">📎 Tech Pack</a>
       </div>
-      <button @click="showForm = !showForm" class="btn-primary">
-        {{ showForm ? 'Cancel' : '+ Add Quote' }}
-      </button>
+      <div class="header-actions">
+        <button @click="exportExcel" class="btn-export" v-if="quotes.length > 0">⬇ Export Excel</button>
+        <button @click="showForm = !showForm" class="btn-primary">
+          {{ showForm ? 'Cancel' : '+ Add Quote' }}
+        </button>
+      </div>
     </div>
 
     <div v-if="showForm" class="form-card">
@@ -121,12 +124,40 @@ async function deleteQuote(id) {
   await supabase.from('quotes').delete().eq('id', id); fetchData()
 }
 
+function exportExcel() {
+  const rows = quotes.value.map(q => ({
+    Factory: q.manufacturers?.company_name || '',
+    Country: q.manufacturers?.country || '',
+    Contact: q.manufacturers?.contact_name || '',
+    Phone: q.manufacturers?.phone || '',
+    Email: q.manufacturers?.email || '',
+    'Item Description': q.item_description || '',
+    'Price Range': q.price_range || '',
+    'Sample Cost': q.sample_cost || '',
+    'MOQ / Color': q.moq_per_color || '',
+    'Lead Time (days)': q.lead_time_days || '',
+    Specialty: q.specialty || '',
+    Notes: q.notes || ''
+  }))
+
+  const headers = Object.keys(rows[0])
+  const csv = [headers.join(','), ...rows.map(r => headers.map(h => `"${r[h]}"`).join(','))].join('\n')
+  const blob = new Blob([csv], { type: 'text/csv' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `${projectName.value}_quotes.csv`
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
 onMounted(fetchData)
 </script>
 
 <style scoped>
 .container { max-width: 1400px; margin: 0 auto; padding: 2rem 1.5rem; }
 .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 2rem; }
+.header-actions { display: flex; gap: 0.75rem; align-items: center; }
 .back { color: #4f46e5; text-decoration: none; font-size: 0.88rem; font-weight: 500; display: block; margin-bottom: 0.5rem; }
 .back:hover { text-decoration: underline; }
 h1 { font-size: 2rem; font-weight: 700; color: #1a1a2e; }
@@ -158,6 +189,8 @@ tr:hover td { background: #fafbff; }
 .notes-cell { color: #9ca3af; font-style: italic; max-width: 180px; font-size: 0.82rem; }
 .btn-primary { background: linear-gradient(135deg, #667eea, #764ba2); color: white; border: none; padding: 0.65rem 1.3rem; border-radius: 10px; cursor: pointer; font-size: 0.92rem; font-weight: 600; font-family: 'Inter', sans-serif; transition: opacity 0.15s, transform 0.15s; }
 .btn-primary:hover { opacity: 0.9; transform: translateY(-1px); }
+.btn-export { background: #f0fdf4; color: #16a34a; border: 1.5px solid #bbf7d0; padding: 0.65rem 1.3rem; border-radius: 10px; cursor: pointer; font-size: 0.92rem; font-weight: 600; font-family: 'Inter', sans-serif; }
+.btn-export:hover { background: #dcfce7; }
 .btn-delete { background: #fff1f2; color: #e11d48; border: none; padding: 0.35rem 0.7rem; border-radius: 8px; cursor: pointer; font-size: 0.85rem; }
 .btn-delete:hover { background: #ffe4e6; }
 .loading, .empty { text-align: center; padding: 3rem; color: #9ca3af; }
