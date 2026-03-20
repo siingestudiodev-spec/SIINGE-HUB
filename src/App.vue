@@ -12,6 +12,7 @@
         <router-link to="/manufacturers">Manufacturers</router-link>
         <router-link to="/projects">Projects</router-link>
         <router-link to="/sourcing">Sourcing</router-link>
+        <router-link to="/events">Events</router-link>
       </div>
       <button @click="logout" class="btn-logout">Sign Out</button>
     </nav>

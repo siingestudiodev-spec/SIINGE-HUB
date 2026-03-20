@@ -5,6 +5,7 @@ import ProjectsView from '../views/ProjectsView.vue'
 import QuoteComparison from '../views/QuoteComparison.vue'
 import LoginView from '../views/LoginView.vue'
 import Sourcing from '../views/Sourcing.vue'
+import Events from '../views/Events.vue'
 
 const routes = [
   { path: '/login', component: LoginView },
@@ -12,7 +13,8 @@ const routes = [
   { path: '/manufacturers', component: ManufacturersView, meta: { requiresAuth: true } },
   { path: '/projects', component: ProjectsView, meta: { requiresAuth: true } },
   { path: '/projects/:id/quotes', component: QuoteComparison, meta: { requiresAuth: true } },
-  { path: '/sourcing', component: Sourcing, meta: { requiresAuth: true } }
+  { path: '/sourcing', component: Sourcing, meta: { requiresAuth: true } },
+  { path: '/events', component: Events, meta: { requiresAuth: true } }
 ]
 
 const router = createRouter({
