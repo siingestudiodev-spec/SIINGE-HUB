@@ -1,0 +1,52 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Inter', sans-serif;
+  background: #e8eaf0;
+  color: #1a1a2e;
+  min-height: 100vh;
+}
+
+input, textarea, select {
+  color: #1a1a2e;
+  background: white;
+  font-family: 'Inter', sans-serif;
+}
+
+.container {
+  background: transparent;
+}
+
+.card {
+  background: white !important;
+  border: 1.5px solid #d1d5db !important;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.07), 0 1px 2px rgba(0,0,0,0.05) !important;
+  transition: transform 0.18s, box-shadow 0.18s, border-color 0.18s !important;
+}
+
+.card:hover {
+  border-color: #a5b4fc !important;
+  box-shadow: 0 12px 32px rgba(79,70,229,0.15), 0 4px 8px rgba(0,0,0,0.06) !important;
+  transform: translateY(-4px) !important;
+}
+
+.form-card {
+  background: white !important;
+  border: 1.5px solid #d1d5db !important;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.07) !important;
+}
+
+.table-wrapper {
+  background: white !important;
+  border: 1.5px solid #d1d5db !important;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.07) !important;
+}
+
+.filters input,
+.filters select {
+  background: white !important;
+  border: 1.5px solid #d1d5db !important;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.05) !important;
+}
