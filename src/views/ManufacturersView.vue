@@ -110,7 +110,7 @@ import emailjs from '@emailjs/browser'
 // ─── EmailJS config ───────────────────────────────────────────
 const EMAILJS_SERVICE_ID  = 'service_vxy88pq'
 const EMAILJS_TEMPLATE_ID = 'template_44apzvs'
-const EMAILJS_PUBLIC_KEY  = '-rvC0ojxVSoX5k_sBKnzK'
+const EMAILJS_PUBLIC_KEY  = 'CFmOQW7RjLSBDwIOV'
 
 const manufacturers = ref([])
 const loading = ref(true)
