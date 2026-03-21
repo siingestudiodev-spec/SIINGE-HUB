@@ -60,7 +60,7 @@
         <div class="card-actions">
           <button @click="editManufacturer(m)" class="btn-secondary">Edit</button>
           <!-- EMAIL BUTTON - NEW -->
-          <button v-if="m.email" @click="openEmailModal(m)" class="btn-email">✉️ Initial Reach</button>
+        <button v-if="m.email" @click="openEmailModal(m)" class="btn-email">✉️ {{ m.initial_reach_sent ? 'Follow Up' : 'Initial Reach' }}</button>
           <button @click="deleteManufacturer(m.id)" class="btn-danger">Delete</button>
         </div>
       </div>
@@ -186,6 +186,7 @@ SIINGE STUDIO`,
     sending: false,
     success: false,
     error: ''
+    manufacturerId: m.id  // ← AGREGAR ESTA LÍNEA
   }
 }
 
@@ -206,8 +207,21 @@ async function sendEmail() {
       },
       EMAILJS_PUBLIC_KEY
     )
+
+    // ← NUEVO: marcar como enviado en Supabase
+    const sentAt = new Date().toISOString()
+    await supabase
+      .from('manufacturers')
+      .update({
+        initial_reach_sent: true,
+        initial_reach_sent_at: sentAt
+      })
+      .eq('id', emailModal.value.manufacturerId)
+
+    await fetchManufacturers()  // refrescar lista
+
     emailModal.value.success = true
-    setTimeout(() => { emailModal.value.show = false }, 2000)
+    setTimeout(() => { emailModal.value.show = false }, 1500)
   } catch (err) {
     emailModal.value.error = 'Failed to send. Check your EmailJS credentials.'
     console.error(err)
