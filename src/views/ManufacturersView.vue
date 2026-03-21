@@ -185,7 +185,7 @@ Luis
 SIINGE STUDIO`,
     sending: false,
     success: false,
-    error: ''
+    error: '',
     manufacturerId: m.id  // ← AGREGAR ESTA LÍNEA
   }
 }
