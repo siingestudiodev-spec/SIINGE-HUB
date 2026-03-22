@@ -57,14 +57,17 @@
           <div class="info-row" v-if="m.product_categories"><span class="info-icon">🏷️</span><span class="category-tag">{{ m.product_categories }}</span></div>
           <div class="info-row notes-row" v-if="m.notes"><span class="info-icon">📝</span>{{ m.notes }}</div>
         </div>
-        <!-- FECHA INITIAL REACH - NUEVO -->
-        <div v-if="m.initial_reach_sent_at" class="reach-date">
-        Initial Reach: {{ new Date(m.initial_reach_sent_at).toLocaleDateString('en-US', {month: 'short', day: 'numeric', year: 'numeric'}) }}
+        <!-- ULTIMO EMAIL ENVIADO -->
+        <div v-if="m.lastEmail" class="reach-date">
+         📧 {{ m.lastEmail.name }}: {{ new Date(m.lastEmail.sentAt).toLocaleDateString('es-CO') }}
         </div>
+
         <div class="card-actions">
           <button @click="editManufacturer(m)" class="btn-secondary">Edit</button>
           <!-- EMAIL BUTTON - NEW -->
-        <button v-if="m.email" @click="openEmailModal(m)" class="btn-email">✉️ {{ m.initial_reach_sent ? 'Follow Up' : 'Initial Reach' }}</button>
+          <button v-if="m.email" @click="openEmailModal(m)" class="btn-email">
+          Email
+          </button>
           <button @click="deleteManufacturer(m.id)" class="btn-danger">Delete</button>
         </div>
       </div>
