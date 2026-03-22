@@ -46,6 +46,7 @@ const loadTemplates = () => {
   templates.value = JSON.parse(localStorage.getItem('emailTemplates') || '[]')
 }
 
+
 const saveTemplate = () => {
   if (editingTemplate.value.id) {
     // Update
