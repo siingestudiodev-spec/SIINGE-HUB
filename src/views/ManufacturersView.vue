@@ -57,27 +57,23 @@
           <div class="info-row" v-if="m.product_categories"><span class="info-icon">🏷️</span><span class="category-tag">{{ m.product_categories }}</span></div>
           <div class="info-row notes-row" v-if="m.notes"><span class="info-icon">📝</span>{{ m.notes }}</div>
         </div>
-        <!-- ULTIMO EMAIL ENVIADO -->
+        
         <div v-if="m.lastEmail" class="reach-date">
          📧 {{ m.lastEmail.name }}: {{ new Date(m.lastEmail.sentAt).toLocaleDateString('es-CO') }}
         </div>
 
         <div class="card-actions">
           <button @click="editManufacturer(m)" class="btn-secondary">Edit</button>
-          <!-- EMAIL BUTTON - NEW -->
-          <button v-if="m.email" @click="openEmailModal(m)" class="btn-email">
-          Email
-          </button>
+          <button v-if="m.email" @click="openEmailModal(m)" class="btn-email">Email</button>
           <button @click="deleteManufacturer(m.id)" class="btn-danger">Delete</button>
         </div>
       </div>
     </div>
 
-    <!-- EMAIL MODAL - NEW -->
     <div v-if="emailModal.show" class="modal-overlay" @click.self="emailModal.show = false">
       <div class="modal">
         <div class="modal-header">
-          <h2>✉️ Initial Reach Email</h2>
+          <h2>✉️ Send Email to {{ emailModal.companyName }}</h2>
           <button @click="emailModal.show = false" class="modal-close">✕</button>
         </div>
 
@@ -85,18 +81,29 @@
           <label>To</label>
           <input v-model="emailModal.to" placeholder="Recipient email" />
         </div>
+        
+        <div class="modal-field">
+          <label>Select Template</label>
+          <select v-model="emailModal.selectedTemplate" @change="applyTemplate">
+            <option value="">-- Choose a template --</option>
+            <option v-for="t in templatesList" :key="t.id" :value="t">
+              {{ t.name }}
+            </option>
+          </select>
+        </div>
+
         <div class="modal-field">
           <label>Subject</label>
           <input v-model="emailModal.subject" />
         </div>
         <div class="modal-field">
           <label>Message</label>
-          <textarea v-model="emailModal.body" rows="16"></textarea>
+          <textarea v-model="emailModal.body" rows="12"></textarea>
         </div>
 
         <div class="modal-actions">
           <button @click="emailModal.show = false" class="btn-secondary">Cancel</button>
-          <button @click="sendEmail" class="btn-email-send" :disabled="emailModal.sending">
+          <button @click="sendEmail" class="btn-email-send" :disabled="emailModal.sending || (!emailModal.subject || !emailModal.body)">
             {{ emailModal.sending ? 'Sending...' : '🚀 Send Email' }}
           </button>
         </div>
@@ -120,6 +127,7 @@ const EMAILJS_TEMPLATE_ID = 'template_44apzvs'
 const EMAILJS_PUBLIC_KEY  = 'CFmOQW7RjLSBDwIOV'
 
 const manufacturers = ref([])
+const templatesList = ref([])
 const loading = ref(true)
 const showForm = ref(false)
 const editing = ref(false)
@@ -133,7 +141,6 @@ const form = ref({
   phone: '', email: '', website: '', product_categories: '', notes: ''
 })
 
-// EMAIL MODAL STATE - NEW
 const emailModal = ref({
   show: false,
   to: '',
@@ -141,7 +148,10 @@ const emailModal = ref({
   body: '',
   sending: false,
   success: false,
-  error: ''
+  error: '',
+  manufacturerId: null,
+  companyName: '',
+  selectedTemplate: ''
 })
 
 const countries = computed(() => [...new Set(manufacturers.value.map(m => m.country).filter(Boolean))].sort())
@@ -164,40 +174,33 @@ const filteredManufacturers = computed(() => {
 
 function clearFilters() { search.value = ''; filterCountry.value = ''; filterCategory.value = '' }
 
-// OPEN MODAL WITH PREFILLED EMAIL - NEW
 function openEmailModal(m) {
   emailModal.value = {
     show: true,
     to: m.email,
-    subject: 'Manufacturing Partnership Inquiry | SIINGE STUDIO',
-    body: `Hi ${m.company_name},
-
-My name is Luis and I manage Product Operations at SIINGE STUDIO, a US-based apparel development and production partner supporting brands across lingerie, swimwear, loungewear, and technical apparel.
-
-We currently oversee multiple development programs simultaneously and are selectively expanding our manufacturing network to support upcoming production cycles. Your facility came to our attention as a potential long-term partner.
-
-Before moving into deeper alignment, could you share a brief overview of:
-
-• Primary product categories and technical strengths
-• Typical program size or MOQ range
-• Whether you support material sourcing or operate CMT
-• Approximate sample lead times
-
-At SIINGE, we operate within a structured partnership framework designed to maintain clarity across development timelines, communication workflows, and ethical manufacturing standards, with an emphasis on responsible sourcing and sustainable design methods where applicable. Once alignment is confirmed, our onboarding process includes a mutual NDA and Manufacturing Master Agreement to standardize expectations across projects.
-
-If there appears to be mutual fit, we would be glad to continue over email or schedule a short introductory call to learn more about your current capabilities and production focus.
-
-Best regards,
-Luis
-SIINGE STUDIO`,
+    subject: '',
+    body: '',
     sending: false,
     success: false,
     error: '',
-    manufacturerId: m.id  // ← AGREGAR ESTA LÍNEA
+    manufacturerId: m.id,
+    companyName: m.company_name,
+    selectedTemplate: ''
   }
 }
 
-// SEND EMAIL VIA EMAILJS - NEW
+function applyTemplate() {
+  const t = emailModal.value.selectedTemplate
+  if (!t) {
+    emailModal.value.subject = ''
+    emailModal.value.body = ''
+    return
+  }
+  
+  emailModal.value.subject = t.subject.replace(/{{company_name}}/g, emailModal.value.companyName)
+  emailModal.value.body = t.body.replace(/{{company_name}}/g, emailModal.value.companyName)
+}
+
 async function sendEmail() {
   emailModal.value.sending = true
   emailModal.value.success = false
@@ -215,7 +218,6 @@ async function sendEmail() {
       EMAILJS_PUBLIC_KEY
     )
 
-    // ← NUEVO: marcar como enviado en Supabase
     const sentAt = new Date().toISOString()
     await supabase
       .from('manufacturers')
@@ -225,7 +227,7 @@ async function sendEmail() {
       })
       .eq('id', emailModal.value.manufacturerId)
 
-    await fetchManufacturers()  // refrescar lista
+    await fetchManufacturers() 
 
     emailModal.value.success = true
     setTimeout(() => { emailModal.value.show = false }, 1500)
@@ -242,6 +244,11 @@ async function fetchManufacturers() {
   const { data } = await supabase.from('manufacturers').select('*').order('company_name')
   manufacturers.value = data || []
   loading.value = false
+}
+
+async function fetchTemplates() {
+  const { data } = await supabase.from('templates').select('*').order('name')
+  templatesList.value = data || []
 }
 
 async function saveManufacturer() {
@@ -269,7 +276,10 @@ function resetForm() {
   editing.value = false; editId.value = null; showForm.value = false
 }
 
-onMounted(fetchManufacturers)
+onMounted(() => {
+  fetchManufacturers()
+  fetchTemplates()
+})
 </script>
 
 <style scoped>
@@ -309,7 +319,7 @@ textarea { resize: vertical; }
 
 .card-actions { display: flex; gap: 0.5rem; padding-top: 1rem; border-top: 1px solid #f3f4f6; flex-wrap: wrap; }
 
-/* MODAL - NEW */
+/* MODAL */
 .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 100; display: flex; align-items: center; justify-content: center; padding: 1rem; }
 .modal { background: white; border-radius: 20px; width: 100%; max-width: 640px; max-height: 90vh; overflow-y: auto; padding: 2rem; box-shadow: 0 24px 64px rgba(0,0,0,0.18); }
 .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; }

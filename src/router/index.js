@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { supabase } from '../lib/supabase'
 import ManufacturersView from '../views/ManufacturersView.vue'
+import TemplatesView from '../views/TemplatesView.vue' // Updated for consistency
 import ProjectsView from '../views/ProjectsView.vue'
 import QuoteComparison from '../views/QuoteComparison.vue'
 import LoginView from '../views/LoginView.vue'
@@ -11,6 +12,7 @@ const routes = [
   { path: '/login', component: LoginView },
   { path: '/', redirect: '/manufacturers' },
   { path: '/manufacturers', component: ManufacturersView, meta: { requiresAuth: true } },
+  { path: '/templates', component: TemplatesView, meta: { requiresAuth: true } },
   { path: '/projects', component: ProjectsView, meta: { requiresAuth: true } },
   { path: '/projects/:id/quotes', component: QuoteComparison, meta: { requiresAuth: true } },
   { path: '/sourcing', component: Sourcing, meta: { requiresAuth: true } },
