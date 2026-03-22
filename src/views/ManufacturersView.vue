@@ -58,8 +58,8 @@
           <div class="info-row notes-row" v-if="m.notes"><span class="info-icon">📝</span>{{ m.notes }}</div>
         </div>
         
-        <div v-if="m.lastEmail" class="reach-date">
-         📧 {{ m.lastEmail.name }}: {{ new Date(m.lastEmail.sentAt).toLocaleDateString('es-CO') }}
+        <div v-if="m.last_email_sent_at" class="reach-date">
+         📧 {{ m.last_email_template }}: {{ new Date(m.last_email_sent_at).toLocaleDateString('es-CO', { day: '2-digit', month: 'short' }) }}
         </div>
 
         <div class="card-actions">
@@ -218,12 +218,17 @@ async function sendEmail() {
       EMAILJS_PUBLIC_KEY
     )
 
+    // UPDATED: Save exact time and template name
     const sentAt = new Date().toISOString()
+    const templateName = emailModal.value.selectedTemplate ? emailModal.value.selectedTemplate.name : 'Custom Email'
+
     await supabase
       .from('manufacturers')
       .update({
         initial_reach_sent: true,
-        initial_reach_sent_at: sentAt
+        initial_reach_sent_at: sentAt,
+        last_email_template: templateName,
+        last_email_sent_at: sentAt
       })
       .eq('id', emailModal.value.manufacturerId)
 
@@ -339,7 +344,7 @@ textarea { resize: vertical; }
 .btn-email { background: #f0fdf4; color: #16a34a; border: none; padding: 0.5rem 1rem; border-radius: 8px; cursor: pointer; font-size: 0.88rem; font-family: 'Inter', sans-serif; font-weight: 600; }
 .btn-email:hover { background: #dcfce7; }
 .btn-email-send { background: linear-gradient(135deg, #667eea, #764ba2); color: white; border: none; padding: 0.65rem 1.5rem; border-radius: 10px; cursor: pointer; font-size: 0.92rem; font-weight: 600; font-family: 'Inter', sans-serif; }
-.reach-date { font-size: 0.82rem; color: #6b7280; }
+.reach-date { font-size: 0.85rem; color: #6b7280; font-weight: 500; margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px dashed #e5e7eb; }
 .btn-email-send:disabled { opacity: 0.6; cursor: not-allowed; }
 .loading, .empty { text-align: center; padding: 3rem; color: #9ca3af; }
 </style>

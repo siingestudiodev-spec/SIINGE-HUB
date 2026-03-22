@@ -10,6 +10,7 @@
       </div>
       <div class="nav-links">
         <router-link to="/manufacturers">Manufacturers</router-link>
+        <router-link to="/templates">Templates</router-link>
         <router-link to="/projects">Projects</router-link>
         <router-link to="/sourcing">Sourcing</router-link>
         <router-link to="/events">Events</router-link>
