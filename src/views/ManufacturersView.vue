@@ -58,8 +58,10 @@
           <div class="info-row notes-row" v-if="m.notes"><span class="info-icon">📝</span>{{ m.notes }}</div>
         </div>
         
-        <div v-if="m.last_email_sent_at" class="reach-date">
-         📧 {{ m.last_email_template }}: {{ new Date(m.last_email_sent_at).toLocaleDateString('es-CO', { day: '2-digit', month: 'short' }) }}
+        <div v-if="m.email_logs && m.email_logs.length > 0" class="email-history">
+          <div v-for="(log, index) in m.email_logs" :key="index" class="reach-date">
+            📧 {{ log.templateName }}: {{ new Date(log.sentAt).toLocaleDateString('es-CO', { day: '2-digit', month: 'short' }) }}
+          </div>
         </div>
 
         <div class="card-actions">
@@ -218,17 +220,22 @@ async function sendEmail() {
       EMAILJS_PUBLIC_KEY
     )
 
-    // UPDATED: Save exact time and template name
+    // Save exact time and template name to the JSON array
     const sentAt = new Date().toISOString()
     const templateName = emailModal.value.selectedTemplate ? emailModal.value.selectedTemplate.name : 'Custom Email'
+    const newLog = { templateName, sentAt }
+
+    // Get existing logs for this manufacturer so we don't overwrite them
+    const currentManuf = manufacturers.value.find(m => m.id === emailModal.value.manufacturerId)
+    const currentLogs = currentManuf?.email_logs || []
+    const updatedLogs = [...currentLogs, newLog]
 
     await supabase
       .from('manufacturers')
       .update({
         initial_reach_sent: true,
         initial_reach_sent_at: sentAt,
-        last_email_template: templateName,
-        last_email_sent_at: sentAt
+        email_logs: updatedLogs
       })
       .eq('id', emailModal.value.manufacturerId)
 
@@ -322,7 +329,11 @@ textarea { resize: vertical; }
 .category-tag { background: #f0fdf4; color: #16a34a; padding: 0.15rem 0.5rem; border-radius: 6px; font-size: 0.82rem; font-weight: 500; }
 .notes-row { color: #9ca3af !important; font-style: italic; }
 
-.card-actions { display: flex; gap: 0.5rem; padding-top: 1rem; border-top: 1px solid #f3f4f6; flex-wrap: wrap; }
+.card-actions { display: flex; gap: 0.5rem; padding-top: 1rem; border-top: 1px solid #f3f4f6; flex-wrap: wrap; margin-top: 1rem; }
+
+/* NEW EMAIL HISTORY STYLES */
+.email-history { margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px dashed #e5e7eb; display: flex; flex-direction: column; gap: 0.35rem; }
+.reach-date { font-size: 0.82rem; color: #6b7280; font-weight: 500; }
 
 /* MODAL */
 .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 100; display: flex; align-items: center; justify-content: center; padding: 1rem; }
@@ -344,7 +355,6 @@ textarea { resize: vertical; }
 .btn-email { background: #f0fdf4; color: #16a34a; border: none; padding: 0.5rem 1rem; border-radius: 8px; cursor: pointer; font-size: 0.88rem; font-family: 'Inter', sans-serif; font-weight: 600; }
 .btn-email:hover { background: #dcfce7; }
 .btn-email-send { background: linear-gradient(135deg, #667eea, #764ba2); color: white; border: none; padding: 0.65rem 1.5rem; border-radius: 10px; cursor: pointer; font-size: 0.92rem; font-weight: 600; font-family: 'Inter', sans-serif; }
-.reach-date { font-size: 0.85rem; color: #6b7280; font-weight: 500; margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px dashed #e5e7eb; }
 .btn-email-send:disabled { opacity: 0.6; cursor: not-allowed; }
 .loading, .empty { text-align: center; padding: 3rem; color: #9ca3af; }
 </style>
