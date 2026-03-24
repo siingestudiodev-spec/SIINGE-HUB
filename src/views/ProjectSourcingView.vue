@@ -217,6 +217,7 @@ onMounted(() => { fetchProjectMaterials(); fetchFullSourcingList() })
 </script>
 
 <style scoped>
+.max-w-500 { max-width: 500px !important; margin: auto; }
 .container { max-width: 1200px; margin: 0 auto; padding: 2rem 1.5rem; }
 .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; }
 .flex { display: flex; }
