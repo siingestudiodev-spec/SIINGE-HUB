@@ -59,13 +59,19 @@
         </div>
         
         <div v-if="m.email_logs && m.email_logs.length > 0" class="email-history">
-          <div v-for="(log, index) in m.email_logs" :key="index" class="reach-date">
-            📧 {{ log.templateName }}: {{ new Date(log.sentAt).toLocaleDateString('es-CO', { day: '2-digit', month: 'short' }) }}
+          <div v-for="(log, index) in m.email_logs" :key="index" 
+               class="reach-date"
+               :class="{ 'overdue': index === m.email_logs.length - 1 && isOverdue(log.sentAt) }">
+            📧 {{ log.templateName }}: {{ new Date(log.sentAt).toLocaleDateString('en-US', { day: '2-digit', month: 'short' }) }}
+            <span v-if="index === m.email_logs.length - 1 && isOverdue(log.sentAt)" class="warning-icon"> ⚠️ Follow up needed!</span>
           </div>
         </div>
 
         <div class="card-actions">
           <button @click="editManufacturer(m)" class="btn-secondary">Edit</button>
+          
+          <button @click="logExternalContact(m)" class="btn-log" title="Log external contact (WhatsApp, external email, etc.)">Log Contact</button>
+          
           <button v-if="m.email" @click="openEmailModal(m)" class="btn-email">Email</button>
           <button @click="deleteManufacturer(m.id)" class="btn-danger">Delete</button>
         </div>
@@ -176,6 +182,20 @@ const filteredManufacturers = computed(() => {
 
 function clearFilters() { search.value = ''; filterCountry.value = ''; filterCategory.value = '' }
 
+// CHECK IF OVER 7 DAYS OLD
+function isOverdue(dateString) {
+  if (!dateString) return false
+  const sentDate = new Date(dateString)
+  const today = new Date()
+  
+  // Calculate difference in time
+  const diffTime = today - sentDate
+  // Convert to days
+  const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24))
+  
+  return diffDays >= 7
+}
+
 function openEmailModal(m) {
   emailModal.value = {
     show: true,
@@ -203,6 +223,28 @@ function applyTemplate() {
   emailModal.value.body = t.body.replace(/{{company_name}}/g, emailModal.value.companyName)
 }
 
+// LOG EXTERNAL CONTACT (Manual Update)
+async function logExternalContact(m) {
+  if (!confirm(`Log a manual contact today for ${m.company_name}?`)) return
+  
+  const sentAt = new Date().toISOString()
+  const templateName = 'External Contact'
+  const newLog = { templateName, sentAt }
+
+  const currentLogs = m.email_logs || []
+  const updatedLogs = [...currentLogs, newLog]
+
+  await supabase
+    .from('manufacturers')
+    .update({
+      email_logs: updatedLogs,
+      last_email_sent_at: sentAt // keep this updated just in case
+    })
+    .eq('id', m.id)
+
+  fetchManufacturers()
+}
+
 async function sendEmail() {
   emailModal.value.sending = true
   emailModal.value.success = false
@@ -220,12 +262,10 @@ async function sendEmail() {
       EMAILJS_PUBLIC_KEY
     )
 
-    // Save exact time and template name to the JSON array
     const sentAt = new Date().toISOString()
     const templateName = emailModal.value.selectedTemplate ? emailModal.value.selectedTemplate.name : 'Custom Email'
     const newLog = { templateName, sentAt }
 
-    // Get existing logs for this manufacturer so we don't overwrite them
     const currentManuf = manufacturers.value.find(m => m.id === emailModal.value.manufacturerId)
     const currentLogs = currentManuf?.email_logs || []
     const updatedLogs = [...currentLogs, newLog]
@@ -235,7 +275,8 @@ async function sendEmail() {
       .update({
         initial_reach_sent: true,
         initial_reach_sent_at: sentAt,
-        email_logs: updatedLogs
+        email_logs: updatedLogs,
+        last_email_sent_at: sentAt
       })
       .eq('id', emailModal.value.manufacturerId)
 
@@ -313,7 +354,7 @@ textarea { resize: vertical; }
 .results-count { color: #9ca3af; font-size: 0.85rem; white-space: nowrap; }
 
 .cards-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1.25rem; }
-.card { background: white; border-radius: 16px; padding: 1.5rem; border: 1.5px solid #e5e7eb; box-shadow: 0 2px 12px rgba(0,0,0,0.05); transition: transform 0.18s, box-shadow 0.18s; }
+.card { background: white; border-radius: 16px; padding: 1.5rem; border: 1.5px solid #e5e7eb; box-shadow: 0 2px 12px rgba(0,0,0,0.05); transition: transform 0.18s, box-shadow 0.18s; display: flex; flex-direction: column; }
 .card:hover { transform: translateY(-4px); box-shadow: 0 12px 32px rgba(79,70,229,0.12); border-color: #c7d2fe; }
 
 .card-top { display: flex; align-items: center; gap: 1rem; margin-bottom: 1.25rem; }
@@ -329,11 +370,13 @@ textarea { resize: vertical; }
 .category-tag { background: #f0fdf4; color: #16a34a; padding: 0.15rem 0.5rem; border-radius: 6px; font-size: 0.82rem; font-weight: 500; }
 .notes-row { color: #9ca3af !important; font-style: italic; }
 
-.card-actions { display: flex; gap: 0.5rem; padding-top: 1rem; border-top: 1px solid #f3f4f6; flex-wrap: wrap; margin-top: 1rem; }
+.card-actions { display: flex; gap: 0.5rem; padding-top: 1rem; border-top: 1px solid #f3f4f6; flex-wrap: wrap; margin-top: auto; justify-content: flex-start; }
 
-/* NEW EMAIL HISTORY STYLES */
+/* EMAIL HISTORY & OVERDUE STYLES */
 .email-history { margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px dashed #e5e7eb; display: flex; flex-direction: column; gap: 0.35rem; }
-.reach-date { font-size: 0.82rem; color: #6b7280; font-weight: 500; }
+.reach-date { font-size: 0.82rem; color: #6b7280; font-weight: 500; transition: color 0.2s; }
+.overdue { color: #e11d48; font-weight: 700; background-color: #fff1f2; padding: 0.25rem 0.5rem; border-radius: 6px; display: inline-block; }
+.warning-icon { font-size: 0.75rem; margin-left: 0.2rem; }
 
 /* MODAL */
 .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 100; display: flex; align-items: center; justify-content: center; padding: 1rem; }
@@ -352,6 +395,8 @@ textarea { resize: vertical; }
 .btn-primary:hover { opacity: 0.9; transform: translateY(-1px); }
 .btn-secondary { background: #eef2ff; color: #4f46e5; border: none; padding: 0.5rem 1rem; border-radius: 8px; cursor: pointer; font-size: 0.88rem; font-family: 'Inter', sans-serif; font-weight: 500; }
 .btn-danger { background: #fff1f2; color: #e11d48; border: none; padding: 0.5rem 1rem; border-radius: 8px; cursor: pointer; font-size: 0.88rem; font-family: 'Inter', sans-serif; font-weight: 500; }
+.btn-log { background: #f3f4f6; color: #4b5563; border: none; padding: 0.5rem 1rem; border-radius: 8px; cursor: pointer; font-size: 0.88rem; font-family: 'Inter', sans-serif; font-weight: 500; }
+.btn-log:hover { background: #e5e7eb; color: #111827; }
 .btn-email { background: #f0fdf4; color: #16a34a; border: none; padding: 0.5rem 1rem; border-radius: 8px; cursor: pointer; font-size: 0.88rem; font-family: 'Inter', sans-serif; font-weight: 600; }
 .btn-email:hover { background: #dcfce7; }
 .btn-email-send { background: linear-gradient(135deg, #667eea, #764ba2); color: white; border: none; padding: 0.65rem 1.5rem; border-radius: 10px; cursor: pointer; font-size: 0.92rem; font-weight: 600; font-family: 'Inter', sans-serif; }
