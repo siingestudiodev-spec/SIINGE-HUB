@@ -1,8 +1,9 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { supabase } from '../lib/supabase'
 import ManufacturersView from '../views/ManufacturersView.vue'
-import TemplatesView from '../views/TemplatesView.vue' // Updated for consistency
+import TemplatesView from '../views/TemplatesView.vue'
 import ProjectsView from '../views/ProjectsView.vue'
+import ProjectSourcingView from '../views/ProjectSourcingView.vue' // ESTO ES CLAVE
 import QuoteComparison from '../views/QuoteComparison.vue'
 import LoginView from '../views/LoginView.vue'
 import Sourcing from '../views/Sourcing.vue'
@@ -14,6 +15,7 @@ const routes = [
   { path: '/manufacturers', component: ManufacturersView, meta: { requiresAuth: true } },
   { path: '/templates', component: TemplatesView, meta: { requiresAuth: true } },
   { path: '/projects', component: ProjectsView, meta: { requiresAuth: true } },
+  { path: '/projects/:id/sourcing', component: ProjectSourcingView, meta: { requiresAuth: true } }, // ESTO ES CLAVE
   { path: '/projects/:id/quotes', component: QuoteComparison, meta: { requiresAuth: true } },
   { path: '/sourcing', component: Sourcing, meta: { requiresAuth: true } },
   { path: '/events', component: Events, meta: { requiresAuth: true } }
