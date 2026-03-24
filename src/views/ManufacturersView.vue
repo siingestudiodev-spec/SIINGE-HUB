@@ -188,9 +188,7 @@ function isOverdue(dateString) {
   const sentDate = new Date(dateString)
   const today = new Date()
   
-  // Calculate difference in time
   const diffTime = today - sentDate
-  // Convert to days
   const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24))
   
   return diffDays >= 7
@@ -223,12 +221,18 @@ function applyTemplate() {
   emailModal.value.body = t.body.replace(/{{company_name}}/g, emailModal.value.companyName)
 }
 
-// LOG EXTERNAL CONTACT (Manual Update)
+// LOG EXTERNAL CONTACT (Manual Update with Custom Text)
 async function logExternalContact(m) {
-  if (!confirm(`Log a manual contact today for ${m.company_name}?`)) return
+  const customNote = prompt(
+    `Log a manual contact for ${m.company_name}.\nEnter description (e.g., MMA ENVIADO, WhatsApp message, Call):`, 
+    ''
+  )
+  
+  // Si el usuario cancela o lo deja vacío, no hacemos nada
+  if (customNote === null || customNote.trim() === '') return
   
   const sentAt = new Date().toISOString()
-  const templateName = 'External Contact'
+  const templateName = customNote.trim() // Usamos el texto que escribió el usuario
   const newLog = { templateName, sentAt }
 
   const currentLogs = m.email_logs || []
@@ -238,7 +242,7 @@ async function logExternalContact(m) {
     .from('manufacturers')
     .update({
       email_logs: updatedLogs,
-      last_email_sent_at: sentAt // keep this updated just in case
+      last_email_sent_at: sentAt 
     })
     .eq('id', m.id)
 
