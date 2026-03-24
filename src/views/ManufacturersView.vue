@@ -106,9 +106,15 @@
         </div>
 
         <div class="card-actions">
-          <button @click="editManufacturer(m)" class="btn-action btn-edit" title="Edit">✏️ Edit</button>
-          <button @click="logExternalContact(m)" class="btn-action btn-log" title="Log external contact">📝 Log</button>
-          <button v-if="m.email" @click="openEmailModal(m)" class="btn-action btn-email" title="Send Email">✉️ Email</button>
+          <button @click="editManufacturer(m)" class="btn-action btn-edit" title="Edit">✏️</button>
+          <button @click="logExternalContact(m)" class="btn-action btn-log" title="Log manual contact">📝</button>
+          
+          <button v-if="m.email" @click="sendInitialReach(m)" class="btn-action btn-initial-reach" title="Send Initial Reach Email" :disabled="sendingReachId === m.id">
+            {{ sendingReachId === m.id ? '⏳...' : '🚀 Reach' }}
+          </button>
+
+          <button v-if="m.email" @click="openEmailModal(m)" class="btn-action btn-email" title="Custom Email">✉️ Email</button>
+          
           <div class="spacer"></div>
           <button @click="deleteManufacturer(m.id)" class="btn-action btn-delete" title="Delete">🗑️</button>
         </div>
@@ -176,6 +182,9 @@ const editId = ref(null)
 const search = ref('')
 const filterCountry = ref('')
 const filterCategory = ref('')
+
+// Estado para rastrear si se está enviando el Initial Reach a un ID específico
+const sendingReachId = ref(null)
 
 const categoryOptions = ['Activewear', "Children's wear", 'Swimwear', 'Evening wear', 'Streetwear', 'Launchwear', 'Intimate Apparel', 'Leather Good', 'Accessories']
 const certOptions = ['OEKO-TEX STANDARD 100', 'ISO 45001', 'OCS100', 'UN Global Compact', 'GRS', 'ISO9001', 'amfori BSCI', 'SMETA', 'WRAP', 'SA8000', 'ISO 14001', 'OEKO-TEX STeP', 'bluesign®', 'GOTS']
@@ -260,6 +269,72 @@ async function logExternalContact(m) {
   fetchManufacturers()
 }
 
+// ---- FUNCIÓN NUEVA: ENVIAR INITIAL REACH AUTOMATIZADO ----
+async function sendInitialReach(m) {
+  if (!confirm(`Are you sure you want to send the Initial Reach email to ${m.company_name}?`)) return
+  
+  sendingReachId.value = m.id
+  
+  // Determinamos las categorías para el correo (o un texto por defecto si no tiene)
+  const categoryText = m.product_categories ? m.product_categories : 'various apparel categories'
+  
+  const subject = 'Manufacturing Partnership Inquiry | SIINGE STUDIO'
+  const body = `Hi ${m.company_name},
+
+My name is Luis and I manage Product Operations at SIINGE STUDIO, a US-based apparel development and production partner supporting brands across ${categoryText}.
+
+We currently oversee multiple development programs simultaneously and are selectively expanding our manufacturing network to support upcoming production cycles. Your facility came to our attention as a potential long-term partner.
+
+Before moving into deeper alignment, could you share a brief overview of:
+
+• Primary product categories and technical strengths
+• Typical program size or MOQ range
+• Whether you support material sourcing or operate CMT
+• Approximate sample lead times
+
+At SIINGE, we operate within a structured partnership framework designed to maintain clarity across development timelines, communication workflows, and ethical manufacturing standards, with an emphasis on responsible sourcing and sustainable design methods where applicable. 
+
+Once alignment is confirmed, our onboarding process includes a mutual NDA and Manufacturing Master Agreement to standardize expectations across projects.
+
+If there appears to be mutual fit, we would be glad to continue over email or schedule a short introductory call to learn more about your current capabilities and production focus.
+
+Best regards,
+Luis`
+
+  try {
+    await emailjs.send(
+      EMAILJS_SERVICE_ID,
+      EMAILJS_TEMPLATE_ID,
+      {
+        to_email: m.email,
+        subject: subject,
+        message: body
+      },
+      EMAILJS_PUBLIC_KEY
+    )
+
+    // Guardar en Supabase
+    const sentAt = new Date().toISOString()
+    const updatedLogs = [...(m.email_logs || []), { templateName: 'Initial Reach', sentAt }]
+    
+    await supabase.from('manufacturers').update({ 
+      initial_reach_sent: true, 
+      initial_reach_sent_at: sentAt, 
+      email_logs: updatedLogs, 
+      last_email_sent_at: sentAt 
+    }).eq('id', m.id)
+    
+    await fetchManufacturers()
+    alert('✅ Initial Reach sent successfully!')
+  } catch (err) {
+    console.error(err)
+    alert('❌ Error sending Initial Reach. Check your credentials.')
+  } finally {
+    sendingReachId.value = null
+  }
+}
+
+// ---- FUNCIÓN ORIGINAL: ENVIAR CUSTOM EMAIL ----
 async function sendEmail() {
   emailModal.value.sending = true
   try {
@@ -351,27 +426,32 @@ input:focus, textarea:focus, select:focus { border-color: #6366f1; background: w
 
 /* REDESIGNED CARD ACTIONS (BOTTOM) */
 .card-actions { 
-  margin-top: auto; /* Empuja los botones al fondo */
+  margin-top: auto; 
   padding: 1.2rem 1.5rem; 
-  background: #f8fafc; /* Fondo gris súper claro para separar el área de botones */
+  background: #f8fafc; 
   border-top: 1px solid #e5e7eb; 
   border-radius: 0 0 16px 16px; 
   display: flex; 
-  gap: 0.6rem; 
+  gap: 0.4rem; /* Reduje un poco el gap para acomodar el nuevo botón */
   align-items: center;
   flex-wrap: wrap;
 }
-.spacer { flex-grow: 1; } /* Empuja el botón de borrar al extremo derecho */
+.spacer { flex-grow: 1; }
 
-.btn-action { display: flex; align-items: center; gap: 0.3rem; padding: 0.5rem 0.8rem; border-radius: 8px; font-size: 0.85rem; font-weight: 600; border: none; cursor: pointer; transition: all 0.2s; }
+.btn-action { display: flex; align-items: center; gap: 0.3rem; padding: 0.5rem 0.7rem; border-radius: 8px; font-size: 0.8rem; font-weight: 600; border: none; cursor: pointer; transition: all 0.2s; }
 .btn-edit { background: #e0e7ff; color: #4338ca; }
 .btn-edit:hover { background: #c7d2fe; }
 .btn-log { background: #e2e8f0; color: #475569; }
 .btn-log:hover { background: #cbd5e1; }
 .btn-email { background: #dcfce7; color: #16a34a; }
 .btn-email:hover { background: #bbf7d0; }
-.btn-delete { background: #fee2e2; color: #dc2626; padding: 0.5rem; } /* Más cuadrado */
+.btn-delete { background: #fee2e2; color: #dc2626; padding: 0.5rem; } 
 .btn-delete:hover { background: #fecaca; }
+
+/* ESTILO PARA EL NUEVO BOTÓN INITIAL REACH */
+.btn-initial-reach { background: #e0f2fe; color: #0284c7; }
+.btn-initial-reach:hover:not(:disabled) { background: #bae6fd; }
+.btn-initial-reach:disabled { opacity: 0.6; cursor: not-allowed; }
 
 /* MODALS */
 .modal-overlay { position: fixed; inset: 0; background: rgba(17, 24, 39, 0.6); z-index: 100; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(2px); padding: 1rem; }
