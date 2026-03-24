@@ -10,12 +10,12 @@
     <div v-if="showForm" class="form-card">
       <h2>{{ editing ? 'Edit Manufacturer' : 'New Manufacturer' }}</h2>
       <div class="form-grid">
-        <input v-model="form.company_name" placeholder="Company Name *" />
-        <input v-model="form.country" placeholder="Country" />
-        <input v-model="form.contact_name" placeholder="Contact Name" />
-        <input v-model="form.phone" placeholder="Phone" />
-        <input v-model="form.email" placeholder="Email" />
-        <input v-model="form.website" placeholder="Website" />
+        <div class="input-group"><input v-model="form.company_name" placeholder="Company Name *" /></div>
+        <div class="input-group"><input v-model="form.country" placeholder="Country" /></div>
+        <div class="input-group"><input v-model="form.contact_name" placeholder="Contact Name" /></div>
+        <div class="input-group"><input v-model="form.phone" placeholder="Phone" /></div>
+        <div class="input-group"><input v-model="form.email" placeholder="Email" /></div>
+        <div class="input-group"><input v-model="form.website" placeholder="Website" /></div>
       </div>
 
       <div class="categories-section mt-4">
@@ -33,22 +33,22 @@
         <select v-model="selectedCertifications" multiple class="multi-select-custom">
           <option v-for="cert in certOptions" :key="cert" :value="cert">{{ cert }}</option>
         </select>
-        <p class="text-xs text-gray-400 mt-1">Hold Ctrl (Cmd) to select multiple.</p>
+        <p class="text-xs text-gray-400 mt-1">Hold Ctrl (or Cmd on Mac) to select multiple.</p>
       </div>
 
-      <textarea v-model="form.notes" placeholder="Notes" rows="3" class="mt-4"></textarea>
-      <div class="form-actions">
-        <button @click="saveManufacturer" class="btn-primary">{{ editing ? 'Update' : 'Save' }}</button>
+      <textarea v-model="form.notes" placeholder="Notes (Optional)" rows="3" class="mt-4"></textarea>
+      <div class="form-actions mt-4">
+        <button @click="saveManufacturer" class="btn-primary">{{ editing ? 'Update Manufacturer' : 'Save Manufacturer' }}</button>
       </div>
     </div>
 
     <div class="filters">
       <input v-model="search" placeholder="🔍 Search..." class="search-input" />
-      <select v-model="filterCountry">
+      <select v-model="filterCountry" class="filter-select">
         <option value="">All Countries</option>
         <option v-for="c in countries" :key="c" :value="c">{{ c }}</option>
       </select>
-      <select v-model="filterCategory">
+      <select v-model="filterCategory" class="filter-select">
         <option value="">All Categories</option>
         <option v-for="c in categories" :key="c" :value="c">{{ c }}</option>
       </select>
@@ -58,39 +58,61 @@
     <div v-if="loading" class="loading">Loading...</div>
     <div v-else class="cards-grid">
       <div v-for="m in filteredManufacturers" :key="m.id" class="card">
-        <div class="card-top">
-          <div class="card-avatar">{{ m.company_name?.charAt(0) }}</div>
-          <div class="card-title">
-            <h3>{{ m.company_name }}</h3>
-            <span class="country-badge">🌍 {{ m.country }}</span>
-          </div>
-        </div>
         
-        <div class="card-body">
-          <div class="info-row" v-if="m.product_categories">
-            <span class="info-icon">🏷️</span>
-            <div class="tags-container">
-              <span v-for="tag in m.product_categories.split(',')" :key="tag" class="category-tag">{{ tag.trim() }}</span>
+        <div class="card-content">
+          <div class="card-top">
+            <div class="card-avatar">{{ m.company_name?.charAt(0) }}</div>
+            <div class="card-title">
+              <h3>{{ m.company_name }}</h3>
+              <span class="country-badge">🌍 {{ m.country || 'Unknown' }}</span>
             </div>
           </div>
+          
+          <div class="card-body">
+            <div class="info-group">
+              <div class="info-row" v-if="m.contact_name"><span class="info-icon">👤</span><strong>{{ m.contact_name }}</strong></div>
+              <div class="info-row" v-if="m.phone"><span class="info-icon">📞</span><a :href="'tel:'+m.phone">{{ m.phone }}</a></div>
+              <div class="info-row" v-if="m.email"><span class="info-icon">✉️</span><a :href="'mailto:'+m.email">{{ m.email }}</a></div>
+              <div class="info-row" v-if="m.website"><span class="info-icon">🌐</span><a :href="m.website" target="_blank">Website</a></div>
+            </div>
 
-          <div class="info-row" v-if="m.certifications">
-            <span class="info-icon">📜</span>
-            <button @click="showCertsPopup(m)" class="btn-view-certs">
-              View Certifications ({{ m.certifications.split(',').length }})
-            </button>
+            <div class="tags-section">
+              <div class="info-row align-start" v-if="m.product_categories">
+                <span class="info-icon mt-1">🏷️</span>
+                <div class="tags-container">
+                  <span v-for="tag in m.product_categories.split(',')" :key="tag" class="category-tag">{{ tag.trim() }}</span>
+                </div>
+              </div>
+
+              <div class="info-row" v-if="m.certifications">
+                <span class="info-icon">📜</span>
+                <button @click="showCertsPopup(m)" class="btn-view-certs">
+                  View {{ m.certifications.split(',').length }} Certification{{ m.certifications.split(',').length !== 1 ? 's' : '' }}
+                </button>
+              </div>
+            </div>
+
+            <div class="info-row notes-row" v-if="m.notes"><span class="info-icon">📝</span>{{ m.notes }}</div>
+            
+            <div v-if="m.email_logs && m.email_logs.length > 0" class="email-history">
+              <div v-for="(log, index) in m.email_logs" :key="index" 
+                   class="reach-date"
+                   :class="{ 'overdue': index === m.email_logs.length - 1 && isOverdue(log.sentAt) }">
+                <span class="log-icon">🕒</span> {{ log.templateName }}: {{ new Date(log.sentAt).toLocaleDateString('en-US', { day: '2-digit', month: 'short' }) }}
+                <span v-if="index === m.email_logs.length - 1 && isOverdue(log.sentAt)" class="warning-icon" title="More than 7 days ago">⚠️</span>
+              </div>
+            </div>
           </div>
-
-          <div class="info-row" v-if="m.email">✉️ {{ m.email }}</div>
-          <div class="info-row notes-row" v-if="m.notes">📝 {{ m.notes }}</div>
         </div>
 
         <div class="card-actions">
-          <button @click="editManufacturer(m)" class="btn-secondary">Edit</button>
-          <button @click="logExternalContact(m)" class="btn-log">Log Contact</button>
-          <button v-if="m.email" @click="openEmailModal(m)" class="btn-email">Email</button>
-          <button @click="deleteManufacturer(m.id)" class="btn-danger">Delete</button>
+          <button @click="editManufacturer(m)" class="btn-action btn-edit" title="Edit">✏️ Edit</button>
+          <button @click="logExternalContact(m)" class="btn-action btn-log" title="Log external contact">📝 Log</button>
+          <button v-if="m.email" @click="openEmailModal(m)" class="btn-action btn-email" title="Send Email">✉️ Email</button>
+          <div class="spacer"></div>
+          <button @click="deleteManufacturer(m.id)" class="btn-action btn-delete" title="Delete">🗑️</button>
         </div>
+
       </div>
     </div>
 
@@ -102,7 +124,7 @@
         </div>
         <div class="cert-list-popup">
           <div v-for="c in certPopup.list" :key="c" class="cert-item">
-            ✅ {{ c.trim() }}
+            <span class="check-icon">✅</span> {{ c.trim() }}
           </div>
         </div>
       </div>
@@ -123,10 +145,10 @@
           </select>
         </div>
         <div class="modal-field"><label>Subject</label><input v-model="emailModal.subject" /></div>
-        <div class="modal-field"><label>Message</label><textarea v-model="emailModal.body" rows="12"></textarea></div>
-        <div class="modal-actions">
+        <div class="modal-field"><label>Message</label><textarea v-model="emailModal.body" rows="10"></textarea></div>
+        <div class="modal-actions mt-4">
           <button @click="emailModal.show = false" class="btn-secondary">Cancel</button>
-          <button @click="sendEmail" class="btn-email-send" :disabled="emailModal.sending || (!emailModal.subject || !emailModal.body)">
+          <button @click="sendEmail" class="btn-primary" :disabled="emailModal.sending || (!emailModal.subject || !emailModal.body)">
             {{ emailModal.sending ? 'Sending...' : '🚀 Send Email' }}
           </button>
         </div>
@@ -181,10 +203,7 @@ const filteredManufacturers = computed(() => {
   })
 })
 
-function showCertsPopup(m) {
-  certPopup.value.list = m.certifications.split(',')
-  certPopup.value.show = true
-}
+function showCertsPopup(m) { certPopup.value.list = m.certifications.split(','); certPopup.value.show = true }
 
 async function saveManufacturer() {
   if (!form.value.company_name) return alert('Name required')
@@ -200,7 +219,7 @@ function editManufacturer(m) {
   form.value = { ...m }
   selectedCategories.value = m.product_categories ? m.product_categories.split(',').map(s => s.trim()) : []
   selectedCertifications.value = m.certifications ? m.certifications.split(',').map(s => s.trim()) : []
-  editId.value = m.id; editing.value = true; showForm.value = true
+  editId.value = m.id; editing.value = true; showForm.value = true; window.scrollTo({ top: 0, behavior: 'smooth' })
 }
 
 function resetForm() {
@@ -208,7 +227,6 @@ function resetForm() {
   selectedCategories.value = []; selectedCertifications.value = []; editing.value = false; editId.value = null; showForm.value = false
 }
 
-// ... Mantener fetchManufacturers, deleteManufacturer, logExternalContact, sendEmail, etc. igual que antes ...
 async function fetchManufacturers() {
   loading.value = true
   const { data } = await supabase.from('manufacturers').select('*').order('company_name')
@@ -224,9 +242,7 @@ async function fetchTemplates() {
 function openAddForm() { resetForm(); showForm.value = !showForm.value }
 function clearFilters() { search.value = ''; filterCountry.value = ''; filterCategory.value = '' }
 
-function openEmailModal(m) {
-  emailModal.value = { show: true, to: m.email, subject: '', body: '', sending: false, success: false, error: '', manufacturerId: m.id, companyName: m.company_name, selectedTemplate: '' }
-}
+function openEmailModal(m) { emailModal.value = { show: true, to: m.email, subject: '', body: '', sending: false, success: false, error: '', manufacturerId: m.id, companyName: m.company_name, selectedTemplate: '' } }
 
 function applyTemplate() {
   const t = emailModal.value.selectedTemplate
@@ -253,9 +269,8 @@ async function sendEmail() {
     const updatedLogs = [...(m.email_logs || []), { templateName: emailModal.value.selectedTemplate?.name || 'Custom Email', sentAt }]
     await supabase.from('manufacturers').update({ initial_reach_sent: true, initial_reach_sent_at: sentAt, email_logs: updatedLogs, last_email_sent_at: sentAt }).eq('id', m.id)
     fetchManufacturers()
-    emailModal.value.success = true
-    setTimeout(() => { emailModal.value.show = false }, 1500)
-  } catch (err) { emailModal.value.error = 'Error.' } finally { emailModal.value.sending = false }
+    emailModal.value.show = false
+  } catch (err) { alert('Error sending email.') } finally { emailModal.value.sending = false }
 }
 
 async function deleteManufacturer(id) {
@@ -271,34 +286,111 @@ onMounted(() => { fetchManufacturers(); fetchTemplates() })
 </script>
 
 <style scoped>
-.container { max-width: 1200px; margin: 0 auto; padding: 2rem 1.5rem; }
+/* GENERAL LAYOUT */
+.container { max-width: 1200px; margin: 0 auto; padding: 2rem 1.5rem; font-family: 'Inter', sans-serif; color: #1f2937; }
 .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; }
-.form-card { background: white; padding: 2rem; border-radius: 16px; border: 1.5px solid #e5e7eb; margin-bottom: 2rem; }
-.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+h1 { font-size: 2rem; font-weight: 800; color: #111827; }
 
-.section-label { display: block; font-size: 0.8rem; font-weight: 800; color: #6b7280; text-transform: uppercase; margin-bottom: 0.5rem; letter-spacing: 0.05em; }
+/* FORM & INPUTS */
+.form-card { background: white; padding: 2rem; border-radius: 16px; border: 1px solid #e5e7eb; box-shadow: 0 10px 25px rgba(0,0,0,0.05); margin-bottom: 2.5rem; }
+.form-card h2 { margin-top: 0; margin-bottom: 1.5rem; font-size: 1.25rem; }
+.form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem; }
+input, textarea, select { width: 100%; padding: 0.7rem 1rem; border: 1.5px solid #d1d5db; border-radius: 10px; font-size: 0.95rem; background: #f9fafb; transition: all 0.2s; box-sizing: border-box; }
+input:focus, textarea:focus, select:focus { border-color: #6366f1; background: white; outline: none; box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1); }
+
+/* SECTIONS (Categories & Certs) */
+.mt-4 { margin-top: 1.5rem; }
+.section-label { display: block; font-size: 0.8rem; font-weight: 700; color: #6b7280; text-transform: uppercase; margin-bottom: 0.75rem; letter-spacing: 0.05em; }
 .categories-grid { display: flex; flex-wrap: wrap; gap: 0.5rem; }
-.category-checkbox { display: flex; align-items: center; gap: 0.5rem; background: #f3f4f6; padding: 0.4rem 0.8rem; border-radius: 8px; cursor: pointer; font-size: 0.85rem; }
-.category-checkbox:has(input:checked) { background: #eef2ff; border-color: #4f46e5; color: #4f46e5; }
+.category-checkbox { display: flex; align-items: center; gap: 0.5rem; background: #f3f4f6; padding: 0.5rem 0.8rem; border-radius: 8px; cursor: pointer; font-size: 0.85rem; border: 1px solid transparent; user-select: none; transition: all 0.2s; }
+.category-checkbox:hover { background: #e5e7eb; }
+.category-checkbox:has(input:checked) { background: #e0e7ff; border-color: #6366f1; color: #4338ca; font-weight: 600; }
+.category-checkbox input { margin: 0; cursor: pointer; }
+.multi-select-custom { height: 140px; padding: 0.5rem; }
+.multi-select-custom option { padding: 0.4rem; border-radius: 4px; margin-bottom: 2px; }
 
-/* SELECTOR MÚLTIPLE PERSONALIZADO */
-.multi-select-custom { height: 120px; border-radius: 12px; padding: 0.5rem; }
+/* FILTERS */
+.filters { display: flex; gap: 1rem; align-items: center; margin-bottom: 2rem; flex-wrap: wrap; background: white; padding: 1rem; border-radius: 12px; border: 1px solid #e5e7eb; }
+.search-input { flex: 1; min-width: 200px; margin: 0; background: white; }
+.filter-select { width: auto; min-width: 150px; margin: 0; background: white; }
 
-.btn-view-certs { background: #fff7ed; color: #c2410c; border: 1px solid #ffedd5; padding: 0.3rem 0.7rem; border-radius: 8px; font-size: 0.8rem; font-weight: 600; cursor: pointer; }
-.cert-list-popup { display: flex; flex-direction: column; gap: 0.6rem; padding: 0.5rem 0; }
-.cert-item { font-size: 0.95rem; color: #1f2937; font-weight: 500; }
+/* CARDS GRID & LAYOUT */
+.cards-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1.5rem; }
+.card { background: white; border-radius: 16px; border: 1px solid #e5e7eb; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); display: flex; flex-direction: column; height: 100%; transition: transform 0.2s, box-shadow 0.2s; }
+.card:hover { transform: translateY(-3px); box-shadow: 0 10px 15px -3px rgba(0,0,0,0.08); border-color: #cbd5e1; }
+.card-content { padding: 1.5rem; flex-grow: 1; display: flex; flex-direction: column; }
 
-.cards-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1.25rem; }
-.card { background: white; border-radius: 16px; padding: 1.5rem; border: 1.5px solid #e5e7eb; display: flex; flex-direction: column; }
-.card-avatar { width: 48px; height: 48px; background: linear-gradient(135deg, #667eea, #764ba2); color: white; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-weight: bold; }
-.category-tag { background: #f0fdf4; color: #16a34a; padding: 0.15rem 0.5rem; border-radius: 6px; font-size: 0.75rem; font-weight: 600; margin-right: 0.3rem; }
+/* CARD HEADER */
+.card-top { display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 1px solid #f3f4f6; }
+.card-avatar { width: 50px; height: 50px; background: linear-gradient(135deg, #6366f1, #8b5cf6); color: white; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.4rem; font-weight: 800; flex-shrink: 0; }
+.card-title h3 { margin: 0 0 0.3rem 0; font-size: 1.1rem; font-weight: 700; color: #111827; line-height: 1.2; }
+.country-badge { background: #f3f4f6; color: #4b5563; padding: 0.2rem 0.6rem; border-radius: 20px; font-size: 0.75rem; font-weight: 600; display: inline-block; }
 
-.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 200; display: flex; align-items: center; justify-content: center; }
-.modal { background: white; border-radius: 20px; width: 90%; max-width: 600px; padding: 2rem; max-height: 90vh; overflow-y: auto; }
+/* CARD BODY (INFO) */
+.card-body { display: flex; flex-direction: column; gap: 1.2rem; }
+.info-group { display: flex; flex-direction: column; gap: 0.5rem; }
+.info-row { display: flex; align-items: center; gap: 0.6rem; font-size: 0.9rem; color: #4b5563; }
+.info-row.align-start { align-items: flex-start; }
+.info-icon { font-size: 1rem; flex-shrink: 0; opacity: 0.8; }
+.info-row a { color: #6366f1; text-decoration: none; font-weight: 500; }
+.info-row a:hover { text-decoration: underline; }
+
+/* TAGS & CERTS IN CARD */
+.tags-section { display: flex; flex-direction: column; gap: 0.8rem; background: #f8fafc; padding: 0.8rem; border-radius: 10px; border: 1px dashed #cbd5e1; }
+.tags-container { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.category-tag { background: #e0e7ff; color: #4338ca; padding: 0.2rem 0.6rem; border-radius: 6px; font-size: 0.75rem; font-weight: 600; }
+.btn-view-certs { background: white; color: #0ea5e9; border: 1px solid #bae6fd; padding: 0.3rem 0.8rem; border-radius: 6px; font-size: 0.8rem; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+.btn-view-certs:hover { background: #f0f9ff; border-color: #7dd3fc; }
+
+/* NOTES & LOGS */
+.notes-row { font-style: italic; color: #6b7280; background: #f9fafb; padding: 0.8rem; border-radius: 8px; border-left: 3px solid #d1d5db; align-items: flex-start; }
+.email-history { margin-top: 0.5rem; padding-top: 1rem; border-top: 1px dashed #e5e7eb; display: flex; flex-direction: column; gap: 0.5rem; }
+.reach-date { font-size: 0.82rem; color: #6b7280; display: flex; align-items: center; gap: 0.4rem; background: #f3f4f6; padding: 0.4rem 0.6rem; border-radius: 6px; }
+.log-icon { font-size: 0.9rem; }
+.overdue { background-color: #fef2f2; color: #b91c1c; font-weight: 600; border: 1px solid #fecaca; }
+
+/* REDESIGNED CARD ACTIONS (BOTTOM) */
+.card-actions { 
+  margin-top: auto; /* Empuja los botones al fondo */
+  padding: 1.2rem 1.5rem; 
+  background: #f8fafc; /* Fondo gris súper claro para separar el área de botones */
+  border-top: 1px solid #e5e7eb; 
+  border-radius: 0 0 16px 16px; 
+  display: flex; 
+  gap: 0.6rem; 
+  align-items: center;
+  flex-wrap: wrap;
+}
+.spacer { flex-grow: 1; } /* Empuja el botón de borrar al extremo derecho */
+
+.btn-action { display: flex; align-items: center; gap: 0.3rem; padding: 0.5rem 0.8rem; border-radius: 8px; font-size: 0.85rem; font-weight: 600; border: none; cursor: pointer; transition: all 0.2s; }
+.btn-edit { background: #e0e7ff; color: #4338ca; }
+.btn-edit:hover { background: #c7d2fe; }
+.btn-log { background: #e2e8f0; color: #475569; }
+.btn-log:hover { background: #cbd5e1; }
+.btn-email { background: #dcfce7; color: #16a34a; }
+.btn-email:hover { background: #bbf7d0; }
+.btn-delete { background: #fee2e2; color: #dc2626; padding: 0.5rem; } /* Más cuadrado */
+.btn-delete:hover { background: #fecaca; }
+
+/* MODALS */
+.modal-overlay { position: fixed; inset: 0; background: rgba(17, 24, 39, 0.6); z-index: 100; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(2px); padding: 1rem; }
+.modal { background: white; border-radius: 20px; width: 100%; max-width: 600px; padding: 2rem; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25); max-height: 90vh; overflow-y: auto; }
 .max-w-400 { max-width: 400px; }
+.modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; border-bottom: 1px solid #f3f4f6; padding-bottom: 1rem; }
+.modal-header h2 { margin: 0; font-size: 1.25rem; color: #111827; }
+.modal-close { background: #f3f4f6; border: none; width: 32px; height: 32px; border-radius: 8px; cursor: pointer; color: #6b7280; display: flex; align-items: center; justify-content: center; transition: background 0.2s; }
+.modal-close:hover { background: #e5e7eb; color: #111827; }
 
-input, textarea, select { width: 100%; padding: 0.7rem; border: 1.5px solid #e5e7eb; border-radius: 10px; font-size: 0.9rem; }
-.btn-primary { background: #4f46e5; color: white; border: none; padding: 0.65rem 1.3rem; border-radius: 10px; cursor: pointer; font-weight: 600; }
-.btn-secondary { background: #f3f4f6; border: none; padding: 0.5rem 1rem; border-radius: 8px; cursor: pointer; }
-.btn-danger { background: #fff1f2; color: #e11d48; border: none; padding: 0.5rem 1rem; border-radius: 8px; cursor: pointer; }
+/* POPUP CERT LIST */
+.cert-list-popup { display: flex; flex-direction: column; gap: 0.8rem; }
+.cert-item { background: #f8fafc; padding: 0.8rem 1rem; border-radius: 8px; border: 1px solid #e2e8f0; font-size: 0.95rem; font-weight: 500; color: #334155; display: flex; gap: 0.6rem; align-items: center; }
+
+/* GLOBAL BUTTONS */
+.btn-primary { background: linear-gradient(135deg, #6366f1, #8b5cf6); color: white; border: none; padding: 0.7rem 1.5rem; border-radius: 10px; cursor: pointer; font-weight: 600; font-size: 0.95rem; transition: opacity 0.2s; }
+.btn-primary:hover { opacity: 0.9; }
+.btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-secondary { background: #f3f4f6; color: #4b5563; border: none; padding: 0.7rem 1.5rem; border-radius: 10px; cursor: pointer; font-weight: 600; }
+.btn-clear { background: #f3f4f6; color: #6b7280; border: none; padding: 0.7rem 1rem; border-radius: 8px; cursor: pointer; font-weight: 600; margin: 0; }
+.loading, .empty { text-align: center; padding: 3rem; color: #6b7280; font-size: 1.1rem; }
 </style>
