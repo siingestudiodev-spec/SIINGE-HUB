@@ -150,7 +150,15 @@
         </div>
 
         <div class="modal-field"><label>Subject</label><input v-model="emailModal.subject" /></div>
-        <div class="modal-field"><label>Message</label><textarea v-model="emailModal.body" rows="12"></textarea></div>
+        
+        <div class="modal-field">
+          <label>Message</label>
+          <textarea v-model="emailModal.body" rows="12"></textarea>
+          <div class="signature-notice mt-2">
+            ✨ Your SIINGE STUDIO signature will be automatically attached at the bottom.
+          </div>
+        </div>
+        
         <div class="modal-actions mt-4">
           <button @click="emailModal.show = false" class="btn-secondary">Cancel</button>
           <button @click="sendEmail" class="btn-primary" :disabled="emailModal.sending || (!emailModal.subject || !emailModal.body)">
@@ -171,6 +179,38 @@ import emailjs from '@emailjs/browser'
 const EMAILJS_SERVICE_ID  = 'service_vxy88pq'
 const EMAILJS_TEMPLATE_ID = 'template_44apzvs'
 const EMAILJS_PUBLIC_KEY  = 'CFmOQW7RjLSBDwIOV'
+
+// ---- CÓDIGO HTML DE TU FIRMA ----
+const htmlSignature = `<br><br><table cellpadding="0" cellspacing="0" style="border-collapse: collapse; line-height: 1.15; width: 100%;" id="isPasted" width="100%">
+	<tbody valign="middle">
+		<tr valign="inherit">
+			<td style="vertical-align:middle;padding:.01px 12px 0.01px 1px;width:92px;text-align:center;" valign="middle" align="center"><img border="0" src="https://permanent-assets-download.flockmail.com/signature/2408373/2024-06-03_36c3cd811224bc3a55b5_55761" width="92" alt="photo" style="width: 78px; vertical-align: middle; border-radius: 0px; height: 83px; border: 0px; display: block;"></td>
+			<td valign="top" style="padding:.01px 0.01px 0.01px 12px;vertical-align:top;border-left:solid 1px #BDBDBD;"><strong><strong><br></strong></strong>
+				<table cellpadding="0" cellspacing="0" style="border-collapse: collapse; width: 100%;" width="100%">
+					<tbody valign="middle">
+						<tr valign="inherit">
+							<td style="padding:.01px;" valign="inherit">
+								<p style="margin:.1px;line-height:108.0%;font-size:16px;"><span style="font-size: 12pt;"><strong><strong>Luis Domínguez</strong><br style="color: rgb(51, 51, 51); font-family: Arial, sans-serif; font-size: 14px; font-weight: 400;"></strong></span><span style="color: rgb(51, 51, 51); font-family: Arial, sans-serif; font-size: 11pt; font-weight: 400; display: inline !important;"><strong>Product Operations Manager</strong></span></p>
+								<p style="margin:.1px;line-height:108.0%;font-size:16px;"><span style="color: rgb(51, 51, 51); font-family: Arial, sans-serif; font-size: 11pt; font-weight: 400; display: inline !important;"><strong>​</strong></span>
+									<br style="color: rgb(51, 51, 51); font-family: Arial, sans-serif; font-size: 14px; font-weight: 400;"><span style="color: rgb(51, 51, 51); font-family: Arial, sans-serif; font-size: 14px; font-weight: 400; display: inline !important;">+57 350 201 4528 &nbsp; | &nbsp;&nbsp;</span><a href="https://www.siinge.studio/" style="color: rgb(76, 140, 246); font-family: Arial, sans-serif; font-size: 14px; font-weight: 400;" target="_blank">www.siinge.studio</a>
+									<br style="color: rgb(51, 51, 51); font-family: Arial, sans-serif; font-size: 14px; font-weight: 400;"><a href="mailto:production@siinge.studio" style="color: rgb(76, 140, 246); font-family: Arial, sans-serif; font-size: 14px; font-weight: 400;" target="_blank">production@siinge.studio</a></p>
+							</td>
+						</tr>
+					</tbody>
+				</table>
+			</td>
+		</tr>
+	</tbody>
+</table>
+<table cellpadding="0" cellspacing="0" width="100%" style="width:100%;color:gray;border-top:1px solid gray;line-height:normal;margin-top:10px;">
+	<tbody valign="middle">
+		<tr valign="inherit">
+			<td style="padding:9px 8px 0 0;" valign="inherit">
+				<p style="color:#888888;text-align:left;font-size:10px;margin:1px;line-height:120%;font-family:Arial ;">IMPORTANT: The contents of this email and any attachments are confidential. They are intended for the named recipient(s) only. If you have received this email by mistake, please notify the sender immediately and do not disclose the contents to anyone or make copies thereof.</p>
+			</td>
+		</tr>
+	</tbody>
+</table>`
 
 const manufacturers = ref([])
 const templatesList = ref([])
@@ -251,10 +291,11 @@ function openEmailModal(m) {
   emailModal.value = { show: true, to: m.email, subject: '', body: '', sending: false, success: false, error: '', manufacturerId: m.id, companyName: m.company_name, selectedTemplate: '', isInitialReach: false } 
 }
 
-// ---- FUNCIÓN NUEVA: ABRIR MODAL CON INITIAL REACH PRECARGADO ----
 function openInitialReachModal(m) {
   const categoryText = m.product_categories ? m.product_categories : 'various apparel categories'
   const subject = 'Manufacturing Partnership Inquiry | SIINGE STUDIO'
+  
+  // Nota: Ya no incluimos "Best regards, Luis" aquí porque la firma HTML ya lo trae.
   const body = `Hi ${m.company_name},
 
 My name is Luis and I manage Product Operations at SIINGE STUDIO, a US-based apparel development and production partner supporting brands across ${categoryText}.
@@ -272,10 +313,7 @@ At SIINGE, we operate within a structured partnership framework designed to main
 
 Once alignment is confirmed, our onboarding process includes a mutual NDA and Manufacturing Master Agreement to standardize expectations across projects.
 
-If there appears to be mutual fit, we would be glad to continue over email or schedule a short introductory call to learn more about your current capabilities and production focus.
-
-Best regards,
-Luis`
+If there appears to be mutual fit, we would be glad to continue over email or schedule a short introductory call to learn more about your current capabilities and production focus.`
 
   emailModal.value = { 
     show: true, 
@@ -288,7 +326,7 @@ Luis`
     manufacturerId: m.id, 
     companyName: m.company_name, 
     selectedTemplate: '',
-    isInitialReach: true // Esta bandera nos ayuda a guardar el log correctamente
+    isInitialReach: true 
   }
 }
 
@@ -308,11 +346,21 @@ async function logExternalContact(m) {
   fetchManufacturers()
 }
 
-// ---- ENVÍO UNIFICADO (Detecta si es Initial Reach o Custom) ----
 async function sendEmail() {
   emailModal.value.sending = true
   try {
-    await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, { to_email: emailModal.value.to, subject: emailModal.value.subject, message: emailModal.value.body }, EMAILJS_PUBLIC_KEY)
+    // ENVIAMOS EL MENSAJE + LA FIRMA COMO UNA VARIABLE SEPARADA
+    await emailjs.send(
+      EMAILJS_SERVICE_ID, 
+      EMAILJS_TEMPLATE_ID, 
+      { 
+        to_email: emailModal.value.to, 
+        subject: emailModal.value.subject, 
+        message: emailModal.value.body,
+        signature: htmlSignature // <--- Aquí inyectamos tu firma
+      }, 
+      EMAILJS_PUBLIC_KEY
+    )
     
     const sentAt = new Date().toISOString()
     const templateName = emailModal.value.isInitialReach ? 'Initial Reach' : (emailModal.value.selectedTemplate?.name || 'Custom Email')
@@ -329,7 +377,12 @@ async function sendEmail() {
     
     fetchManufacturers()
     emailModal.value.show = false
-  } catch (err) { alert('Error sending email.') } finally { emailModal.value.sending = false }
+  } catch (err) { 
+    alert('Error sending email. Check console.') 
+    console.error(err)
+  } finally { 
+    emailModal.value.sending = false 
+  }
 }
 
 async function deleteManufacturer(id) {
@@ -432,7 +485,6 @@ input:focus, textarea:focus, select:focus { border-color: #6366f1; background: w
 .btn-delete { background: #fee2e2; color: #dc2626; } 
 .btn-delete:hover { background: #fecaca; }
 
-/* BOTÓN INITIAL REACH */
 .btn-initial-reach { background: #e0f2fe; color: #0284c7; }
 .btn-initial-reach:hover:not(:disabled) { background: #bae6fd; }
 
@@ -444,6 +496,8 @@ input:focus, textarea:focus, select:focus { border-color: #6366f1; background: w
 .modal-header h2 { margin: 0; font-size: 1.25rem; color: #111827; }
 .modal-close { background: #f3f4f6; border: none; width: 32px; height: 32px; border-radius: 8px; cursor: pointer; color: #6b7280; display: flex; align-items: center; justify-content: center; transition: background 0.2s; }
 .modal-close:hover { background: #e5e7eb; color: #111827; }
+
+.signature-notice { background: #fefce8; color: #ca8a04; padding: 0.5rem 0.8rem; border-radius: 8px; font-size: 0.85rem; font-weight: 500; border: 1px dashed #fde047; }
 
 /* POPUP CERT LIST */
 .cert-list-popup { display: flex; flex-direction: column; gap: 0.8rem; }
