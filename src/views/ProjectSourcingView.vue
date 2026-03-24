@@ -31,8 +31,7 @@
                 {{ item.is_approved ? '✅ Approved' : '○ Pending' }}
               </button>
             </div>
-            <span class="category-badge">{{ item.sourcing?.types?.[0] || 'General' }}</span>
-          </div>
+            </div>
         </div>
         
         <div class="card-body border-b pb-3 mb-3">
@@ -75,13 +74,13 @@
           <div v-if="form.sourcing_id" class="project-details-section">
             <label class="section-label">2. Approval & Specification Info</label>
             <div class="form-grid">
-              <div class="modal-field"><label>Placement *</label><input v-model="form.placement" /></div>
-              <div class="modal-field"><label>Fabric/Trim *</label><input v-model="form.specific_name" /></div>
+              <div class="modal-field"><label>Placement *</label><input v-model="form.placement" placeholder="e.g., Body Fabric, Elastic" /></div>
+              <div class="modal-field"><label>Specific Fabric/Trim *</label><input v-model="form.specific_name" placeholder="e.g., Isee Cotton Span" /></div>
               <div class="modal-field"><label>Color</label><input v-model="form.color" /></div>
               <div class="modal-field"><label>Brand</label><input v-model="form.brand" /></div>
-              <div class="modal-field"><label>Quantity</label><input v-model="form.quantity" /></div>
+              <div class="modal-field"><label>Target Quantity</label><input v-model="form.quantity" /></div>
             </div>
-            <div class="modal-field mt-2"><label>Notes</label><textarea v-model="form.project_notes" rows="2"></textarea></div>
+            <div class="modal-field mt-2"><label>Additional Notes</label><textarea v-model="form.project_notes" placeholder="Specific requirements or warnings..." rows="2"></textarea></div>
           </div>
         </div>
         <div class="modal-actions">
@@ -186,7 +185,6 @@ h1 { font-size: 2rem; font-weight: 700; color: #1a1a2e; }
 .card-title { flex: 1; }
 .card-title h3 { font-size: 1.05rem; font-weight: 700; color: #1a1a2e; margin: 0; }
 
-/* ESTILO DEL BOTÓN TOGGLE */
 .btn-approve-toggle {
   padding: 0.3rem 0.6rem;
   border-radius: 8px;
@@ -204,7 +202,8 @@ h1 { font-size: 2rem; font-weight: 700; color: #1a1a2e; }
   border-color: #10b981;
 }
 
-.category-badge { background: #f3f4f6; color: #4b5563; padding: 0.2rem 0.6rem; border-radius: 20px; font-size: 0.78rem; font-weight: 500; margin-top: 0.25rem; display: inline-block; }
+/* CORRECCIÓN: ESTILO .category-badge ELIMINADO YA QUE NO SE USA */
+
 .card-body { margin-bottom: 0.5rem; }
 .border-b { border-bottom: 1px solid #e5e7eb; }
 .pb-3 { padding-bottom: 0.75rem; }
@@ -220,7 +219,6 @@ h1 { font-size: 2rem; font-weight: 700; color: #1a1a2e; }
 .btn-danger { background: #fff1f2; color: #e11d48; border: none; padding: 0.5rem 1rem; border-radius: 8px; cursor: pointer; font-size: 0.85rem; }
 .loading, .empty { text-align: center; padding: 3rem; color: #9ca3af; }
 
-/* MODAL */
 .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 100; display: flex; align-items: center; justify-content: center; }
 .modal { background: white; border-radius: 20px; width: 100%; max-width: 600px; padding: 2rem; box-shadow: 0 20px 50px rgba(0,0,0,0.2); }
 .modal-header { display: flex; justify-content: space-between; margin-bottom: 1.5rem; }
