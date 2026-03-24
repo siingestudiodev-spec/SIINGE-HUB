@@ -14,11 +14,23 @@
     <div v-else-if="projectMaterials.length === 0" class="empty">No materials assigned to this project yet.</div>
     
     <div v-else class="cards-grid">
-      <div v-for="item in projectMaterials" :key="item.id" class="card">
+      <div v-for="item in projectMaterials" :key="item.id" class="card" :class="{ 'card-approved': item.is_approved }">
         <div class="card-top">
-          <div class="card-avatar">{{ item.placement?.charAt(0) || 'M' }}</div>
+          <div class="card-avatar" :class="{ 'avatar-approved': item.is_approved }">
+            {{ item.placement?.charAt(0) || 'M' }}
+          </div>
           <div class="card-title">
-            <h3>{{ item.placement || 'Material Component' }}</h3>
+            <div class="flex justify-between items-start">
+              <h3>{{ item.placement || 'Material Component' }}</h3>
+              <button 
+                @click="toggleApproval(item)" 
+                class="btn-approve-toggle"
+                :class="{ 'is-active': item.is_approved }"
+                :title="item.is_approved ? 'Unmark as Approved' : 'Mark as Approved'"
+              >
+                {{ item.is_approved ? '✅ Approved' : '○ Pending' }}
+              </button>
+            </div>
             <span class="category-badge">{{ item.sourcing?.types?.[0] || 'General' }}</span>
           </div>
         </div>
@@ -50,7 +62,6 @@
           <h2>📦 Add Material to Project</h2>
           <button @click="closeModal" class="modal-close">✕</button>
         </div>
-
         <div class="modal-body">
           <div class="modal-field">
             <label>1. Link to Global Supplier Database *</label>
@@ -61,43 +72,21 @@
               </option>
             </select>
           </div>
-
           <div v-if="form.sourcing_id" class="project-details-section">
             <label class="section-label">2. Approval & Specification Info</label>
             <div class="form-grid">
-              <div class="modal-field">
-                <label>Placement / Component *</label>
-                <input v-model="form.placement" placeholder="e.g., Body Fabric, Elastic" />
-              </div>
-              <div class="modal-field">
-                <label>Specific Fabric/Trim *</label>
-                <input v-model="form.specific_name" placeholder="e.g., Isee Cotton Span" />
-              </div>
-              <div class="modal-field">
-                <label>Color</label>
-                <input v-model="form.color" placeholder="e.g., Blue Ribbon" />
-              </div>
-              <div class="modal-field">
-                <label>Brand</label>
-                <input v-model="form.brand" placeholder="e.g., Vevesi" />
-              </div>
-              <div class="modal-field">
-                <label>Target Quantity</label>
-                <input v-model="form.quantity" placeholder="e.g., 500 yds" />
-              </div>
+              <div class="modal-field"><label>Placement *</label><input v-model="form.placement" /></div>
+              <div class="modal-field"><label>Fabric/Trim *</label><input v-model="form.specific_name" /></div>
+              <div class="modal-field"><label>Color</label><input v-model="form.color" /></div>
+              <div class="modal-field"><label>Brand</label><input v-model="form.brand" /></div>
+              <div class="modal-field"><label>Quantity</label><input v-model="form.quantity" /></div>
             </div>
-            <div class="modal-field mt-2">
-              <label>Additional Notes</label>
-              <textarea v-model="form.project_notes" placeholder="Specific requirements..." rows="2"></textarea>
-            </div>
+            <div class="modal-field mt-2"><label>Notes</label><textarea v-model="form.project_notes" rows="2"></textarea></div>
           </div>
         </div>
-
         <div class="modal-actions">
           <button @click="closeModal" class="btn-secondary">Cancel</button>
-          <button @click="addMaterialToProject" class="btn-primary" :disabled="!form.sourcing_id || !form.placement || saving">
-            {{ saving ? 'Saving...' : 'Save Approved Material' }}
-          </button>
+          <button @click="addMaterialToProject" class="btn-primary" :disabled="!form.sourcing_id || !form.placement || saving">Save Material</button>
         </div>
       </div>
     </div>
@@ -119,9 +108,7 @@ const projectMaterials = ref([])
 const fullSourcingList = ref([])
 const showModal = ref(false)
 
-const form = ref({
-  sourcing_id: '', placement: '', specific_name: '', color: '', brand: '', quantity: '', target_price: '', project_notes: ''
-})
+const form = ref({ sourcing_id: '', placement: '', specific_name: '', color: '', brand: '', quantity: '', target_price: '', project_notes: '' })
 
 function goBack() { router.push('/projects') }
 
@@ -129,32 +116,30 @@ async function fetchProjectMaterials() {
   loading.value = true
   const { data, error } = await supabase
     .from('project_materials')
-    .select(`id, placement, specific_name, color, brand, quantity, target_price, project_notes, sourcing:sourcing_id (id, provider, types, country)`)
+    .select(`id, placement, specific_name, color, brand, quantity, target_price, project_notes, is_approved, sourcing:sourcing_id (id, provider, types, country)`)
     .eq('project_id', projectId)
-  if (error) console.error("Error fetching project materials:", error)
+  if (error) console.error(error)
   projectMaterials.value = data || []
   loading.value = false
 }
 
 async function fetchFullSourcingList() {
-  const { data, error } = await supabase.from('sourcing').select('*').order('provider')
-  
-  // LOG PARA DEPURACIÓN: Esto nos dirá exactamente por qué no aparecen las fábricas
-  if (error) {
-    console.error("❌ SUPABASE ERROR OBTENIENDO FÁBRICAS:", error)
-  } else {
-    console.log("✅ FÁBRICAS CARGADAS DESDE SUPABASE:", data)
-  }
-  
+  const { data } = await supabase.from('sourcing').select('*').order('provider')
   fullSourcingList.value = data || []
 }
 
-function openSourcingModal() {
-  form.value = { sourcing_id: '', placement: '', specific_name: '', color: '', brand: '', quantity: '', target_price: '', project_notes: '' }
-  showModal.value = true
-}
+// FUNCIÓN PARA EL TOGGLE DE APROBACIÓN
+async function toggleApproval(item) {
+  const newStatus = !item.is_approved
+  const { error } = await supabase
+    .from('project_materials')
+    .update({ is_approved: newStatus })
+    .eq('id', item.id)
 
-function closeModal() { showModal.value = false }
+  if (!error) {
+    item.is_approved = newStatus // Actualiza la UI instantáneamente
+  }
+}
 
 async function addMaterialToProject() {
   if (!form.value.sourcing_id || !form.value.placement) return
@@ -162,76 +147,84 @@ async function addMaterialToProject() {
   const { error } = await supabase.from('project_materials').insert([{
     project_id: projectId, sourcing_id: form.value.sourcing_id, placement: form.value.placement,
     specific_name: form.value.specific_name, color: form.value.color, brand: form.value.brand,
-    quantity: form.value.quantity, target_price: form.value.target_price, project_notes: form.value.project_notes
+    quantity: form.value.quantity, project_notes: form.value.project_notes
   }])
-  if (error) alert("Error saving the material.")
-  else { await fetchProjectMaterials(); closeModal() }
+  if (!error) { await fetchProjectMaterials(); closeModal() }
   saving.value = false
 }
 
+function openSourcingModal() { form.value = { sourcing_id: '', placement: '', specific_name: '', color: '', brand: '', quantity: '', project_notes: '' }; showModal.value = true }
+function closeModal() { showModal.value = false }
+
 async function removeMaterial(id) {
-  if (!confirm('Remove this material from the project?')) return
+  if (!confirm('Remove this material?')) return
   await supabase.from('project_materials').delete().eq('id', id)
   fetchProjectMaterials()
 }
 
-onMounted(() => {
-  fetchProjectMaterials()
-  fetchFullSourcingList()
-})
+onMounted(() => { fetchProjectMaterials(); fetchFullSourcingList() })
 </script>
 
 <style scoped>
 .container { max-width: 1200px; margin: 0 auto; padding: 2rem 1.5rem; }
 .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; }
 .flex { display: flex; }
+.justify-between { justify-content: space-between; }
+.items-start { align-items: flex-start; }
 .items-center { align-items: center; }
 .gap-4 { gap: 1rem; }
-h1 { font-size: 2rem; font-weight: 700; color: #1a1a2e; margin: 0; }
+h1 { font-size: 2rem; font-weight: 700; color: #1a1a2e; }
+
 .cards-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1.25rem; }
-.card { background: white; border-radius: 16px; padding: 1.5rem; border: 1.5px solid #e5e7eb; box-shadow: 0 2px 12px rgba(0,0,0,0.05); transition: transform 0.18s, box-shadow 0.18s; display: flex; flex-direction: column; }
-.card:hover { transform: translateY(-4px); box-shadow: 0 12px 32px rgba(79,70,229,0.12); border-color: #c7d2fe; }
+.card { background: white; border-radius: 16px; padding: 1.5rem; border: 1.5px solid #e5e7eb; transition: all 0.2s; display: flex; flex-direction: column; }
+.card-approved { border-color: #10b981; box-shadow: 0 4px 20px rgba(16, 185, 129, 0.1); background: #f0fdf4; }
+
 .card-top { display: flex; align-items: center; gap: 1rem; margin-bottom: 1.25rem; }
-.card-avatar { width: 48px; height: 48px; background: linear-gradient(135deg, #f59e0b, #d97706); color: white; font-weight: 700; font-size: 1.3rem; border-radius: 12px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.card-title h3 { font-size: 1.05rem; font-weight: 700; color: #1a1a2e; margin-bottom: 0.25rem; }
-.category-badge { background: #fef3c7; color: #d97706; padding: 0.2rem 0.6rem; border-radius: 20px; font-size: 0.78rem; font-weight: 500; }
+.card-avatar { width: 48px; height: 48px; background: #9ca3af; color: white; font-weight: 700; font-size: 1.3rem; border-radius: 12px; display: flex; align-items: center; justify-content: center; }
+.avatar-approved { background: linear-gradient(135deg, #10b981, #059669); }
+
+.card-title { flex: 1; }
+.card-title h3 { font-size: 1.05rem; font-weight: 700; color: #1a1a2e; margin: 0; }
+
+/* ESTILO DEL BOTÓN TOGGLE */
+.btn-approve-toggle {
+  padding: 0.3rem 0.6rem;
+  border-radius: 8px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid #d1d5db;
+  background: white;
+  color: #6b7280;
+  transition: all 0.2s;
+}
+.btn-approve-toggle.is-active {
+  background: #10b981;
+  color: white;
+  border-color: #10b981;
+}
+
+.category-badge { background: #f3f4f6; color: #4b5563; padding: 0.2rem 0.6rem; border-radius: 20px; font-size: 0.78rem; font-weight: 500; margin-top: 0.25rem; display: inline-block; }
 .card-body { margin-bottom: 0.5rem; }
-.border-b { border-bottom: 1px solid #f3f4f6; }
+.border-b { border-bottom: 1px solid #e5e7eb; }
 .pb-3 { padding-bottom: 0.75rem; }
 .mb-3 { margin-bottom: 0.75rem; }
-.mb-2 { margin-bottom: 0.5rem; }
-.mt-2 { margin-top: 0.5rem; }
-.text-xs { font-size: 0.75rem; }
-.uppercase { text-transform: uppercase; letter-spacing: 0.05em; }
-.text-gray-500 { color: #6b7280; }
-.text-indigo-500 { color: #4f46e5; }
-.font-semibold { font-weight: 600; }
-.info-row { display: flex; align-items: flex-start; gap: 0.5rem; margin-bottom: 0.45rem; font-size: 0.88rem; color: #4b5563; }
-.info-row strong { color: #111827; font-weight: 600; min-width: 65px; }
-.info-icon { flex-shrink: 0; }
+.text-xs { font-size: 0.75rem; text-transform: uppercase; color: #6b7280; font-weight: 600; }
+.info-row { display: flex; align-items: flex-start; gap: 0.5rem; margin-bottom: 0.4rem; font-size: 0.88rem; color: #4b5563; }
+.info-row strong { color: #111827; min-width: 65px; }
 .notes-row { color: #9ca3af !important; font-style: italic; margin-top: 0.5rem; }
-.card-actions { display: flex; gap: 0.5rem; padding-top: 1rem; border-top: 1px solid #f3f4f6; flex-wrap: wrap; margin-top: auto; justify-content: flex-end; }
-.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 100; display: flex; align-items: center; justify-content: center; padding: 1rem; }
-.modal { background: white; border-radius: 20px; width: 100%; max-width: 600px; max-height: 90vh; overflow-y: auto; padding: 2rem; box-shadow: 0 24px 64px rgba(0,0,0,0.18); }
-.modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; }
-.modal-header h2 { font-size: 1.15rem; font-weight: 700; color: #1a1a2e; }
-.modal-close { background: #f3f4f6; border: none; width: 32px; height: 32px; border-radius: 8px; cursor: pointer; font-size: 1rem; color: #6b7280; }
-.modal-close:hover { background: #e5e7eb; }
-.modal-body { margin-bottom: 1.5rem; }
-.modal-field { margin-bottom: 1rem; }
-.modal-field label { display: block; font-size: 0.8rem; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.4rem; }
-.section-label { display: block; font-size: 0.8rem; font-weight: 600; color: #111827; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 1rem; border-bottom: 1px solid #e5e7eb; padding-bottom: 0.5rem; }
-.project-details-section { background: #f9fafb; padding: 1.5rem; border-radius: 12px; border: 1px solid #e5e7eb; margin-top: 1.5rem; }
-.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
-input, select, textarea { width: 100%; padding: 0.7rem 1rem; border: 1.5px solid #e5e7eb; border-radius: 10px; font-size: 0.92rem; color: #1a1a2e; box-sizing: border-box; background: white; font-family: 'Inter', sans-serif; transition: border-color 0.15s; }
-input:focus, select:focus, textarea:focus { outline: none; border-color: #4f46e5; }
-textarea { resize: vertical; }
-.w-full { width: 100%; }
-.modal-actions { display: flex; gap: 0.75rem; justify-content: flex-end; border-top: 1px solid #e5e7eb; padding-top: 1.5rem; }
-.btn-primary { background: linear-gradient(135deg, #667eea, #764ba2); color: white; border: none; padding: 0.65rem 1.3rem; border-radius: 10px; cursor: pointer; font-size: 0.92rem; font-weight: 600; transition: opacity 0.15s, transform 0.15s; }
-.btn-primary:hover:not(:disabled) { opacity: 0.9; transform: translateY(-1px); }
-.btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
-.btn-secondary { background: #eef2ff; color: #4f46e5; border: none; padding: 0.5rem 1rem; border-radius: 8px; cursor: pointer; font-size: 0.88rem; font-weight: 500; }
-.btn-danger { background: #fff1f2; color: #e11d48; border: none; padding: 0.5rem 1rem; border-radius: 8px; cursor: pointer; font-size: 0.88rem; font-weight: 500; }
+
+.card-actions { display: flex; gap: 0.5rem; padding-top: 1rem; border-top: 1px solid #e5e7eb; margin-top: auto; justify-content: flex-end; }
+.btn-primary { background: linear-gradient(135deg, #667eea, #764ba2); color: white; border: none; padding: 0.65rem 1.3rem; border-radius: 10px; cursor: pointer; font-weight: 600; }
+.btn-secondary { background: #eef2ff; color: #4f46e5; border: none; padding: 0.5rem 1rem; border-radius: 8px; cursor: pointer; }
+.btn-danger { background: #fff1f2; color: #e11d48; border: none; padding: 0.5rem 1rem; border-radius: 8px; cursor: pointer; font-size: 0.85rem; }
 .loading, .empty { text-align: center; padding: 3rem; color: #9ca3af; }
+
+/* MODAL */
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 100; display: flex; align-items: center; justify-content: center; }
+.modal { background: white; border-radius: 20px; width: 100%; max-width: 600px; padding: 2rem; box-shadow: 0 20px 50px rgba(0,0,0,0.2); }
+.modal-header { display: flex; justify-content: space-between; margin-bottom: 1.5rem; }
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+input, select, textarea { width: 100%; padding: 0.7rem; border: 1.5px solid #e5e7eb; border-radius: 10px; }
+.modal-actions { display: flex; gap: 1rem; justify-content: flex-end; margin-top: 1.5rem; }
 </style>
