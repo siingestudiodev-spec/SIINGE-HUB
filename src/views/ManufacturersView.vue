@@ -106,17 +106,14 @@
         </div>
 
         <div class="card-actions">
-          <button @click="editManufacturer(m)" class="btn-action btn-edit" title="Edit">✏️</button>
-          <button @click="logExternalContact(m)" class="btn-action btn-log" title="Log manual contact">📝</button>
+          <button @click="editManufacturer(m)" class="btn-action btn-edit">✏️ EDIT</button>
+          <button @click="logExternalContact(m)" class="btn-action btn-log">📝 LOG</button>
           
-          <button v-if="m.email" @click="sendInitialReach(m)" class="btn-action btn-initial-reach" title="Send Initial Reach Email" :disabled="sendingReachId === m.id">
-            {{ sendingReachId === m.id ? '⏳...' : '🚀 Reach' }}
-          </button>
-
-          <button v-if="m.email" @click="openEmailModal(m)" class="btn-action btn-email" title="Custom Email">✉️ Email</button>
+          <button v-if="m.email" @click="openInitialReachModal(m)" class="btn-action btn-initial-reach">🚀 INITIAL REACH</button>
+          <button v-if="m.email" @click="openEmailModal(m)" class="btn-action btn-email">✉️ EMAIL</button>
           
           <div class="spacer"></div>
-          <button @click="deleteManufacturer(m.id)" class="btn-action btn-delete" title="Delete">🗑️</button>
+          <button @click="deleteManufacturer(m.id)" class="btn-action btn-delete">🗑️ DELETE</button>
         </div>
 
       </div>
@@ -139,19 +136,21 @@
     <div v-if="emailModal.show" class="modal-overlay" @click.self="emailModal.show = false">
       <div class="modal">
         <div class="modal-header">
-          <h2>✉️ Send Email to {{ emailModal.companyName }}</h2>
+          <h2>{{ emailModal.isInitialReach ? '🚀 Send Initial Reach' : '✉️ Send Email' }} to {{ emailModal.companyName }}</h2>
           <button @click="emailModal.show = false" class="modal-close">✕</button>
         </div>
         <div class="modal-field"><label>To</label><input v-model="emailModal.to" /></div>
-        <div class="modal-field">
+        
+        <div class="modal-field" v-if="!emailModal.isInitialReach">
           <label>Select Template</label>
           <select v-model="emailModal.selectedTemplate" @change="applyTemplate">
             <option value="">-- Choose a template --</option>
             <option v-for="t in templatesList" :key="t.id" :value="t">{{ t.name }}</option>
           </select>
         </div>
+
         <div class="modal-field"><label>Subject</label><input v-model="emailModal.subject" /></div>
-        <div class="modal-field"><label>Message</label><textarea v-model="emailModal.body" rows="10"></textarea></div>
+        <div class="modal-field"><label>Message</label><textarea v-model="emailModal.body" rows="12"></textarea></div>
         <div class="modal-actions mt-4">
           <button @click="emailModal.show = false" class="btn-secondary">Cancel</button>
           <button @click="sendEmail" class="btn-primary" :disabled="emailModal.sending || (!emailModal.subject || !emailModal.body)">
@@ -183,9 +182,6 @@ const search = ref('')
 const filterCountry = ref('')
 const filterCategory = ref('')
 
-// Estado para rastrear si se está enviando el Initial Reach a un ID específico
-const sendingReachId = ref(null)
-
 const categoryOptions = ['Activewear', "Children's wear", 'Swimwear', 'Evening wear', 'Streetwear', 'Launchwear', 'Intimate Apparel', 'Leather Good', 'Accessories']
 const certOptions = ['OEKO-TEX STANDARD 100', 'ISO 45001', 'OCS100', 'UN Global Compact', 'GRS', 'ISO9001', 'amfori BSCI', 'SMETA', 'WRAP', 'SA8000', 'ISO 14001', 'OEKO-TEX STeP', 'bluesign®', 'GOTS']
 
@@ -194,7 +190,7 @@ const selectedCertifications = ref([])
 const certPopup = ref({ show: false, list: [] })
 
 const form = ref({ company_name: '', country: '', contact_name: '', phone: '', email: '', website: '', product_categories: '', certifications: '', notes: '' })
-const emailModal = ref({ show: false, to: '', subject: '', body: '', sending: false, success: false, error: '', manufacturerId: null, companyName: '', selectedTemplate: '' })
+const emailModal = ref({ show: false, to: '', subject: '', body: '', sending: false, success: false, error: '', manufacturerId: null, companyName: '', selectedTemplate: '', isInitialReach: false })
 
 const countries = computed(() => [...new Set(manufacturers.value.map(m => m.country).filter(Boolean))].sort())
 const categories = computed(() => {
@@ -251,33 +247,13 @@ async function fetchTemplates() {
 function openAddForm() { resetForm(); showForm.value = !showForm.value }
 function clearFilters() { search.value = ''; filterCountry.value = ''; filterCategory.value = '' }
 
-function openEmailModal(m) { emailModal.value = { show: true, to: m.email, subject: '', body: '', sending: false, success: false, error: '', manufacturerId: m.id, companyName: m.company_name, selectedTemplate: '' } }
-
-function applyTemplate() {
-  const t = emailModal.value.selectedTemplate
-  if (!t) return
-  emailModal.value.subject = t.subject.replace(/{{company_name}}/g, emailModal.value.companyName)
-  emailModal.value.body = t.body.replace(/{{company_name}}/g, emailModal.value.companyName)
+function openEmailModal(m) { 
+  emailModal.value = { show: true, to: m.email, subject: '', body: '', sending: false, success: false, error: '', manufacturerId: m.id, companyName: m.company_name, selectedTemplate: '', isInitialReach: false } 
 }
 
-async function logExternalContact(m) {
-  const note = prompt(`Log manual contact for ${m.company_name}:`, '')
-  if (!note) return
-  const sentAt = new Date().toISOString()
-  const updatedLogs = [...(m.email_logs || []), { templateName: note.trim(), sentAt }]
-  await supabase.from('manufacturers').update({ email_logs: updatedLogs, last_email_sent_at: sentAt }).eq('id', m.id)
-  fetchManufacturers()
-}
-
-// ---- FUNCIÓN NUEVA: ENVIAR INITIAL REACH AUTOMATIZADO ----
-async function sendInitialReach(m) {
-  if (!confirm(`Are you sure you want to send the Initial Reach email to ${m.company_name}?`)) return
-  
-  sendingReachId.value = m.id
-  
-  // Determinamos las categorías para el correo (o un texto por defecto si no tiene)
+// ---- FUNCIÓN NUEVA: ABRIR MODAL CON INITIAL REACH PRECARGADO ----
+function openInitialReachModal(m) {
   const categoryText = m.product_categories ? m.product_categories : 'various apparel categories'
-  
   const subject = 'Manufacturing Partnership Inquiry | SIINGE STUDIO'
   const body = `Hi ${m.company_name},
 
@@ -301,21 +277,48 @@ If there appears to be mutual fit, we would be glad to continue over email or sc
 Best regards,
 Luis`
 
-  try {
-    await emailjs.send(
-      EMAILJS_SERVICE_ID,
-      EMAILJS_TEMPLATE_ID,
-      {
-        to_email: m.email,
-        subject: subject,
-        message: body
-      },
-      EMAILJS_PUBLIC_KEY
-    )
+  emailModal.value = { 
+    show: true, 
+    to: m.email, 
+    subject: subject, 
+    body: body, 
+    sending: false, 
+    success: false, 
+    error: '', 
+    manufacturerId: m.id, 
+    companyName: m.company_name, 
+    selectedTemplate: '',
+    isInitialReach: true // Esta bandera nos ayuda a guardar el log correctamente
+  }
+}
 
-    // Guardar en Supabase
+function applyTemplate() {
+  const t = emailModal.value.selectedTemplate
+  if (!t) return
+  emailModal.value.subject = t.subject.replace(/{{company_name}}/g, emailModal.value.companyName)
+  emailModal.value.body = t.body.replace(/{{company_name}}/g, emailModal.value.companyName)
+}
+
+async function logExternalContact(m) {
+  const note = prompt(`Log manual contact for ${m.company_name}:`, '')
+  if (!note) return
+  const sentAt = new Date().toISOString()
+  const updatedLogs = [...(m.email_logs || []), { templateName: note.trim(), sentAt }]
+  await supabase.from('manufacturers').update({ email_logs: updatedLogs, last_email_sent_at: sentAt }).eq('id', m.id)
+  fetchManufacturers()
+}
+
+// ---- ENVÍO UNIFICADO (Detecta si es Initial Reach o Custom) ----
+async function sendEmail() {
+  emailModal.value.sending = true
+  try {
+    await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, { to_email: emailModal.value.to, subject: emailModal.value.subject, message: emailModal.value.body }, EMAILJS_PUBLIC_KEY)
+    
     const sentAt = new Date().toISOString()
-    const updatedLogs = [...(m.email_logs || []), { templateName: 'Initial Reach', sentAt }]
+    const templateName = emailModal.value.isInitialReach ? 'Initial Reach' : (emailModal.value.selectedTemplate?.name || 'Custom Email')
+    
+    const m = manufacturers.value.find(man => man.id === emailModal.value.manufacturerId)
+    const updatedLogs = [...(m.email_logs || []), { templateName: templateName, sentAt }]
     
     await supabase.from('manufacturers').update({ 
       initial_reach_sent: true, 
@@ -324,32 +327,13 @@ Luis`
       last_email_sent_at: sentAt 
     }).eq('id', m.id)
     
-    await fetchManufacturers()
-    alert('✅ Initial Reach sent successfully!')
-  } catch (err) {
-    console.error(err)
-    alert('❌ Error sending Initial Reach. Check your credentials.')
-  } finally {
-    sendingReachId.value = null
-  }
-}
-
-// ---- FUNCIÓN ORIGINAL: ENVIAR CUSTOM EMAIL ----
-async function sendEmail() {
-  emailModal.value.sending = true
-  try {
-    await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, { to_email: emailModal.value.to, subject: emailModal.value.subject, message: emailModal.value.body }, EMAILJS_PUBLIC_KEY)
-    const sentAt = new Date().toISOString()
-    const m = manufacturers.value.find(man => man.id === emailModal.value.manufacturerId)
-    const updatedLogs = [...(m.email_logs || []), { templateName: emailModal.value.selectedTemplate?.name || 'Custom Email', sentAt }]
-    await supabase.from('manufacturers').update({ initial_reach_sent: true, initial_reach_sent_at: sentAt, email_logs: updatedLogs, last_email_sent_at: sentAt }).eq('id', m.id)
     fetchManufacturers()
     emailModal.value.show = false
   } catch (err) { alert('Error sending email.') } finally { emailModal.value.sending = false }
 }
 
 async function deleteManufacturer(id) {
-  if (confirm('Delete?')) { await supabase.from('manufacturers').delete().eq('id', id); fetchManufacturers() }
+  if (confirm('Are you sure you want to delete this manufacturer?')) { await supabase.from('manufacturers').delete().eq('id', id); fetchManufacturers() }
 }
 
 function isOverdue(dateString) {
@@ -390,7 +374,7 @@ input:focus, textarea:focus, select:focus { border-color: #6366f1; background: w
 .filter-select { width: auto; min-width: 150px; margin: 0; background: white; }
 
 /* CARDS GRID & LAYOUT */
-.cards-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1.5rem; }
+.cards-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 1.5rem; }
 .card { background: white; border-radius: 16px; border: 1px solid #e5e7eb; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); display: flex; flex-direction: column; height: 100%; transition: transform 0.2s, box-shadow 0.2s; }
 .card:hover { transform: translateY(-3px); box-shadow: 0 10px 15px -3px rgba(0,0,0,0.08); border-color: #cbd5e1; }
 .card-content { padding: 1.5rem; flex-grow: 1; display: flex; flex-direction: column; }
@@ -432,26 +416,25 @@ input:focus, textarea:focus, select:focus { border-color: #6366f1; background: w
   border-top: 1px solid #e5e7eb; 
   border-radius: 0 0 16px 16px; 
   display: flex; 
-  gap: 0.4rem; /* Reduje un poco el gap para acomodar el nuevo botón */
+  gap: 0.5rem; 
   align-items: center;
   flex-wrap: wrap;
 }
 .spacer { flex-grow: 1; }
 
-.btn-action { display: flex; align-items: center; gap: 0.3rem; padding: 0.5rem 0.7rem; border-radius: 8px; font-size: 0.8rem; font-weight: 600; border: none; cursor: pointer; transition: all 0.2s; }
+.btn-action { display: flex; align-items: center; gap: 0.4rem; padding: 0.5rem 0.7rem; border-radius: 8px; font-size: 0.75rem; font-weight: 700; border: none; cursor: pointer; transition: all 0.2s; text-transform: uppercase; letter-spacing: 0.03em; }
 .btn-edit { background: #e0e7ff; color: #4338ca; }
 .btn-edit:hover { background: #c7d2fe; }
 .btn-log { background: #e2e8f0; color: #475569; }
 .btn-log:hover { background: #cbd5e1; }
 .btn-email { background: #dcfce7; color: #16a34a; }
 .btn-email:hover { background: #bbf7d0; }
-.btn-delete { background: #fee2e2; color: #dc2626; padding: 0.5rem; } 
+.btn-delete { background: #fee2e2; color: #dc2626; } 
 .btn-delete:hover { background: #fecaca; }
 
-/* ESTILO PARA EL NUEVO BOTÓN INITIAL REACH */
+/* BOTÓN INITIAL REACH */
 .btn-initial-reach { background: #e0f2fe; color: #0284c7; }
 .btn-initial-reach:hover:not(:disabled) { background: #bae6fd; }
-.btn-initial-reach:disabled { opacity: 0.6; cursor: not-allowed; }
 
 /* MODALS */
 .modal-overlay { position: fixed; inset: 0; background: rgba(17, 24, 39, 0.6); z-index: 100; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(2px); padding: 1rem; }
