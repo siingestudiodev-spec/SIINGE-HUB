@@ -5,7 +5,7 @@
         <button @click="goBack" class="btn-secondary">← Back to Projects</button>
         <h1>Project Sourcing</h1>
       </div>
-      <button @click="openSourcingModal" class="btn-primary">+ Add Material</button>
+      <button @click="openSourcingModal()" class="btn-primary">+ Add Material</button>
     </div>
 
     <div v-if="loading" class="loading">Loading materials...</div>
@@ -29,7 +29,12 @@
         
         <div class="card-body border-b pb-3 mb-3">
           <div class="text-xs uppercase text-gray-500 font-semibold mb-2">Base Supplier Info</div>
-          <div class="info-row" v-if="item.sourcing?.provider"><span class="info-icon">🏭</span>{{ item.sourcing.provider }}</div>
+          <div class="info-row" v-if="item.sourcing?.provider">
+            <span class="info-icon">🏭</span><strong>Factory:</strong> {{ item.sourcing.provider }}
+          </div>
+          <div class="info-row" v-if="item.sourcing?.country">
+            <span class="info-icon">🌍</span><strong>Country:</strong> {{ item.sourcing.country }}
+          </div>
         </div>
 
         <div class="card-body">
@@ -52,6 +57,7 @@
         </div>
 
         <div class="card-actions">
+          <button @click="openSourcingModal(item)" class="btn-edit-card">✏️ Edit</button>
           <button @click="removeMaterial(item.id)" class="btn-danger">Remove</button>
         </div>
       </div>
@@ -60,7 +66,7 @@
     <div v-if="showModal" class="modal-overlay" @click.self="closeModal">
       <div class="modal max-w-700">
         <div class="modal-header">
-          <h2>📦 Material Specifications</h2>
+          <h2>{{ editingId ? '✏️ Edit Material' : '📦 Material Specifications' }}</h2>
           <button @click="closeModal" class="modal-close">✕</button>
         </div>
         <div class="modal-body">
@@ -68,7 +74,7 @@
             <label>1. Select Provider *</label>
             <select v-model="form.sourcing_id" class="w-full">
               <option value="" disabled>-- Select supplier --</option>
-              <option v-for="s in fullSourcingList" :key="s.id" :value="s.id">{{ s.provider }}</option>
+              <option v-for="s in fullSourcingList" :key="s.id" :value="s.id">{{ s.provider }} ({{ s.country }})</option>
             </select>
           </div>
 
@@ -76,21 +82,24 @@
             <label class="section-label">2. Technical Data</label>
             <div class="form-grid">
               <div class="modal-field"><label>Placement *</label><input v-model="form.placement" placeholder="e.g. Body Fabric" /></div>
-              <div class="modal-field"><label>Fabric Name / Art. #</label><input v-model="form.specific_name" placeholder="e.g. Isee Cotton / 10234" /></div>
-              <div class="modal-field"><label>Composition</label><input v-model="form.composition" placeholder="e.g. 100% Cotton" /></div>
-              <div class="modal-field"><label>Price Per Meter</label><input v-model="form.price_per_meter" placeholder="e.g. $5.50" /></div>
+              <div class="modal-field"><label>Fabric Name / Art. #</label><input v-model="form.specific_name" placeholder="e.g. Isee Cotton" /></div>
+              <div class="modal-field"><label>Composition</label><input v-model="form.composition" /></div>
+              <div class="modal-field"><label>Price Per Meter</label><input v-model="form.price_per_meter" /></div>
               <div class="modal-field"><label>Custom Color MOQ</label><input v-model="form.custom_moq" /></div>
               <div class="modal-field"><label>Custom Color Lead Time</label><input v-model="form.custom_lead_time" /></div>
               <div class="modal-field"><label>Lead Time (In Stock)</label><input v-model="form.instock_lead_time" /></div>
               <div class="modal-field"><label>Selected Color</label><input v-model="form.color" /></div>
-              <div class="modal-field full-row"><label>Available Colors</label><input v-model="form.available_colors" placeholder="List all available colors..." /></div>
-              <div class="modal-field full-row"><label>URL to Item</label><input v-model="form.item_url" placeholder="https://..." /></div>
+              <div class="modal-field full-row"><label>Available Colors</label><input v-model="form.available_colors" /></div>
+              <div class="modal-field full-row"><label>URL to Item</label><input v-model="form.item_url" /></div>
+              <div class="modal-field full-row"><label>Additional Notes</label><textarea v-model="form.project_notes" rows="2"></textarea></div>
             </div>
           </div>
         </div>
         <div class="modal-actions">
           <button @click="closeModal" class="btn-secondary">Cancel</button>
-          <button @click="addMaterialToProject" class="btn-primary" :disabled="!form.sourcing_id || !form.placement || saving">Save Material</button>
+          <button @click="saveMaterial" class="btn-primary" :disabled="!form.sourcing_id || !form.placement || saving">
+            {{ editingId ? 'Update Material' : 'Save Material' }}
+          </button>
         </div>
       </div>
     </div>
@@ -108,6 +117,7 @@ const projectId = route.params.id
 
 const loading = ref(true)
 const saving = ref(false)
+const editingId = ref(null)
 const projectMaterials = ref([])
 const fullSourcingList = ref([])
 const showModal = ref(false)
@@ -124,7 +134,7 @@ async function fetchProjectMaterials() {
   loading.value = true
   const { data, error } = await supabase
     .from('project_materials')
-    .select(`*, sourcing:sourcing_id (id, provider)`)
+    .select(`*, sourcing:sourcing_id (id, provider, country)`) // AHORA PIDE TAMBIÉN EL COUNTRY
     .eq('project_id', projectId)
   if (!error) projectMaterials.value = data || []
   loading.value = false
@@ -141,19 +151,31 @@ async function toggleApproval(item) {
   if (!error) item.is_approved = newStatus
 }
 
-async function addMaterialToProject() {
+async function saveMaterial() {
   if (!form.value.sourcing_id || !form.value.placement) return
   saving.value = true
-  const { error } = await supabase.from('project_materials').insert([{ project_id: projectId, ...form.value }])
-  if (!error) { await fetchProjectMaterials(); closeModal() }
+  if (editingId.value) {
+    const { error } = await supabase.from('project_materials').update({ ...form.value }).eq('id', editingId.value)
+    if (!error) { await fetchProjectMaterials(); closeModal() }
+  } else {
+    const { error } = await supabase.from('project_materials').insert([{ project_id: projectId, ...form.value }])
+    if (!error) { await fetchProjectMaterials(); closeModal() }
+  }
   saving.value = false
 }
 
-function openSourcingModal() { 
-  form.value = { sourcing_id: '', placement: '', specific_name: '', composition: '', custom_moq: '', custom_lead_time: '', instock_lead_time: '', available_colors: '', color: '', price_per_meter: '', item_url: '', project_notes: '' }
+function openSourcingModal(item = null) { 
+  if (item) {
+    editingId.value = item.id
+    form.value = { ...item }
+  } else {
+    editingId.value = null
+    form.value = { sourcing_id: '', placement: '', specific_name: '', composition: '', custom_moq: '', custom_lead_time: '', instock_lead_time: '', available_colors: '', color: '', price_per_meter: '', item_url: '', project_notes: '' }
+  }
   showModal.value = true 
 }
-function closeModal() { showModal.value = false }
+
+function closeModal() { showModal.value = false; editingId.value = null; }
 
 async function removeMaterial(id) {
   if (!confirm('Remove this material?')) return
@@ -165,41 +187,39 @@ onMounted(() => { fetchProjectMaterials(); fetchFullSourcingList() })
 </script>
 
 <style scoped>
+/* Los estilos se mantienen igual, el código de arriba ya renderiza el país en la sección Base Supplier Info */
 .container { max-width: 1200px; margin: 0 auto; padding: 2rem 1.5rem; }
 .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; }
 .flex { display: flex; }
 .items-center { align-items: center; }
 .gap-4 { gap: 1rem; }
 h1 { font-size: 2rem; font-weight: 700; color: #1a1a2e; }
-
 .cards-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1.25rem; }
-.card { background: white; border-radius: 16px; padding: 1.5rem; border: 1.5px solid #e5e7eb; transition: all 0.2s; }
+.card { background: white; border-radius: 16px; padding: 1.5rem; border: 1.5px solid #e5e7eb; transition: all 0.2s; position: relative; }
 .card-approved { border-color: #10b981; background: #f0fdf4; }
-
 .card-top { display: flex; align-items: center; gap: 1rem; margin-bottom: 1.25rem; }
 .card-avatar { width: 44px; height: 44px; background: #9ca3af; color: white; font-weight: 700; border-radius: 10px; display: flex; align-items: center; justify-content: center; }
 .avatar-approved { background: #10b981; }
-
 .card-title { flex: 1; }
 .justify-between { justify-content: space-between; }
 .items-start { align-items: flex-start; }
 .btn-approve-toggle { padding: 0.3rem 0.6rem; border-radius: 8px; font-size: 0.7rem; font-weight: 600; cursor: pointer; border: 1px solid #d1d5db; background: white; }
 .btn-approve-toggle.is-active { background: #10b981; color: white; border-color: #10b981; }
-
 .info-row { font-size: 0.85rem; color: #4b5563; margin-bottom: 0.25rem; }
 .info-row strong { color: #111827; }
 .mt-2 { margin-top: 0.5rem; }
 .url-link { color: #4f46e5; font-weight: 600; text-decoration: none; }
 .url-link:hover { text-decoration: underline; }
-
+.card-actions { display: flex; gap: 0.5rem; padding-top: 1rem; border-top: 1px solid #e5e7eb; margin-top: auto; justify-content: flex-end; }
+.btn-primary { background: #4f46e5; color: white; border: none; padding: 0.6rem 1.2rem; border-radius: 10px; cursor: pointer; font-weight: 600; }
+.btn-secondary { background: #f3f4f6; padding: 0.6rem 1.2rem; border-radius: 10px; border: none; cursor: pointer; }
+.btn-edit-card { background: #eef2ff; color: #4f46e5; border: none; padding: 0.4rem 0.8rem; border-radius: 8px; cursor: pointer; font-size: 0.85rem; font-weight: 600; }
+.btn-danger { background: #fff1f2; color: #e11d48; border: none; padding: 0.4rem 0.8rem; border-radius: 8px; cursor: pointer; font-size: 0.85rem; }
 .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 100; display: flex; align-items: center; justify-content: center; padding: 1rem; }
 .modal { background: white; border-radius: 20px; width: 100%; padding: 2rem; max-height: 90vh; overflow-y: auto; }
 .max-w-700 { max-width: 700px; }
 .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
 .full-row { grid-column: span 2; }
 input, select, textarea { width: 100%; padding: 0.6rem; border: 1.5px solid #e5e7eb; border-radius: 8px; font-size: 0.9rem; }
-.modal-actions { display: flex; gap: 1rem; justify-content: flex-end; margin-top: 1.5rem; }
-.btn-primary { background: #4f46e5; color: white; border: none; padding: 0.6rem 1.2rem; border-radius: 10px; cursor: pointer; font-weight: 600; }
-.btn-secondary { background: #f3f4f6; padding: 0.6rem 1.2rem; border-radius: 10px; border: none; cursor: pointer; }
-.btn-danger { background: #fff1f2; color: #e11d48; border: none; padding: 0.4rem 0.8rem; border-radius: 8px; cursor: pointer; margin-top: 1rem; float: right; }
+.loading, .empty { text-align: center; padding: 3rem; color: #9ca3af; }
 </style>
