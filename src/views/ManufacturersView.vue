@@ -313,7 +313,9 @@ At SIINGE, we operate within a structured partnership framework designed to main
 
 Once alignment is confirmed, our onboarding process includes a mutual NDA and Manufacturing Master Agreement to standardize expectations across projects.
 
-If there appears to be mutual fit, we would be glad to continue over email or schedule a short introductory call to learn more about your current capabilities and production focus.`
+If there appears to be mutual fit, we would be glad to continue over email or schedule a short introductory call to learn more about your current capabilities and production focus.
+
+Best regards, Luis.`
 
   emailModal.value = { 
     show: true, 
