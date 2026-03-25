@@ -13,6 +13,7 @@
         <router-link to="/templates">Templates</router-link>
         <router-link to="/projects">Projects</router-link>
         <router-link to="/sourcing">Sourcing</router-link>
+        <router-link to="/calendar">Calendar</router-link>
         <router-link to="/events">Events</router-link>
       </div>
       <button @click="logout" class="btn-logout">Sign Out</button>

@@ -8,6 +8,7 @@ import QuoteComparison from '../views/QuoteComparison.vue'
 import LoginView from '../views/LoginView.vue'
 import Sourcing from '../views/Sourcing.vue'
 import Events from '../views/Events.vue'
+import CalendarView from '../views/CalendarView.vue' // <-- NUEVA IMPORTACIÓN
 
 const routes = [
   { path: '/login', component: LoginView },
@@ -18,7 +19,8 @@ const routes = [
   { path: '/projects/:id/sourcing', component: ProjectSourcingView, meta: { requiresAuth: true } }, // ESTO ES CLAVE
   { path: '/projects/:id/quotes', component: QuoteComparison, meta: { requiresAuth: true } },
   { path: '/sourcing', component: Sourcing, meta: { requiresAuth: true } },
-  { path: '/events', component: Events, meta: { requiresAuth: true } }
+  { path: '/events', component: Events, meta: { requiresAuth: true } },
+  { path: '/calendar', component: CalendarView, meta: { requiresAuth: true } } // <-- NUEVA RUTA
 ]
 
 const router = createRouter({
