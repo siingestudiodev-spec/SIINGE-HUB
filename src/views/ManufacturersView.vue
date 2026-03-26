@@ -694,15 +694,92 @@ input:focus, textarea:focus, select:focus {
 .country-badge { background: var(--bg-app); color: var(--text-muted); padding: 0.2rem 0.6rem; border-radius: 20px; font-size: 0.75rem; }
 
 /* CARD BODY */
-.info-row { display: flex; align-items: center; gap: 0.6rem; font-size: 0.9rem; color: var(--text-body); margin-bottom: 0.5rem; }
-.info-row a { color: var(--primary); text-decoration: none; font-weight: 500; }
-.tags-section { background: rgba(0,0,0,0.1); padding: 0.8rem; border-radius: 10px; border: 1px dashed var(--border-main); margin: 0.5rem 0; }
-.category-tag { background: rgba(99, 102, 241, 0.15); color: var(--primary); padding: 0.2rem 0.6rem; border-radius: 6px; font-size: 0.75rem; font-weight: 600; }
-.btn-view-certs { background: var(--bg-app); color: #0ea5e9; border: 1px solid rgba(14, 165, 233, 0.3); padding: 0.3rem 0.8rem; border-radius: 6px; font-size: 0.8rem; cursor: pointer; }
+.info-row { 
+  display: flex; 
+  align-items: center; 
+  gap: 0.6rem; 
+  font-size: 0.9rem; 
+  color: var(--text-body); 
+  margin-bottom: 0.5rem; 
+}
 
-.notes-row { background: rgba(0,0,0,0.15); padding: 0.8rem; border-radius: 8px; border-left: 3px solid var(--border-main); color: var(--text-body); font-style: italic; }
-.reach-date { font-size: 0.82rem; color: var(--text-muted); background: var(--bg-app); padding: 0.4rem 0.6rem; border-radius: 6px; margin-bottom: 0.4rem; display: flex; align-items: center; gap: 0.4rem; }
-.overdue { background-color: var(--danger-bg); color: var(--danger-text); border: 1px solid rgba(251, 113, 133, 0.3); }
+.info-row a { 
+  color: var(--primary); 
+  text-decoration: none; 
+  font-weight: 500; 
+}
+
+/* Sección de etiquetas corregida para evitar desbordes */
+.tags-section { 
+  background: rgba(0,0,0,0.1); 
+  padding: 0.8rem; 
+  border-radius: 10px; 
+  border: 1px dashed var(--border-main); 
+  margin: 0.5rem 0; 
+  display: flex;
+  gap: 0.6rem;
+  align-items: flex-start;
+}
+
+.tags-container {
+  display: flex;
+  flex-wrap: wrap; /* Esto hace que las etiquetas bajen de línea */
+  gap: 0.4rem;
+  flex: 1;
+}
+
+.category-tag { 
+  background: rgba(99, 102, 241, 0.15); 
+  color: var(--primary); 
+  padding: 0.2rem 0.6rem; 
+  border-radius: 6px; 
+  font-size: 0.75rem; 
+  font-weight: 600; 
+  white-space: nowrap; /* Mantiene la palabra junta */
+}
+
+.btn-view-certs { 
+  background: var(--bg-app); 
+  color: #0ea5e9; 
+  border: 1px solid rgba(14, 165, 233, 0.3); 
+  padding: 0.3rem 0.8rem; 
+  border-radius: 6px; 
+  font-size: 0.8rem; 
+  cursor: pointer; 
+  width: 100%; /* Ocupa todo el ancho disponible */
+  margin-top: 0.5rem;
+}
+
+.notes-row { 
+  background: rgba(0,0,0,0.15); 
+  padding: 0.8rem; 
+  border-radius: 8px; 
+  border-left: 3px solid var(--border-main); 
+  color: var(--text-body); 
+  font-style: italic; 
+  display: flex;
+  gap: 0.6rem;
+  align-items: flex-start;
+}
+
+.reach-date { 
+  font-size: 0.82rem; 
+  color: var(--text-muted); 
+  background: var(--bg-app); 
+  padding: 0.4rem 0.6rem; 
+  border-radius: 6px; 
+  margin-bottom: 0.4rem; 
+  display: flex; 
+  align-items: center; 
+  gap: 0.4rem; 
+}
+
+.overdue { 
+  background-color: var(--danger-bg); 
+  color: var(--danger-text); 
+  border: 1px solid rgba(251, 113, 133, 0.3); 
+  font-weight: 700;
+}
 
 /* CARD ACTIONS */
 .card-actions { 
