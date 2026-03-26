@@ -79,8 +79,7 @@
         </div>
         
         <div v-if="timelineModal.loading" class="loading">
-          <p>Generating your complete timeline structure...</p>
-          <p class="text-xs text-gray-500 mt-2">This may take a few seconds</p>
+          <p>Processing structure...</p>
         </div>
         
         <div v-else class="timeline-container">
@@ -195,7 +194,6 @@ const form = ref({ project_name: '', client_name: '', description: '', status: '
 const timelineModal = ref({ show: false, loading: false, saving: false, projectId: null, projectName: '', stages: [] })
 const expanded = ref([])
 
-// EL ÁRBOL EXACTO QUE ME PEDISTE
 const CLICKUP_TEMPLATE = [
   {
     name: 'CONCEPT & DESIGN',
@@ -326,15 +324,15 @@ async function fetchProjects() {
 
 async function saveProject() {
   if (!form.value.project_name) return alert('Project name is required')
-  
   savingProject.value = true
+  
   if (editing.value) {
     await supabase.from('projects').update(form.value).eq('id', editId.value)
   } else {
     await supabase.from('projects').insert([form.value])
   }
+  
   savingProject.value = false
-
   resetForm()
   fetchProjects()
 }
@@ -354,35 +352,46 @@ function resetForm() {
   editing.value = false; editId.value = null; showForm.value = false
 }
 
-// INSERCIÓN MASIVA DEL ÁRBOL EXACTO
+// INSERCIÓN MASIVA OPTIMIZADA (Super rápida)
 async function seedDefaultTree(projectId) {
+  const allStagesToInsert = []
+
   for (let i = 0; i < CLICKUP_TEMPLATE.length; i++) {
     const l1 = CLICKUP_TEMPLATE[i];
-    
-    // Insertar Nivel 1
-    const { data: d1 } = await supabase.from('project_stages')
-      .insert({ project_id: projectId, stage_name: l1.name, step_order: i + 1, status: 'Pending', parent_id: null })
-      .select().single()
+    const l1Id = crypto.randomUUID() // Generamos el ID en el navegador
 
-    if (d1 && l1.children) {
+    allStagesToInsert.push({
+      id: l1Id, project_id: projectId, stage_name: l1.name, step_order: i + 1, status: 'Pending', parent_id: null
+    })
+
+    if (l1.name === 'SAMPLE DEVELOPMENT') {
+      expanded.value.push(l1Id) // Lo expandimos por defecto
+    }
+
+    if (l1.children) {
       for (let j = 0; j < l1.children.length; j++) {
         const l2 = l1.children[j];
-        
-        // Insertar Nivel 2
-        const { data: d2 } = await supabase.from('project_stages')
-          .insert({ project_id: projectId, parent_id: d1.id, stage_name: l2.name || l2, step_order: j + 1, status: 'Pending' })
-          .select().single()
+        const l2Id = crypto.randomUUID()
+        const l2Name = typeof l2 === 'string' ? l2 : l2.name
 
-        // Insertar Nivel 3 (Si el nivel 2 es un objeto con hijos)
-        if (d2 && typeof l2 === 'object' && l2.children) {
-          const l3Inserts = l2.children.map((l3Name, k) => ({
-            project_id: projectId, parent_id: d2.id, stage_name: l3Name, step_order: k + 1, status: 'Pending'
-          }))
-          await supabase.from('project_stages').insert(l3Inserts)
+        allStagesToInsert.push({
+          id: l2Id, project_id: projectId, parent_id: l1Id, stage_name: l2Name, step_order: j + 1, status: 'Pending'
+        })
+
+        if (typeof l2 === 'object' && l2.children) {
+          expanded.value.push(l2Id) // Expandir carpetas de Nivel 2
+          for (let k = 0; k < l2.children.length; k++) {
+            allStagesToInsert.push({
+              id: crypto.randomUUID(), project_id: projectId, parent_id: l2Id, stage_name: l2.children[k], step_order: k + 1, status: 'Pending'
+            })
+          }
         }
       }
     }
   }
+
+  // Una sola llamada a la base de datos en lugar de 40
+  await supabase.from('project_stages').insert(allStagesToInsert)
 }
 
 async function reloadTimelineData(projectId) {
@@ -410,8 +419,10 @@ async function openTimeline(p) {
 async function forceResetTimeline() {
   if (!confirm('This will load the full ClickUp structure and erase current dates. Proceed?')) return
   timelineModal.value.loading = true
+  
   await supabase.from('project_stages').delete().eq('project_id', timelineModal.value.projectId)
   expanded.value = []
+  
   await seedDefaultTree(timelineModal.value.projectId)
   await reloadTimelineData(timelineModal.value.projectId)
   timelineModal.value.loading = false
@@ -419,6 +430,7 @@ async function forceResetTimeline() {
 
 async function addSubtask(parentId) {
   const newTask = {
+    id: crypto.randomUUID(),
     project_id: timelineModal.value.projectId,
     parent_id: parentId,
     stage_name: 'New Task',
@@ -436,19 +448,28 @@ async function deleteStage(id) {
   await reloadTimelineData(timelineModal.value.projectId)
 }
 
+// GUARDADO MASIVO OPTIMIZADO (Super rápido)
 async function saveTimeline() {
   timelineModal.value.saving = true
-  for (const stage of timelineModal.value.stages) {
-    // Solo guardamos si es editable (no guardamos a los padres que no tienen inputs de fecha)
-    await supabase.from('project_stages').update({
-      stage_name: stage.stage_name,
-      due_date: stage.due_date || null,
-      completed_date: stage.completed_date || null,
-      status: stage.status
-    }).eq('id', stage.id)
-  }
+  
+  // Extraemos solo los datos limpios que necesitamos guardar
+  const updates = timelineModal.value.stages.map(stage => ({
+    id: stage.id,
+    project_id: stage.project_id,
+    parent_id: stage.parent_id,
+    stage_name: stage.stage_name,
+    step_order: stage.step_order,
+    due_date: stage.due_date || null,
+    completed_date: stage.completed_date || null,
+    status: stage.status
+  }))
+
+  // Usamos upsert para actualizar todo de golpe en un solo viaje al servidor
+  const { error } = await supabase.from('project_stages').upsert(updates)
+  
   timelineModal.value.saving = false
-  timelineModal.value.show = false
+  if (error) alert('Error saving: ' + error.message)
+  else timelineModal.value.show = false
 }
 
 onMounted(fetchProjects)
@@ -501,9 +522,7 @@ textarea { resize: vertical; }
 .btn-danger { background: #fff1f2; color: #e11d48; border: none; padding: 0.5rem 1rem; border-radius: 8px; cursor: pointer; font-size: 0.88rem; font-family: 'Inter', sans-serif; font-weight: 500; }
 .loading, .empty { text-align: center; padding: 3rem; color: #9ca3af; }
 
-/* -------------------------------------
-   MODAL DE TIMELINE (DISEÑO CLICKUP)
--------------------------------------- */
+/* MODAL DE TIMELINE */
 .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 1rem; }
 .modal { background: white; padding: 2rem; border-radius: 16px; width: 100%; max-height: 90vh; overflow-y: auto; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); }
 .modal-large { max-width: 950px; }
@@ -541,10 +560,10 @@ textarea { resize: vertical; }
 .task-name-input { width: 100%; border: 1px solid transparent; background: transparent; padding: 0.2rem 0.4rem; font-size: 0.88rem; font-weight: 500; border-radius: 4px; color: #374151; }
 .task-name-input:focus { border: 1px solid #4f46e5; background: white; }
 
-/* BLOQUES VACÍOS (Para las carpetas) */
-.task-empty-slots { flex: 2; /* Ocupa el espacio de Due Date + Completed Date + Status */ }
+/* BLOQUES VACÍOS */
+.task-empty-slots { flex: 2; }
 
-/* FECHAS Y STATUS (Para las tareas finales) */
+/* FECHAS Y STATUS */
 .task-date { flex: 1; display: flex; justify-content: center; }
 .date-input { width: 100%; max-width: 130px; padding: 0.3rem; font-size: 0.75rem; color: #4b5563; border: 1px solid #e5e7eb; border-radius: 6px; cursor: text;}
 
