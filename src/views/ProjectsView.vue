@@ -73,14 +73,14 @@
         <div class="modal-header">
           <h2>⏱️ Timeline: {{ timelineModal.projectName }}</h2>
           <div class="header-actions">
-            <button @click="forceResetTimeline" class="btn-reset-template" title="Erases current stages and generates the new ClickUp structure">
+            <button @click="forceResetTimeline" class="btn-reset-template" title="Erases current stages and generates the complete ClickUp structure">
               ⚠️ Reset Template
             </button>
             <button @click="timelineModal.show = false" class="modal-close">✕</button>
           </div>
         </div>
         
-        <div v-if="timelineModal.loading" class="loading">Loading structure...</div>
+        <div v-if="timelineModal.loading" class="loading">Generating structure, please wait...</div>
         <div v-else class="timeline-container">
           <div class="timeline-header-row">
             <div class="th-name">Task Name</div>
@@ -226,7 +226,6 @@ async function fetchProjects() {
   loading.value = false
 }
 
-// CORRECCIÓN AL GUARDAR PROYECTO (Manejo de errores reales)
 async function saveProject() {
   if (!form.value.project_name) return alert('Project name is required')
   
@@ -245,7 +244,7 @@ async function saveProject() {
 
   if (errorObj) {
     console.error('Database Error:', errorObj)
-    alert(`Error saving project: ${errorObj.message}\n\nMake sure all database columns (like 'quotes') exist in Supabase.`)
+    alert(`Error saving project: ${errorObj.message}`)
     return
   }
 
@@ -268,39 +267,41 @@ function resetForm() {
   editing.value = false; editId.value = null; showForm.value = false
 }
 
-// ---- LÓGICA DE CREACIÓN DEL ÁRBOL CLICKUP ----
+// ---- LÓGICA ROBUSTA DE CREACIÓN DEL ÁRBOL CLICKUP ----
 async function seedDefaultTree(projectId) {
-  const rootInserts = DEFAULT_STAGES.map((name, i) => ({
-    project_id: projectId, stage_name: name, step_order: i + 1, status: 'Pending', parent_id: null
-  }))
-  const { data: insertedRoots } = await supabase.from('project_stages').insert(rootInserts).select()
-  
-  const sampleDevRoot = insertedRoots?.find(r => r.stage_name === 'SAMPLE DEVELOPMENT')
-  
-  if (sampleDevRoot) {
-    expanded.value.push(sampleDevRoot.id)
+  for (let i = 0; i < DEFAULT_STAGES.length; i++) {
+    // 1. Insertamos la categoría raíz
+    const { data: rootData, error: rootErr } = await supabase.from('project_stages')
+      .insert({ project_id: projectId, stage_name: DEFAULT_STAGES[i], step_order: i + 1, status: 'Pending', parent_id: null })
+      .select().single()
 
-    const sampleSubs = [
-      { name: 'First Sample', children: ['First Sample Due Date', 'Images Received Date', 'Corrections Completed Date', 'First Sample Received Date', 'Fit Notes Sent Date'] },
-      { name: 'Second Sample', children: ['Second sample due date', 'Images received date', 'Corrections completed date', 'Second sample received date', 'Fit Notes Sent Date'] },
-      { name: 'Fit Approval', children: ['Fit Approved — Initial Size', 'Fit Approved — Full Size Range'] },
-      { name: 'SIZE RANGE SAMPLES', children: ['Size Range Samples Due Date', 'Images Received Date', 'Corrections Completed Date', 'Size Range Received Date'] },
-      { name: 'TESTING', children: ['Required Tests', 'Test Due Dates', 'Test Completed Dates', 'Testing Documentation'] }
-    ]
+    if (rootData && rootData.stage_name === 'SAMPLE DEVELOPMENT') {
+      expanded.value.push(rootData.id)
 
-    for (let i = 0; i < sampleSubs.length; i++) {
-      const sub = sampleSubs[i]
-      const { data: insertedSub } = await supabase.from('project_stages').insert({
-        project_id: projectId, parent_id: sampleDevRoot.id, stage_name: sub.name, step_order: i + 1, status: 'Pending'
-      }).select()
+      const sampleSubs = [
+        { name: 'First Sample', children: ['First Sample Due Date', 'Images Received Date', 'Corrections Completed Date', 'First Sample Received Date', 'Fit Notes Sent Date'] },
+        { name: 'Second Sample', children: ['Second sample due date', 'Images received date', 'Corrections completed date', 'Second sample received date', 'Fit Notes Sent Date'] },
+        { name: 'Fit Approval', children: ['Fit Approved — Initial Size', 'Fit Approved — Full Size Range'] },
+        { name: 'SIZE RANGE SAMPLES', children: ['Size Range Samples Due Date', 'Images Received Date', 'Corrections Completed Date', 'Size Range Received Date'] },
+        { name: 'TESTING', children: ['Required Tests (Dropdown)', 'Test Due Dates', 'Test Completed Dates', 'Testing Documentation'] }
+      ]
 
-      if (insertedSub && insertedSub[0]) {
-        expanded.value.push(insertedSub[0].id)
-        if (sub.children && sub.children.length > 0) {
-          const grandChildren = sub.children.map((gcName, j) => ({
-            project_id: projectId, parent_id: insertedSub[0].id, stage_name: gcName, step_order: j + 1, status: 'Pending'
-          }))
-          await supabase.from('project_stages').insert(grandChildren)
+      for (let j = 0; j < sampleSubs.length; j++) {
+        const sub = sampleSubs[j]
+        // 2. Insertamos la subtarea Nivel 2
+        const { data: subData } = await supabase.from('project_stages')
+          .insert({ project_id: projectId, parent_id: rootData.id, stage_name: sub.name, step_order: j + 1, status: 'Pending' })
+          .select().single()
+
+        if (subData) {
+          expanded.value.push(subData.id)
+          // 3. Insertamos las subtareas Nivel 3 (Slots de Fechas)
+          if (sub.children && sub.children.length > 0) {
+            const grandChildren = sub.children.map((gcName, k) => ({
+              project_id: projectId, parent_id: subData.id, stage_name: gcName, step_order: k + 1, status: 'Pending'
+            }))
+            await supabase.from('project_stages').insert(grandChildren)
+          }
         }
       }
     }
@@ -329,16 +330,14 @@ async function openTimeline(p) {
   timelineModal.value.loading = false
 }
 
-// NUEVO: Función para resetear proyectos viejos al árbol nuevo
+// Función para resetear proyectos viejos al árbol nuevo
 async function forceResetTimeline() {
-  if (!confirm('WARNING: This will erase all current stages and dates for this project and rebuild the new default template. Are you sure?')) return
+  if (!confirm('WARNING: This will erase all current stages and generate the complete template structure. Are you sure?')) return
   
   timelineModal.value.loading = true
-  // Borra todo lo de este proyecto
   await supabase.from('project_stages').delete().eq('project_id', timelineModal.value.projectId)
   expanded.value = []
   
-  // Reconstruye el árbol completo
   await seedDefaultTree(timelineModal.value.projectId)
   await reloadTimelineData(timelineModal.value.projectId)
   timelineModal.value.loading = false
