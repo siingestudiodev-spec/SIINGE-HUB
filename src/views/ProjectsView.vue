@@ -17,7 +17,7 @@
           <option value="pending">Pending</option>
           <option value="closed">Closed</option>
         </select>
-        <input v-model="form.tech_pack_url" placeholder="Tech Pack URL (Google Drive, Dropbox, etc.)" />
+        <input v-model="form.tech_pack_url" placeholder="Tech Pack URL (Google Drive, etc.)" />
         <input v-model="form.quotes" placeholder="Quote / Budget Info (e.g. $2,500)" style="grid-column: 1 / -1;" />
       </div>
       <textarea v-model="form.description" placeholder="Description" rows="3" style="margin-top: 0.75rem;"></textarea>
@@ -78,26 +78,63 @@
         <div v-if="timelineModal.loading" class="loading">Loading stages...</div>
         <div v-else class="timeline-container">
           <div class="timeline-header-row">
-            <div class="th-name">Stage</div>
+            <div class="th-name">Task Name</div>
             <div class="th-date">Due Date</div>
             <div class="th-date">Completed Date</div>
             <div class="th-status">Status</div>
+            <div class="th-action"></div>
           </div>
 
-          <div v-for="stage in timelineModal.stages" :key="stage.id" class="timeline-row">
-            <div class="stage-name">
-              <span class="stage-number">{{ stage.step_order }}</span>
-              <strong>{{ stage.stage_name }}</strong>
+          <div v-for="(cat, index) in rootStages" :key="cat.id" class="stage-group">
+            
+            <div class="level-1">
+              <div class="cat-title">
+                <span class="stage-number">{{ index + 1 }}</span>
+                <strong>{{ cat.stage_name }}</strong>
+              </div>
+              <button @click="addSubtask(cat.id)" class="btn-add-sub">+ Subtask</button>
             </div>
-            <div class="stage-date"><input type="date" v-model="stage.due_date" class="date-input" /></div>
-            <div class="stage-date"><input type="date" v-model="stage.completed_date" class="date-input" /></div>
-            <div class="stage-status">
-              <select v-model="stage.status" :class="'status-select status-' + stage.status.toLowerCase().replace(' ', '-')">
-                <option value="Pending">Pending</option>
-                <option value="In Progress">In Progress</option>
-                <option value="Completed">Completed</option>
-              </select>
+
+            <div v-for="sub in getChildren(cat.id)" :key="sub.id" class="level-2">
+              <div class="task-input-wrapper">
+                <span class="tree-line">└</span>
+                <input v-model="sub.stage_name" class="task-name-input" placeholder="Subtask name..." />
+              </div>
+              <div class="task-date"><input type="date" v-model="sub.due_date" class="date-input" /></div>
+              <div class="task-date"><input type="date" v-model="sub.completed_date" class="date-input" /></div>
+              <div class="task-status">
+                <select v-model="sub.status" :class="'status-select status-' + sub.status.toLowerCase().replace(' ', '-')">
+                  <option value="Pending">Pending</option>
+                  <option value="In Progress">In Progress</option>
+                  <option value="Completed">Completed</option>
+                </select>
+              </div>
+              <div class="task-actions">
+                <button @click="addSubtask(sub.id)" class="btn-add-micro" title="Add Sub-subtask">➕</button>
+                <button @click="deleteStage(sub.id)" class="btn-del-micro" title="Delete">🗑️</button>
+              </div>
             </div>
+
+            <template v-for="sub in getChildren(cat.id)" :key="'nested-'+sub.id">
+              <div v-for="subsub in getChildren(sub.id)" :key="subsub.id" class="level-3">
+                <div class="task-input-wrapper">
+                  <span class="tree-line indent-more">└</span>
+                  <input v-model="subsub.stage_name" class="task-name-input micro-input" placeholder="Sub-subtask name..." />
+                </div>
+                <div class="task-date"><input type="date" v-model="subsub.due_date" class="date-input" /></div>
+                <div class="task-date"><input type="date" v-model="subsub.completed_date" class="date-input" /></div>
+                <div class="task-status">
+                  <select v-model="subsub.status" :class="'status-select status-' + subsub.status.toLowerCase().replace(' ', '-')">
+                    <option value="Pending">Pending</option>
+                    <option value="In Progress">In Progress</option>
+                    <option value="Completed">Completed</option>
+                  </select>
+                </div>
+                <div class="task-actions">
+                  <button @click="deleteStage(subsub.id)" class="btn-del-micro" title="Delete">🗑️</button>
+                </div>
+              </div>
+            </template>
           </div>
         </div>
 
@@ -127,12 +164,13 @@ const filterStatus = ref('')
 
 const form = ref({ project_name: '', client_name: '', description: '', status: 'active', tech_pack_url: '', quotes: '' })
 
-// Variables Timeline
+// TIMELINE VARIABLES
 const DEFAULT_STAGES = [
   'CONCEPT & DESIGN', 'QUOTE', 'MATERIAL & TRIM SOURCING', 
   'SAMPLE DEVELOPMENT', 'FINAL TECH PACK & BULK PREPARATION', 
   'QUALITY INSPECTION', 'SHIPPING & LOGISTICS', 'PROJECT COMPLETION'
 ]
+
 const timelineModal = ref({ show: false, loading: false, saving: false, projectId: null, projectName: '', stages: [] })
 
 const filteredProjects = computed(() => {
@@ -143,6 +181,16 @@ const filteredProjects = computed(() => {
     return matchSearch && matchStatus
   })
 })
+
+// EXTRAER CATEGORÍAS PRINCIPALES (Sin padre)
+const rootStages = computed(() => {
+  return timelineModal.value.stages.filter(s => !s.parent_id).sort((a, b) => a.step_order - b.step_order)
+})
+
+// OBTENER HIJOS DE UN PADRE
+function getChildren(parentId) {
+  return timelineModal.value.stages.filter(s => s.parent_id === parentId).sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
+}
 
 function clearFilters() { search.value = ''; filterStatus.value = '' }
 
@@ -155,11 +203,8 @@ async function fetchProjects() {
 
 async function saveProject() {
   if (!form.value.project_name) return alert('Project name is required')
-  if (editing.value) {
-    await supabase.from('projects').update(form.value).eq('id', editId.value)
-  } else {
-    await supabase.from('projects').insert([form.value])
-  }
+  if (editing.value) await supabase.from('projects').update(form.value).eq('id', editId.value)
+  else await supabase.from('projects').insert([form.value])
   resetForm(); fetchProjects()
 }
 
@@ -178,36 +223,63 @@ function resetForm() {
   editing.value = false; editId.value = null; showForm.value = false
 }
 
-// LOGICA TIMELINE
+// ---- LOGICA DE TIMELINE CON SUBTAREAS ----
+async function reloadTimelineData(projectId) {
+  const { data } = await supabase.from('project_stages').select('*').eq('project_id', projectId)
+  timelineModal.value.stages = data || []
+}
+
 async function openTimeline(p) {
   timelineModal.value.show = true
   timelineModal.value.projectName = p.project_name
   timelineModal.value.projectId = p.id
   timelineModal.value.loading = true
 
-  const { data } = await supabase.from('project_stages').select('*').eq('project_id', p.id).order('step_order', { ascending: true })
+  await reloadTimelineData(p.id)
 
-  if (!data || data.length === 0) {
+  if (timelineModal.value.stages.length === 0) {
     const newStages = DEFAULT_STAGES.map((name, index) => ({
-      project_id: p.id, stage_name: name, step_order: index + 1, status: 'Pending'
+      project_id: p.id, stage_name: name, step_order: index + 1, status: 'Pending', parent_id: null
     }))
     await supabase.from('project_stages').insert(newStages)
-    const { data: refreshed } = await supabase.from('project_stages').select('*').eq('project_id', p.id).order('step_order', { ascending: true })
-    timelineModal.value.stages = refreshed || []
-  } else {
-    timelineModal.value.stages = data
+    await reloadTimelineData(p.id)
   }
   timelineModal.value.loading = false
 }
 
+// Agregar una nueva subtarea directamente a la BD
+async function addSubtask(parentId) {
+  const newTask = {
+    project_id: timelineModal.value.projectId,
+    parent_id: parentId,
+    stage_name: 'New Task',
+    status: 'Pending',
+    step_order: 99 // Arbitrario para hijos
+  }
+  await supabase.from('project_stages').insert([newTask])
+  await reloadTimelineData(timelineModal.value.projectId)
+}
+
+// Borrar una subtarea de la BD
+async function deleteStage(id) {
+  if (!confirm('Delete this task?')) return
+  await supabase.from('project_stages').delete().eq('id', id)
+  await reloadTimelineData(timelineModal.value.projectId)
+}
+
+// Guardar cambios masivos (nombres, fechas, estados)
 async function saveTimeline() {
   timelineModal.value.saving = true
   for (const stage of timelineModal.value.stages) {
-    await supabase.from('project_stages').update({
-      due_date: stage.due_date || null,
-      completed_date: stage.completed_date || null,
-      status: stage.status
-    }).eq('id', stage.id)
+    // Solo actualizamos hijos (los root no cambian nombre ni fechas)
+    if (stage.parent_id) {
+      await supabase.from('project_stages').update({
+        stage_name: stage.stage_name,
+        due_date: stage.due_date || null,
+        completed_date: stage.completed_date || null,
+        status: stage.status
+      }).eq('id', stage.id)
+    }
   }
   timelineModal.value.saving = false
   timelineModal.value.show = false
@@ -222,20 +294,10 @@ onMounted(fetchProjects)
 .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; }
 h1 { font-size: 2rem; font-weight: 700; color: #1a1a2e; }
 
-.form-card {
-  background: white; padding: 2rem; border-radius: 16px;
-  margin-bottom: 2rem; border: 1.5px solid #e5e7eb;
-  box-shadow: 0 4px 24px rgba(79,70,229,0.07);
-}
+.form-card { background: white; padding: 2rem; border-radius: 16px; margin-bottom: 2rem; border: 1.5px solid #e5e7eb; box-shadow: 0 4px 24px rgba(79,70,229,0.07); }
 .form-card h2 { font-size: 1.1rem; margin-bottom: 1.25rem; color: #1a1a2e; }
 .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 0.75rem; }
-input, textarea, select {
-  width: 100%; padding: 0.7rem 1rem;
-  border: 1.5px solid #e5e7eb; border-radius: 10px;
-  font-size: 0.92rem; color: #1a1a2e; background: white;
-  font-family: 'Inter', sans-serif; transition: border-color 0.15s;
-  box-sizing: border-box;
-}
+input, textarea, select { width: 100%; padding: 0.7rem 1rem; border: 1.5px solid #e5e7eb; border-radius: 10px; font-size: 0.92rem; color: #1a1a2e; background: white; font-family: 'Inter', sans-serif; transition: border-color 0.15s; box-sizing: border-box; }
 input:focus, textarea:focus, select:focus { outline: none; border-color: #4f46e5; }
 textarea { resize: vertical; }
 .form-actions { margin-top: 1rem; }
@@ -246,27 +308,11 @@ textarea { resize: vertical; }
 .results-count { color: #9ca3af; font-size: 0.85rem; white-space: nowrap; }
 
 .cards-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1.25rem; }
-
-.card {
-  background: white; border-radius: 16px; padding: 1.5rem;
-  border: 1.5px solid #e5e7eb;
-  box-shadow: 0 2px 12px rgba(0,0,0,0.05);
-  transition: transform 0.18s, box-shadow 0.18s;
-}
-.card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 12px 32px rgba(79,70,229,0.12);
-  border-color: #c7d2fe;
-}
+.card { background: white; border-radius: 16px; padding: 1.5rem; border: 1.5px solid #e5e7eb; box-shadow: 0 2px 12px rgba(0,0,0,0.05); transition: transform 0.18s, box-shadow 0.18s; }
+.card:hover { transform: translateY(-4px); box-shadow: 0 12px 32px rgba(79,70,229,0.12); border-color: #c7d2fe; }
 
 .card-top { display: flex; align-items: center; gap: 1rem; margin-bottom: 1.25rem; }
-.card-avatar {
-  width: 48px; height: 48px;
-  background: linear-gradient(135deg, #f093fb, #f5576c);
-  color: white; font-weight: 700; font-size: 1.3rem;
-  border-radius: 12px; display: flex; align-items: center; justify-content: center;
-  flex-shrink: 0;
-}
+.card-avatar { width: 48px; height: 48px; background: linear-gradient(135deg, #f093fb, #f5576c); color: white; font-weight: 700; font-size: 1.3rem; border-radius: 12px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .card-title h3 { font-size: 1.05rem; font-weight: 700; color: #1a1a2e; margin-bottom: 0.3rem; }
 .status-badge { padding: 0.2rem 0.65rem; border-radius: 20px; font-size: 0.78rem; font-weight: 600; text-transform: capitalize; }
 .status-active { background: #dcfce7; color: #16a34a; }
@@ -279,28 +325,21 @@ textarea { resize: vertical; }
 .date-row { color: #9ca3af !important; font-size: 0.82rem !important; }
 
 .card-actions { display: flex; gap: 0.5rem; padding-top: 1rem; border-top: 1px solid #f3f4f6; flex-wrap: wrap; align-items: center;}
-.btn-primary {
-  background: linear-gradient(135deg, #667eea, #764ba2);
-  color: white; border: none; padding: 0.65rem 1.3rem;
-  border-radius: 10px; cursor: pointer; font-size: 0.92rem;
-  font-weight: 600; font-family: 'Inter', sans-serif;
-  transition: opacity 0.15s, transform 0.15s;
-}
+.btn-primary { background: linear-gradient(135deg, #667eea, #764ba2); color: white; border: none; padding: 0.65rem 1.3rem; border-radius: 10px; cursor: pointer; font-size: 0.92rem; font-weight: 600; font-family: 'Inter', sans-serif; transition: opacity 0.15s, transform 0.15s; }
 .btn-primary:hover { opacity: 0.9; transform: translateY(-1px); }
 .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
 .btn-techpack { background: #faf5ff; color: #7c3aed; padding: 0.5rem 0.9rem; border-radius: 8px; text-decoration: none; font-size: 0.85rem; font-weight: 500; }
 .btn-quotes { background: #f0fdf4; color: #16a34a; padding: 0.5rem 0.9rem; border-radius: 8px; text-decoration: none; font-size: 0.85rem; font-weight: 500; }
 .btn-sourcing { background: #fffbeb; color: #d97706; padding: 0.5rem 0.9rem; border-radius: 8px; text-decoration: none; font-size: 0.85rem; font-weight: 500; }
-/* NUEVO ESTILO: Botón de Timeline */
 .btn-timeline { background: #f3e8ff; color: #6b21a8; border: none; padding: 0.5rem 0.9rem; border-radius: 8px; font-size: 0.85rem; font-weight: 500; cursor: pointer; font-family: 'Inter', sans-serif;}
 .btn-secondary { background: #eef2ff; color: #4f46e5; border: none; padding: 0.5rem 1rem; border-radius: 8px; cursor: pointer; font-size: 0.88rem; font-family: 'Inter', sans-serif; font-weight: 500; }
 .btn-danger { background: #fff1f2; color: #e11d48; border: none; padding: 0.5rem 1rem; border-radius: 8px; cursor: pointer; font-size: 0.88rem; font-family: 'Inter', sans-serif; font-weight: 500; }
 .loading, .empty { text-align: center; padding: 3rem; color: #9ca3af; }
 
-/* TIMELINE MODAL */
-.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 1rem; }
+/* MODAL DE TIMELINE (NUEVO DISEÑO JERÁRQUICO) */
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 1rem; }
 .modal { background: white; padding: 2rem; border-radius: 16px; width: 100%; max-height: 90vh; overflow-y: auto; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); }
-.modal-large { max-width: 850px; }
+.modal-large { max-width: 900px; }
 .modal-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e5e7eb; padding-bottom: 1rem; margin-bottom: 1.5rem; }
 .modal-header h2 { margin: 0; font-size: 1.25rem; color: #1a1a2e; }
 .modal-close { background: #f3f4f6; border: none; width: 32px; height: 32px; border-radius: 8px; cursor: pointer; color: #6b7280; display: flex; align-items: center; justify-content: center; font-weight: bold;}
@@ -309,19 +348,42 @@ textarea { resize: vertical; }
 .timeline-header-row { display: flex; padding: 0.75rem 0.5rem; background: #f9fafb; border-radius: 8px; font-size: 0.75rem; font-weight: 700; color: #6b7280; text-transform: uppercase; }
 .th-name { flex: 2; }
 .th-date { flex: 1; text-align: center; }
-.th-status { flex: 1; text-align: right; }
+.th-status { flex: 1; text-align: center; }
+.th-action { width: 60px; }
 
-.timeline-row { display: flex; align-items: center; padding: 0.75rem 0.5rem; border-bottom: 1px solid #f3f4f6; gap: 1rem; }
-.stage-name { flex: 2; display: flex; align-items: center; gap: 0.75rem; font-size: 0.85rem; color: #1f2937; }
-.stage-number { background: linear-gradient(135deg, #667eea, #764ba2); color: white; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; border-radius: 50%; font-weight: 700; font-size: 0.7rem; flex-shrink:0; }
-.stage-date { flex: 1; display: flex; justify-content: center; }
-.date-input { width: 100%; max-width: 140px; padding: 0.4rem; font-size: 0.8rem; color: #4b5563; }
-.stage-status { flex: 1; display: flex; justify-content: flex-end; }
+.stage-group { border: 1px solid #e5e7eb; border-radius: 8px; margin-bottom: 0.75rem; overflow: hidden; }
 
-.status-select { padding: 0.4rem 0.6rem; border-radius: 8px; font-size: 0.75rem; font-weight: 600; border: 1px solid #e5e7eb; outline: none; cursor: pointer; width: 120px; }
+/* Nivel 1 (Padres sin inputs) */
+.level-1 { display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 1rem; background: #f8fafc; }
+.cat-title { display: flex; align-items: center; gap: 0.75rem; font-size: 0.9rem; color: #1f2937; }
+.stage-number { background: linear-gradient(135deg, #667eea, #764ba2); color: white; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; border-radius: 50%; font-weight: 700; font-size: 0.7rem; }
+.btn-add-sub { background: #e0e7ff; color: #4338ca; border: none; padding: 0.3rem 0.8rem; border-radius: 6px; font-size: 0.75rem; font-weight: 700; cursor: pointer; transition: background 0.2s; }
+.btn-add-sub:hover { background: #c7d2fe; }
+
+/* Niveles 2 y 3 (Subtareas con inputs) */
+.level-2, .level-3 { display: flex; align-items: center; padding: 0.6rem 0.5rem; border-top: 1px solid #f3f4f6; gap: 0.5rem; background: white; }
+.level-3 { background: #fcfcfd; }
+
+.task-input-wrapper { flex: 2; display: flex; align-items: center; gap: 0.5rem; }
+.tree-line { color: #d1d5db; font-weight: bold; margin-left: 1rem; }
+.indent-more { margin-left: 2.5rem; }
+
+.task-name-input { flex: 1; border: 1px solid transparent; background: transparent; padding: 0.4rem; font-size: 0.85rem; font-weight: 500; border-radius: 6px; transition: border 0.2s; }
+.task-name-input:focus { border: 1px solid #4f46e5; background: white; }
+.micro-input { font-size: 0.8rem; color: #4b5563; }
+
+.task-date { flex: 1; display: flex; justify-content: center; }
+.date-input { width: 100%; max-width: 125px; padding: 0.3rem; font-size: 0.75rem; color: #4b5563; border: 1px solid #e5e7eb; border-radius: 6px; }
+
+.task-status { flex: 1; display: flex; justify-content: center; }
+.status-select { padding: 0.3rem 0.5rem; border-radius: 6px; font-size: 0.75rem; font-weight: 600; border: 1px solid #e5e7eb; outline: none; cursor: pointer; width: 110px; }
 .status-pending { background: #fef9c3; color: #ca8a04; border-color: #fef08a;}
 .status-in-progress { background: #e0f2fe; color: #0284c7; border-color: #bae6fd;}
 .status-completed { background: #dcfce7; color: #16a34a; border-color: #bbf7d0;}
+
+.task-actions { width: 60px; display: flex; gap: 0.3rem; justify-content: flex-end; }
+.btn-add-micro { background: #e0f2fe; border: none; border-radius: 4px; padding: 0.3rem; cursor: pointer; }
+.btn-del-micro { background: #fee2e2; border: none; border-radius: 4px; padding: 0.3rem; cursor: pointer; }
 
 .modal-actions { display: flex; justify-content: flex-end; gap: 1rem; margin-top: 2rem; border-top: 1px solid #e5e7eb; padding-top: 1.5rem;}
 </style>
