@@ -18,7 +18,6 @@
           <option value="closed">Closed</option>
         </select>
         <input v-model="form.tech_pack_url" placeholder="Tech Pack URL (Google Drive, etc.)" />
-        <input v-model="form.quotes" placeholder="Quote / Budget Info (e.g. $2,500)" style="grid-column: 1 / -1;" />
       </div>
       <textarea v-model="form.description" placeholder="Description" rows="3" style="margin-top: 0.75rem;"></textarea>
       <div class="form-actions">
@@ -54,7 +53,6 @@
         <div class="card-body">
           <div class="info-row" v-if="p.client_name"><span class="info-icon">👤</span>{{ p.client_name }}</div>
           <div class="info-row" v-if="p.description"><span class="info-icon">📄</span>{{ p.description }}</div>
-          <div class="info-row" v-if="p.quotes"><span class="info-icon">🧾</span><strong>Quote:</strong> {{ p.quotes }}</div>
           <div class="info-row date-row"><span class="info-icon">📅</span>{{ new Date(p.created_at).toLocaleDateString() }}</div>
         </div>
         <div class="card-actions">
@@ -180,7 +178,8 @@ const search = ref('')
 const filterStatus = ref('')
 const savingProject = ref(false)
 
-const form = ref({ project_name: '', client_name: '', description: '', status: 'active', tech_pack_url: '', quotes: '' })
+// ELIMINADO: quotes del form inicial
+const form = ref({ project_name: '', client_name: '', description: '', status: 'active', tech_pack_url: '' })
 
 // TIMELINE STATE
 const timelineModal = ref({ show: false, loading: false, saving: false, projectId: null, projectName: '', stages: [] })
@@ -263,15 +262,14 @@ async function deleteProject(id) {
 }
 
 function resetForm() {
-  form.value = { project_name: '', client_name: '', description: '', status: 'active', tech_pack_url: '', quotes: '' }
+  // ELIMINADO: quotes del reset
+  form.value = { project_name: '', client_name: '', description: '', status: 'active', tech_pack_url: '' }
   editing.value = false; editId.value = null; showForm.value = false
 }
 
-// ---- LÓGICA ROBUSTA DE CREACIÓN DEL ÁRBOL CLICKUP ----
 async function seedDefaultTree(projectId) {
   for (let i = 0; i < DEFAULT_STAGES.length; i++) {
-    // 1. Insertamos la categoría raíz
-    const { data: rootData, error: rootErr } = await supabase.from('project_stages')
+    const { data: rootData } = await supabase.from('project_stages')
       .insert({ project_id: projectId, stage_name: DEFAULT_STAGES[i], step_order: i + 1, status: 'Pending', parent_id: null })
       .select().single()
 
@@ -288,14 +286,12 @@ async function seedDefaultTree(projectId) {
 
       for (let j = 0; j < sampleSubs.length; j++) {
         const sub = sampleSubs[j]
-        // 2. Insertamos la subtarea Nivel 2
         const { data: subData } = await supabase.from('project_stages')
           .insert({ project_id: projectId, parent_id: rootData.id, stage_name: sub.name, step_order: j + 1, status: 'Pending' })
           .select().single()
 
         if (subData) {
           expanded.value.push(subData.id)
-          // 3. Insertamos las subtareas Nivel 3 (Slots de Fechas)
           if (sub.children && sub.children.length > 0) {
             const grandChildren = sub.children.map((gcName, k) => ({
               project_id: projectId, parent_id: subData.id, stage_name: gcName, step_order: k + 1, status: 'Pending'
@@ -330,7 +326,6 @@ async function openTimeline(p) {
   timelineModal.value.loading = false
 }
 
-// Función para resetear proyectos viejos al árbol nuevo
 async function forceResetTimeline() {
   if (!confirm('WARNING: This will erase all current stages and generate the complete template structure. Are you sure?')) return
   
