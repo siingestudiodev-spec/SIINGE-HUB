@@ -1,31 +1,30 @@
 :root {
-  /* --- FONDOS --- */
-  /* Un gris un poco más notorio para que las tarjetas blancas resalten */
-  --bg-app: #f1f5f9; 
-  --bg-card: #ffffff;
+  /* FONDOS: Un modo oscuro "suave" (Twilight / Azul Oscuro) */
+  --bg-app: #1e1e2d;      /* Fondo principal (detrás de las tarjetas) */
+  --bg-card: #272736;     /* Fondo de las tarjetas y modales */
   
-  /* --- TEXTOS (Más oscuros para contraste total) --- */
-  --text-main: #0f172a; /* Casi negro para títulos */
-  --text-body: #334155; /* Gris muy oscuro, excelente para leer */
-  --text-muted: #64748b; /* Gris medio para notas secundarias */
+  /* TEXTOS */
+  --text-main: #f8fafc;   /* Blanco suave para títulos y nombres importantes */
+  --text-body: #cbd5e1;   /* Gris azulado claro para lectura cómoda */
+  --text-muted: #8b95a5;  /* Gris medio para iconos, fechas y placeholders */
 
-  /* --- COLORES DE MARCA --- */
-  --primary: #4f46e5;
-  --primary-hover: #3730a3; /* Un hover más profundo para que se note el clic */
+  /* COLORES DE MARCA */
+  --primary: #818cf8;     /* Un morado/azul pastel que resalta hermoso en oscuro */
+  --primary-hover: #6366f1;
   
-  /* --- BORDES (Más definidos) --- */
-  --border-light: #e2e8f0;
-  --border-main: #cbd5e1; /* Bordes un poco más marcados para que no se pierdan los inputs */
+  /* BORDES */
+  --border-light: #3f3f4e; /* Líneas muy sutiles para separar tareas */
+  --border-main: #525266;  /* Bordes de inputs y tarjetas */
   
-  /* --- ESTADOS (Más contraste en los colores) --- */
-  --success-bg: #dcfce7;
-  --success-text: #166534; /* Verde oscuro */
+  /* ESTADOS (Con fondo semitransparente para un look neón/premium) */
+  --success-bg: rgba(74, 222, 128, 0.15);
+  --success-text: #4ade80;
   
-  --warning-bg: #fef9c3;
-  --warning-text: #854d0e; /* Amarillo oscuro / ocre */
+  --warning-bg: rgba(250, 204, 21, 0.15);
+  --warning-text: #facc15;
   
-  --danger-bg: #fee2e2;
-  --danger-text: #991b1b; /* Rojo oscuro */
+  --danger-bg: rgba(251, 113, 133, 0.15);
+  --danger-text: #fb7185;
 }
 
 body {
