@@ -96,7 +96,6 @@
             <div class="task-row level-1" @click="toggleExpand(cat.id)">
               <div class="task-info">
                 <span class="expand-arrow" :class="{ 'expanded': expanded.includes(cat.id) }">▶</span>
-                <span class="status-circle"></span>
                 <strong>{{ cat.stage_name }}</strong>
                 <span v-if="cat.notes && cat.notes.length > 0" class="notes-indicator">{{ cat.notes.length }}</span>
               </div>
@@ -113,7 +112,6 @@
                 <div class="task-row level-2" @click="toggleExpand(sub.id)">
                   <div class="task-info indent-1">
                     <span class="expand-arrow" :class="{ 'expanded': expanded.includes(sub.id), 'hidden': getChildren(sub.id).length === 0 }">▶</span>
-                    <span class="status-circle"></span>
                     <input v-model="sub.stage_name" class="task-name-input" @click.stop />
                     <span v-if="sub.notes && sub.notes.length > 0" class="notes-indicator">{{ sub.notes.length }}</span>
                   </div>
@@ -144,7 +142,7 @@
                 <div v-if="expanded.includes(sub.id)">
                   <div v-for="subsub in getChildren(sub.id)" :key="subsub.id" class="task-row level-3">
                     <div class="task-info indent-2">
-                      <span class="status-circle"></span>
+                      <span class="spacer-icon"></span>
                       <input v-model="subsub.stage_name" class="task-name-input" />
                       <span v-if="subsub.notes && subsub.notes.length > 0" class="notes-indicator">{{ subsub.notes.length }}</span>
                     </div>
@@ -223,7 +221,6 @@ const search = ref('')
 const filterStatus = ref('')
 const savingProject = ref(false)
 
-// Usuario actual para las notas
 const currentUser = ref(null)
 
 const form = ref({ project_name: '', client_name: '', description: '', status: 'active', tech_pack_url: '' })
@@ -266,12 +263,9 @@ function toggleExpand(id) {
 
 function clearFilters() { search.value = ''; filterStatus.value = '' }
 
-// ---- INICIALIZACIÓN Y USUARIO ----
 onMounted(async () => {
-  // Obtener el usuario actual para registrar sus notas
   const { data: { session } } = await supabase.auth.getSession()
   if (session) currentUser.value = session.user
-  
   fetchProjects()
 })
 
@@ -308,13 +302,12 @@ function resetForm() {
   editing.value = false; editId.value = null; showForm.value = false
 }
 
-// ---- LOGICA DE NOTAS (NUEVO) ----
 function openNotes(stage) {
   notesModal.value = {
     show: true,
     stageId: stage.id,
     stageName: stage.stage_name,
-    notes: stage.notes || [], // Cargar array de notas existente o vacío
+    notes: stage.notes || [],
     newNoteText: '',
     saving: false
   }
@@ -324,7 +317,6 @@ async function saveNote() {
   if (!notesModal.value.newNoteText.trim()) return
   notesModal.value.saving = true
 
-  // Crear objeto de la nota
   const newNote = {
     id: crypto.randomUUID(),
     text: notesModal.value.newNoteText,
@@ -333,25 +325,19 @@ async function saveNote() {
   }
 
   const updatedNotes = [...notesModal.value.notes, newNote]
-
-  // Guardar en la base de datos INMEDIATAMENTE
   const { error } = await supabase.from('project_stages').update({ notes: updatedNotes }).eq('id', notesModal.value.stageId)
 
   if (!error) {
     notesModal.value.notes = updatedNotes
     notesModal.value.newNoteText = ''
-    
-    // Actualizar el estado local para que aparezca el "badge" de que hay 1 nota
     const stage = timelineModal.value.stages.find(s => s.id === notesModal.value.stageId)
     if (stage) stage.notes = updatedNotes
   } else {
     alert('Error saving note: ' + error.message)
   }
-  
   notesModal.value.saving = false
 }
 
-// ---- LOGICA DE TIMELINE ----
 async function seedDefaultTree(projectId) {
   const allStagesToInsert = []
   for (let i = 0; i < CLICKUP_TEMPLATE.length; i++) {
@@ -502,15 +488,14 @@ textarea { resize: vertical; }
 .th-action { width: 80px; }
 
 .stage-group { border: 1px solid #e5e7eb; border-radius: 8px; margin-bottom: 0.75rem; overflow: hidden; background: #f8fafc; }
-.expand-arrow { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; color: #6b7280; font-size: 0.75rem; transition: transform 0.2s; user-select: none; }
+.expand-arrow { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; color: #6b7280; font-size: 0.75rem; transition: transform 0.2s; user-select: none; }
 .small-arrow { font-size: 0.65rem; color: #9ca3af; }
 .empty-dot { color: #d1d5db; }
+.spacer-icon { width: 20px; display: inline-block; }
 
 .level-1 { display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 1rem; cursor: pointer; transition: background 0.2s; }
 .level-1:hover { background: #f1f5f9; }
 .cat-title { display: flex; align-items: center; gap: 0.5rem; font-size: 0.95rem; color: #111827; }
-.btn-add-sub { background: #e0e7ff; color: #4338ca; border: none; padding: 0.3rem 0.8rem; border-radius: 6px; font-size: 0.75rem; font-weight: 700; cursor: pointer; transition: background 0.2s; }
-.btn-add-sub:hover { background: #c7d2fe; }
 
 .children-container { border-top: 1px solid #e5e7eb; background: white; }
 .subtask-wrapper { border-bottom: 1px solid #f3f4f6; }
@@ -520,12 +505,15 @@ textarea { resize: vertical; }
 .level-2:hover, .level-3:hover { background: #fafbff; }
 .level-3 { background: #fcfcfd; border-top: 1px dashed #f3f4f6; }
 
-.task-input-wrapper { flex: 2; display: flex; align-items: center; gap: 0.2rem; }
-.tree-line { color: #d1d5db; font-weight: bold; margin-left: 0.5rem; font-size: 0.9rem; }
-.indent-more { margin-left: 2.2rem; }
-.task-name-input { flex: 1; border: 1px solid transparent; background: transparent; padding: 0.4rem; font-size: 0.88rem; font-weight: 500; border-radius: 6px; transition: border 0.2s; color: #374151; margin-left: 0.2rem;}
+.task-input-wrapper { flex: 2; display: flex; align-items: center; gap: 0.4rem; }
+.indent-1 { padding-left: 1rem; }
+.indent-2 { padding-left: 2.5rem; }
+
+.task-info { flex: 3; display: flex; align-items: center; gap: 0.4rem; font-size: 0.9rem; color: #111827; }
+.level-1 strong { font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; }
+
+.task-name-input { width: 100%; border: 1px solid transparent; background: transparent; padding: 0.2rem 0.4rem; font-size: 0.88rem; font-weight: 500; border-radius: 4px; color: #374151; transition: border 0.2s; }
 .task-name-input:focus { border: 1px solid #4f46e5; background: white; }
-.status-circle { width: 14px; height: 14px; border-radius: 50%; border: 2px solid #0ea5e9; display: inline-block; }
 
 .task-empty-slots { flex: 2; }
 .task-date { flex: 1; display: flex; justify-content: center; }
@@ -533,7 +521,6 @@ textarea { resize: vertical; }
 .task-status { flex: 1; display: flex; justify-content: center; }
 .status-select { padding: 0.3rem 0.5rem; border-radius: 6px; font-size: 0.75rem; font-weight: 600; border: 1px solid #e5e7eb; outline: none; cursor: pointer; width: 110px; }
 
-/* NUEVO: Badge para notas y diseño de botones */
 .notes-indicator { background: #fef08a; color: #854d0e; font-size: 0.65rem; font-weight: 800; padding: 0.1rem 0.4rem; border-radius: 20px; margin-left: 0.3rem; }
 .task-actions { width: 80px; display: flex; gap: 0.3rem; justify-content: flex-end; opacity: 0; transition: opacity 0.2s; }
 .task-row:hover .task-actions { opacity: 1; }
