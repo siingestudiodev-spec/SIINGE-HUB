@@ -12,11 +12,9 @@
       <div class="form-grid">
         <input v-model="form.project_name" placeholder="Project Name *" />
         <input v-model="form.client_name" placeholder="Client Name" />
-        
         <select v-model="form.status">
           <option v-for="stage in projectStages" :key="stage" :value="stage">{{ stage }}</option>
         </select>
-        
         <input v-model="form.tech_pack_url" placeholder="Tech Pack URL (Google Drive, etc.)" />
       </div>
       <textarea v-model="form.description" placeholder="Description" rows="3" class="mt-4"></textarea>
@@ -27,28 +25,36 @@
       </div>
     </div>
 
-    <div class="filters">
-      <input v-model="search" placeholder="🔍 Search by project or client..." class="search-input" />
-      <select v-model="filterStatus" class="filter-select">
-        <option value="">All Stages</option>
-        <option v-for="stage in projectStages" :key="stage" :value="stage">{{ stage }}</option>
-      </select>
-      <button v-if="search || filterStatus" @click="clearFilters" class="btn-clear">✕ Clear</button>
-      <span class="results-count">{{ filteredProjects.length }} result{{ filteredProjects.length !== 1 ? 's' : '' }}</span>
+    <div class="filters-container">
+      <div class="filters">
+        <input v-model="search" placeholder="🔍 Search by project or client..." class="search-input" />
+        <select v-model="filterStatus" class="filter-select">
+          <option value="">All Stages</option>
+          <option v-for="stage in projectStages" :key="stage" :value="stage">{{ stage }}</option>
+        </select>
+        <button v-if="search || filterStatus" @click="clearFilters" class="btn-clear">✕ Clear</button>
+        <span class="results-count">{{ filteredProjects.length }} result{{ filteredProjects.length !== 1 ? 's' : '' }}</span>
+      </div>
+
+      <div class="view-toggle">
+        <button :class="{ active: currentView === 'list' }" @click="currentView = 'list'">📄 List</button>
+        <button :class="{ active: currentView === 'board' }" @click="currentView = 'board'">🏷️ Board</button>
+      </div>
     </div>
 
     <div v-if="loading" class="loading">Loading...</div>
     <div v-else-if="filteredProjects.length === 0" class="empty">No projects found.</div>
-    <div v-else class="list-container">
-      
+    
+    <div v-else-if="currentView === 'list'" class="list-container">
       <div v-for="p in filteredProjects" :key="p.id" class="horizontal-card">
-        
         <div class="card-identity">
-          <div class="card-avatar">{{ p.project_name?.charAt(0) }}</div>
+          <div class="card-avatar" :style="{ background: getStageGradient(p.status) }">{{ p.project_name?.charAt(0) }}</div>
           <div class="card-title-block">
             <h3>{{ p.project_name }}</h3>
             <div class="badges-row">
-              <span class="stage-badge">📍 {{ p.status }}</span>
+              <span class="stage-badge" :style="{ color: getStageColor(p.status), borderColor: getStageColor(p.status) }">
+                📍 {{ p.status }}
+              </span>
             </div>
           </div>
         </div>
@@ -62,7 +68,6 @@
               <span class="info-icon">📅</span> Created: {{ new Date(p.created_at).toLocaleDateString() }}
             </div>
           </div>
-
           <div class="info-row notes-row" v-if="p.description">
             <span class="info-icon">📄</span>
             <span class="truncate-text" :title="p.description">{{ p.description }}</span>
@@ -84,7 +89,51 @@
             <button @click="deleteProject(p.id)" class="btn-action-icon btn-delete" title="Delete">🗑️</button>
           </div>
         </div>
+      </div>
+    </div>
 
+    <div v-else-if="currentView === 'board'" class="board-container">
+      <div v-for="stage in projectStages" :key="stage" class="board-column">
+        <div class="column-header" :style="{ borderTopColor: getStageColor(stage) }">
+          <div class="col-title">
+            <span class="stage-dot" :style="{ backgroundColor: getStageColor(stage) }"></span>
+            {{ stage }}
+          </div>
+          <span class="col-count">{{ getProjectsByStage(stage).length }}</span>
+        </div>
+        
+        <div class="column-content">
+          <div v-for="p in getProjectsByStage(stage)" :key="p.id" class="board-card">
+            <div class="bc-header">
+              <div class="bc-avatar" :style="{ background: getStageGradient(p.status) }">{{ p.project_name?.charAt(0) }}</div>
+              <div class="bc-title-wrap">
+                <h4>{{ p.project_name }}</h4>
+                <span class="bc-client" v-if="p.client_name">👤 {{ p.client_name }}</span>
+              </div>
+            </div>
+            
+            <div class="bc-body" v-if="p.description">
+              <p class="truncate-text">{{ p.description }}</p>
+            </div>
+
+            <div class="bc-footer">
+              <div class="bc-links">
+                <a v-if="p.tech_pack_url" :href="p.tech_pack_url" target="_blank" title="Tech Pack">📎</a>
+                <router-link :to="'/projects/' + p.id + '/quotes'" title="Quotes">📊</router-link>
+                <router-link :to="'/projects/' + p.id + '/sourcing'" title="Sourcing">📦</router-link>
+              </div>
+              <div class="bc-actions">
+                <button @click="openTimeline(p)" class="btn-micro-tl" title="Timeline">⏱️</button>
+                <button @click="editProject(p)" class="btn-micro" title="Edit">✏️</button>
+                <button @click="deleteProject(p.id)" class="btn-micro del" title="Delete">🗑️</button>
+              </div>
+            </div>
+          </div>
+          
+          <div v-if="getProjectsByStage(stage).length === 0" class="board-empty">
+            No projects in this stage
+          </div>
+        </div>
       </div>
     </div>
 
@@ -230,7 +279,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { supabase } from '../lib/supabase'
 
-// NUEVAS ETAPAS DE DESARROLLO (Basadas en la imagen)
+// ETAPAS DE DESARROLLO (Status)
 const projectStages = [
   'Concept & Design',
   'Quote',
@@ -242,6 +291,26 @@ const projectStages = [
   'Project Completion'
 ]
 
+// COLORES POR ETAPA (Para el Kanban y Badges)
+function getStageColor(stage) {
+  const colors = {
+    'Concept & Design': '#f97316', // Naranja
+    'Quote': '#0ea5e9', // Azul claro
+    'Material & Trim Sourcing': '#8b5cf6', // Morado
+    'Sample Development': '#d946ef', // Rosa
+    'Final Tech Pack & Bulk Prep': '#14b8a6', // Teal (Verde azulado)
+    'Quality Inspection': '#eab308', // Amarillo
+    'Shipping & Logistics': '#3b82f6', // Azul oscuro
+    'Project Completion': '#22c55e' // Verde
+  }
+  return colors[stage] || '#64748b'
+}
+
+function getStageGradient(stage) {
+  const color = getStageColor(stage)
+  return `linear-gradient(135deg, ${color}, #334155)`
+}
+
 const projects = ref([])
 const loading = ref(true)
 const showForm = ref(false)
@@ -251,6 +320,9 @@ const search = ref('')
 const filterStatus = ref('')
 const savingProject = ref(false)
 const currentUser = ref(null)
+
+// NUEVO: Estado de la vista actual ('list' o 'board')
+const currentView = ref('board')
 
 const form = ref({ project_name: '', client_name: '', description: '', status: projectStages[0], tech_pack_url: '' })
 
@@ -277,6 +349,10 @@ const filteredProjects = computed(() => {
     return matchSearch && matchStatus
   })
 })
+
+function getProjectsByStage(stage) {
+  return filteredProjects.value.filter(p => p.status === stage)
+}
 
 const rootStages = computed(() => timelineModal.value.stages.filter(s => !s.parent_id).sort((a, b) => a.step_order - b.step_order))
 function getChildren(parentId) { return timelineModal.value.stages.filter(s => s.parent_id === parentId).sort((a, b) => a.step_order - b.step_order) }
@@ -392,9 +468,9 @@ async function saveTimeline() {
 </script>
 
 <style scoped>
-.container { max-width: 1400px; margin: 0 auto; padding: 2rem 1.5rem; color: var(--text-body); }
+.container { max-width: 1500px; margin: 0 auto; padding: 2rem 1.5rem; color: var(--text-body); }
 .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; }
-h1, h2, h3 { color: var(--text-main); font-weight: 700; margin-bottom: 0.5rem; }
+h1, h2, h3, h4 { color: var(--text-main); font-weight: 700; margin-bottom: 0.5rem; }
 h1 { font-size: 2rem; margin: 0; }
 
 .form-card { background: var(--bg-card); padding: 2rem; border-radius: 16px; border: 1px solid var(--border-main); margin-bottom: 2rem; box-shadow: 0 4px 24px rgba(0,0,0,0.2); }
@@ -403,49 +479,37 @@ input, textarea, select { width: 100%; padding: 0.7rem 1rem; background: var(--b
 input:focus, textarea:focus, select:focus { outline: none; border-color: var(--primary); }
 textarea { resize: vertical; }
 
-.filters { display: flex; gap: 1rem; align-items: center; margin-bottom: 2rem; flex-wrap: wrap; background: var(--bg-card); padding: 1rem; border-radius: 12px; border: 1px solid var(--border-main); }
+/* CONTENEDOR DE FILTROS Y VISTAS */
+.filters-container { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; margin-bottom: 2rem; background: var(--bg-card); padding: 1rem; border-radius: 12px; border: 1px solid var(--border-main); }
+.filters { display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; flex: 1;}
 .search-input, .filter-select { background: var(--bg-app); color: var(--text-main); border-color: var(--border-main); }
-.results-count { color: var(--text-muted); font-size: 0.85rem; margin-left: auto; }
+.results-count { color: var(--text-muted); font-size: 0.85rem; }
 
-/* LISTA HORIZONTAL (NUEVA ESTRUCTURA) */
+/* VIEW TOGGLE */
+.view-toggle { display: flex; background: var(--bg-app); padding: 0.3rem; border-radius: 10px; border: 1px solid var(--border-main); }
+.view-toggle button { background: transparent; border: none; color: var(--text-muted); padding: 0.5rem 1rem; border-radius: 8px; cursor: pointer; font-size: 0.85rem; font-weight: 600; transition: 0.2s; }
+.view-toggle button.active { background: var(--border-light); color: var(--text-main); box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+
+/* VISTA 1: LISTA HORIZONTAL */
 .list-container { display: flex; flex-direction: column; gap: 1.2rem; }
-
-.horizontal-card { 
-  background: var(--bg-card); 
-  border-radius: 16px; 
-  border: 1px solid var(--border-main); 
-  display: flex; 
-  align-items: stretch; 
-  transition: transform 0.2s, box-shadow 0.2s; 
-  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-  overflow: hidden; 
-}
+.horizontal-card { background: var(--bg-card); border-radius: 16px; border: 1px solid var(--border-main); display: flex; align-items: stretch; transition: transform 0.2s, box-shadow 0.2s; box-shadow: 0 4px 6px rgba(0,0,0,0.1); overflow: hidden; }
 .horizontal-card:hover { transform: translateX(4px); border-color: var(--primary); box-shadow: 0 8px 15px rgba(0,0,0,0.15); }
-
-/* Bloque 1: Identidad */
 .card-identity { display: flex; align-items: flex-start; gap: 1rem; min-width: 280px; max-width: 320px; padding: 1.5rem; border-right: 1px solid var(--border-light); background: rgba(255,255,255,0.01); }
-.card-avatar { width: 48px; height: 48px; background: linear-gradient(135deg, var(--primary), #ec4899); color: white; font-weight: 700; font-size: 1.3rem; border-radius: 12px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.card-title-block h3 { margin: 0 0 0.3rem 0; font-size: 1.1rem; font-weight: 700; color: var(--text-main); line-height: 1.2; }
-.stage-badge { background: rgba(99, 102, 241, 0.15); color: var(--primary); padding: 0.2rem 0.6rem; border-radius: 6px; font-size: 0.75rem; font-weight: 700; border: 1px solid rgba(99, 102, 241, 0.3); display: inline-block; margin-top: 0.3rem;}
-
-/* Bloque 2: Info */
+.card-avatar { width: 48px; height: 48px; color: white; font-weight: 700; font-size: 1.3rem; border-radius: 12px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.card-title-block h3 { margin: 0 0 0.3rem 0; font-size: 1.1rem; line-height: 1.2; }
+.stage-badge { background: rgba(0,0,0,0.2); padding: 0.2rem 0.6rem; border-radius: 6px; font-size: 0.75rem; font-weight: 700; border: 1px solid; display: inline-block; margin-top: 0.3rem;}
 .card-info-main { flex: 2; padding: 1.5rem; display: flex; flex-direction: column; gap: 0.8rem; }
 .contact-info { display: flex; flex-wrap: wrap; gap: 1.2rem; }
 .info-row { display: flex; align-items: center; gap: 0.6rem; font-size: 0.9rem; color: var(--text-body); }
 .text-muted { color: var(--text-muted); font-size: 0.8rem; }
-
 .notes-row { background: rgba(0,0,0,0.15); padding: 0.8rem; border-radius: 8px; border-left: 3px solid var(--border-main); color: var(--text-muted); font-style: italic; align-items: flex-start; }
 .truncate-text { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: 0.85rem; }
-
-/* Bloque 3: Herramientas */
 .card-details-block { flex: 1; padding: 1.5rem; border-left: 1px dashed var(--border-light); display: flex; flex-direction: column; gap: 0.8rem; min-width: 200px; justify-content: center;}
 .tools-grid { display: flex; flex-direction: column; gap: 0.5rem; }
 .btn-tool { padding: 0.5rem 0.8rem; border-radius: 8px; text-decoration: none; font-size: 0.8rem; font-weight: 600; border: 1px solid var(--border-main); color: var(--text-main); background: var(--bg-app); cursor: pointer; text-align: center;}
 .btn-tool.techpack:hover { border-color: #a855f7; color: #a855f7; }
 .btn-tool.quotes:hover { border-color: var(--success-text); color: var(--success-text); }
 .btn-tool.sourcing:hover { border-color: var(--warning-text); color: var(--warning-text); }
-
-/* Bloque 4: Acciones */
 .card-actions-vertical { background: rgba(0,0,0,0.15); border-left: 1px solid var(--border-main); padding: 1.5rem 1rem; display: flex; flex-direction: column; gap: 0.6rem; min-width: 140px; justify-content: center; }
 .action-top-row { display: flex; justify-content: space-between; gap: 0.3rem; }
 .btn-action-icon { background: var(--bg-app); border: 1px solid var(--border-main); border-radius: 6px; padding: 0.4rem; cursor: pointer; font-size: 0.8rem; flex: 1; display: flex; justify-content: center; align-items: center; transition: 0.2s; }
@@ -455,12 +519,96 @@ textarea { resize: vertical; }
 .btn-timeline { background: var(--primary); color: white; }
 .btn-timeline:hover { filter: brightness(1.1); }
 
+/* VISTA 2: TABLERO KANBAN */
+.board-container { 
+  display: flex; 
+  gap: 1rem; 
+  overflow-x: auto; 
+  padding-bottom: 1rem; 
+  align-items: flex-start; 
+  /* Estilo de barra de desplazamiento personalizada para el modo oscuro */
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-main) var(--bg-app);
+}
+.board-container::-webkit-scrollbar { height: 8px; }
+.board-container::-webkit-scrollbar-track { background: var(--bg-app); border-radius: 4px; }
+.board-container::-webkit-scrollbar-thumb { background-color: var(--border-main); border-radius: 4px; }
+
+.board-column { 
+  min-width: 320px; 
+  width: 320px; 
+  background: var(--bg-card); 
+  border-radius: 12px; 
+  border: 1px solid var(--border-main); 
+  display: flex; 
+  flex-direction: column; 
+  max-height: calc(100vh - 200px);
+}
+.column-header { 
+  padding: 1rem; 
+  font-size: 0.85rem; 
+  font-weight: 800; 
+  color: var(--text-main); 
+  border-bottom: 1px solid var(--border-main); 
+  border-top: 3px solid; /* El color se inyecta dinámicamente */
+  display: flex; 
+  justify-content: space-between; 
+  align-items: center; 
+  border-radius: 12px 12px 0 0;
+  background: rgba(0,0,0,0.2);
+}
+.col-title { display: flex; align-items: center; gap: 0.5rem; text-transform: uppercase; letter-spacing: 0.05em;}
+.stage-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+.col-count { background: var(--bg-app); padding: 0.1rem 0.5rem; border-radius: 20px; color: var(--text-muted); font-size: 0.75rem; border: 1px solid var(--border-main);}
+
+.column-content { 
+  padding: 1rem; 
+  overflow-y: auto; 
+  display: flex; 
+  flex-direction: column; 
+  gap: 1rem; 
+  scrollbar-width: none; /* Oculta el scrollbar interno para limpieza visual */
+}
+.column-content::-webkit-scrollbar { display: none; }
+
+.board-card { 
+  background: var(--bg-app); 
+  border: 1px solid var(--border-main); 
+  border-radius: 10px; 
+  padding: 1rem; 
+  display: flex; 
+  flex-direction: column; 
+  gap: 0.8rem; 
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1); 
+  transition: transform 0.15s, border-color 0.15s;
+}
+.board-card:hover { transform: translateY(-2px); border-color: var(--text-muted); }
+
+.bc-header { display: flex; align-items: center; gap: 0.8rem; }
+.bc-avatar { width: 36px; height: 36px; border-radius: 8px; color: white; display: flex; justify-content: center; align-items: center; font-weight: 800; font-size: 1.1rem; flex-shrink: 0;}
+.bc-title-wrap h4 { margin: 0; font-size: 0.95rem; line-height: 1.2;}
+.bc-client { font-size: 0.7rem; color: var(--text-muted); background: rgba(255,255,255,0.05); padding: 0.1rem 0.4rem; border-radius: 4px; display: inline-block; margin-top: 0.2rem;}
+
+.bc-body p { margin: 0; font-size: 0.8rem; color: var(--text-muted); }
+
+.bc-footer { display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border-main); padding-top: 0.8rem; margin-top: 0.2rem;}
+.bc-links { display: flex; gap: 0.4rem; }
+.bc-links a { background: var(--bg-card); border: 1px solid var(--border-main); padding: 0.3rem 0.5rem; border-radius: 6px; text-decoration: none; font-size: 0.8rem; transition: 0.2s;}
+.bc-links a:hover { background: var(--border-light); }
+.bc-actions { display: flex; gap: 0.3rem; }
+.btn-micro { background: transparent; border: none; color: var(--text-muted); cursor: pointer; padding: 0.2rem; border-radius: 4px;}
+.btn-micro:hover { background: var(--border-light); color: var(--text-main);}
+.btn-micro.del:hover { color: var(--danger-text); background: var(--danger-bg);}
+.btn-micro-tl { background: rgba(99, 102, 241, 0.1); border: 1px solid rgba(99, 102, 241, 0.3); color: var(--primary); border-radius: 4px; cursor: pointer; padding: 0.2rem 0.4rem; font-size: 0.75rem;}
+.btn-micro-tl:hover { background: var(--primary); color: white;}
+
+.board-empty { text-align: center; padding: 2rem 0; color: var(--text-muted); font-size: 0.85rem; font-style: italic; border: 1px dashed var(--border-main); border-radius: 8px;}
+
 /* BOTONES GLOBALES */
 .btn-primary { background: var(--primary); color: white; border: none; padding: 0.7rem 1.5rem; border-radius: 10px; cursor: pointer; font-size: 0.92rem; font-weight: 600; transition: 0.15s; }
 .btn-primary:hover { opacity: 0.9; }
 .btn-secondary { background: var(--bg-app); color: var(--text-main); border: 1px solid var(--border-main); padding: 0.5rem 1rem; border-radius: 8px; cursor: pointer; font-weight: 500; }
 .btn-clear { background: var(--border-light); color: var(--text-muted); border: none; padding: 0.7rem 1rem; border-radius: 8px; cursor: pointer; font-weight: 600; }
-
 .loading, .empty { text-align: center; padding: 3rem; color: var(--text-muted); }
 .mt-4 { margin-top: 1rem; }
 
@@ -533,7 +681,7 @@ textarea { resize: vertical; }
 .note-text { font-size: 0.85rem; color: var(--text-body); line-height: 1.5; white-space: pre-wrap; }
 .add-note-box { display: flex; flex-direction: column; gap: 0.5rem; }
 
-/* RESPONSIVE */
+/* RESPONSIVE PARA LISTA HORIZONTAL */
 @media (max-width: 1000px) {
   .horizontal-card { flex-direction: column; align-items: stretch; }
   .card-identity { border-right: none; border-bottom: 1px solid var(--border-light); max-width: none; }
