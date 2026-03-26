@@ -59,9 +59,7 @@
           <a v-if="p.tech_pack_url" :href="p.tech_pack_url" target="_blank" class="btn-techpack">📎 Tech Pack</a>
           <router-link :to="'/projects/' + p.id + '/quotes'" class="btn-quotes">📊 Quotes</router-link>
           <router-link :to="'/projects/' + p.id + '/sourcing'" class="btn-sourcing">📦 Sourcing</router-link>
-          
           <button @click="openTimeline(p)" class="btn-timeline">⏱️ Timeline</button>
-          
           <button @click="editProject(p)" class="btn-secondary">Edit</button>
           <button @click="deleteProject(p.id)" class="btn-danger">Delete</button>
         </div>
@@ -75,7 +73,7 @@
           <button @click="timelineModal.show = false" class="modal-close">✕</button>
         </div>
         
-        <div v-if="timelineModal.loading" class="loading">Loading stages...</div>
+        <div v-if="timelineModal.loading" class="loading">Loading structure...</div>
         <div v-else class="timeline-container">
           <div class="timeline-header-row">
             <div class="th-name">Task Name</div>
@@ -85,56 +83,68 @@
             <div class="th-action"></div>
           </div>
 
-          <div v-for="(cat, index) in rootStages" :key="cat.id" class="stage-group">
+          <div v-for="cat in rootStages" :key="cat.id" class="stage-group">
             
-            <div class="level-1">
+            <div class="level-1" @click="toggleExpand(cat.id)">
               <div class="cat-title">
-                <span class="stage-number">{{ index + 1 }}</span>
+                <span class="expand-arrow">{{ expanded.includes(cat.id) ? '▼' : '▶' }}</span>
                 <strong>{{ cat.stage_name }}</strong>
               </div>
-              <button @click="addSubtask(cat.id)" class="btn-add-sub">+ Subtask</button>
-            </div>
-
-            <div v-for="sub in getChildren(cat.id)" :key="sub.id" class="level-2">
-              <div class="task-input-wrapper">
-                <span class="tree-line">└</span>
-                <input v-model="sub.stage_name" class="task-name-input" placeholder="Subtask name..." />
-              </div>
-              <div class="task-date"><input type="date" v-model="sub.due_date" class="date-input" /></div>
-              <div class="task-date"><input type="date" v-model="sub.completed_date" class="date-input" /></div>
-              <div class="task-status">
-                <select v-model="sub.status" :class="'status-select status-' + sub.status.toLowerCase().replace(' ', '-')">
-                  <option value="Pending">Pending</option>
-                  <option value="In Progress">In Progress</option>
-                  <option value="Completed">Completed</option>
-                </select>
-              </div>
-              <div class="task-actions">
-                <button @click="addSubtask(sub.id)" class="btn-add-micro" title="Add Sub-subtask">➕</button>
-                <button @click="deleteStage(sub.id)" class="btn-del-micro" title="Delete">🗑️</button>
+              <div class="cat-actions" @click.stop>
+                <button @click="addSubtask(cat.id)" class="btn-add-sub">+ Subtask</button>
               </div>
             </div>
 
-            <template v-for="sub in getChildren(cat.id)" :key="'nested-'+sub.id">
-              <div v-for="subsub in getChildren(sub.id)" :key="subsub.id" class="level-3">
-                <div class="task-input-wrapper">
-                  <span class="tree-line indent-more">└</span>
-                  <input v-model="subsub.stage_name" class="task-name-input micro-input" placeholder="Sub-subtask name..." />
+            <div v-if="expanded.includes(cat.id)" class="children-container">
+              <div v-for="sub in getChildren(cat.id)" :key="sub.id" class="subtask-wrapper">
+                
+                <div class="level-2" @click="toggleExpand(sub.id)">
+                  <div class="task-input-wrapper">
+                    <span class="tree-line">└</span>
+                    <span class="expand-arrow small-arrow" v-if="getChildren(sub.id).length > 0">
+                      {{ expanded.includes(sub.id) ? '▼' : '▶' }}
+                    </span>
+                    <span class="expand-arrow small-arrow empty-dot" v-else>•</span>
+                    <input v-model="sub.stage_name" class="task-name-input" @click.stop />
+                  </div>
+                  <div class="task-date" @click.stop><input type="date" v-model="sub.due_date" class="date-input" /></div>
+                  <div class="task-date" @click.stop><input type="date" v-model="sub.completed_date" class="date-input" /></div>
+                  <div class="task-status" @click.stop>
+                    <select v-model="sub.status" :class="'status-select status-' + sub.status.toLowerCase().replace(' ', '-')">
+                      <option value="Pending">Pending</option>
+                      <option value="In Progress">In Progress</option>
+                      <option value="Completed">Completed</option>
+                    </select>
+                  </div>
+                  <div class="task-actions" @click.stop>
+                    <button @click="addSubtask(sub.id)" class="btn-add-micro" title="Add Sub-subtask">➕</button>
+                    <button @click="deleteStage(sub.id)" class="btn-del-micro" title="Delete">🗑️</button>
+                  </div>
                 </div>
-                <div class="task-date"><input type="date" v-model="subsub.due_date" class="date-input" /></div>
-                <div class="task-date"><input type="date" v-model="subsub.completed_date" class="date-input" /></div>
-                <div class="task-status">
-                  <select v-model="subsub.status" :class="'status-select status-' + subsub.status.toLowerCase().replace(' ', '-')">
-                    <option value="Pending">Pending</option>
-                    <option value="In Progress">In Progress</option>
-                    <option value="Completed">Completed</option>
-                  </select>
+
+                <div v-if="expanded.includes(sub.id)">
+                  <div v-for="subsub in getChildren(sub.id)" :key="subsub.id" class="level-3">
+                    <div class="task-input-wrapper">
+                      <span class="tree-line indent-more">└</span>
+                      <input v-model="subsub.stage_name" class="task-name-input micro-input" />
+                    </div>
+                    <div class="task-date"><input type="date" v-model="subsub.due_date" class="date-input" /></div>
+                    <div class="task-date"><input type="date" v-model="subsub.completed_date" class="date-input" /></div>
+                    <div class="task-status">
+                      <select v-model="subsub.status" :class="'status-select status-' + subsub.status.toLowerCase().replace(' ', '-')">
+                        <option value="Pending">Pending</option>
+                        <option value="In Progress">In Progress</option>
+                        <option value="Completed">Completed</option>
+                      </select>
+                    </div>
+                    <div class="task-actions">
+                      <button @click="deleteStage(subsub.id)" class="btn-del-micro" title="Delete">🗑️</button>
+                    </div>
+                  </div>
                 </div>
-                <div class="task-actions">
-                  <button @click="deleteStage(subsub.id)" class="btn-del-micro" title="Delete">🗑️</button>
-                </div>
+
               </div>
-            </template>
+            </div>
           </div>
         </div>
 
@@ -164,14 +174,15 @@ const filterStatus = ref('')
 
 const form = ref({ project_name: '', client_name: '', description: '', status: 'active', tech_pack_url: '', quotes: '' })
 
-// TIMELINE VARIABLES
+// TIMELINE STATE
+const timelineModal = ref({ show: false, loading: false, saving: false, projectId: null, projectName: '', stages: [] })
+const expanded = ref([]) // IDs de las carpetas desplegadas
+
 const DEFAULT_STAGES = [
   'CONCEPT & DESIGN', 'QUOTE', 'MATERIAL & TRIM SOURCING', 
   'SAMPLE DEVELOPMENT', 'FINAL TECH PACK & BULK PREPARATION', 
   'QUALITY INSPECTION', 'SHIPPING & LOGISTICS', 'PROJECT COMPLETION'
 ]
-
-const timelineModal = ref({ show: false, loading: false, saving: false, projectId: null, projectName: '', stages: [] })
 
 const filteredProjects = computed(() => {
   return projects.value.filter(p => {
@@ -182,14 +193,20 @@ const filteredProjects = computed(() => {
   })
 })
 
-// EXTRAER CATEGORÍAS PRINCIPALES (Sin padre)
 const rootStages = computed(() => {
   return timelineModal.value.stages.filter(s => !s.parent_id).sort((a, b) => a.step_order - b.step_order)
 })
 
-// OBTENER HIJOS DE UN PADRE
 function getChildren(parentId) {
-  return timelineModal.value.stages.filter(s => s.parent_id === parentId).sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
+  return timelineModal.value.stages.filter(s => s.parent_id === parentId).sort((a, b) => a.step_order - b.step_order)
+}
+
+function toggleExpand(id) {
+  if (expanded.value.includes(id)) {
+    expanded.value = expanded.value.filter(i => i !== id)
+  } else {
+    expanded.value.push(id)
+  }
 }
 
 function clearFilters() { search.value = ''; filterStatus.value = '' }
@@ -223,7 +240,51 @@ function resetForm() {
   editing.value = false; editId.value = null; showForm.value = false
 }
 
-// ---- LOGICA DE TIMELINE CON SUBTAREAS ----
+// ---- LÓGICA DE CREACIÓN DEL ÁRBOL CLICKUP ----
+async function seedDefaultTree(projectId) {
+  // 1. Insertamos las categorías principales
+  const rootInserts = DEFAULT_STAGES.map((name, i) => ({
+    project_id: projectId, stage_name: name, step_order: i + 1, status: 'Pending', parent_id: null
+  }))
+  const { data: insertedRoots } = await supabase.from('project_stages').insert(rootInserts).select()
+  
+  const sampleDevRoot = insertedRoots?.find(r => r.stage_name === 'SAMPLE DEVELOPMENT')
+  
+  if (sampleDevRoot) {
+    // Expandimos automáticamente la carpeta principal
+    expanded.value.push(sampleDevRoot.id)
+
+    // 2. Insertamos el Nivel 2 de Sample Development
+    const sampleSubs = [
+      { name: 'First Sample', children: ['First Sample Due Date', 'Images Received Date', 'Corrections Completed Date', 'First Sample Received Date', 'Fit Notes Sent Date'] },
+      { name: 'Second Sample', children: ['Second sample due date', 'Images received date', 'Corrections completed date', 'Second sample received date', 'Fit Notes Sent Date'] },
+      { name: 'Fit Approval', children: ['Fit Approved — Initial Size', 'Fit Approved — Full Size Range'] },
+      { name: 'SIZE RANGE SAMPLES', children: ['Size Range Samples Due Date', 'Images Received Date', 'Corrections Completed Date', 'Size Range Received Date'] },
+      { name: 'TESTING', children: ['Required Tests', 'Test Due Dates', 'Test Completed Dates', 'Testing Documentation'] }
+    ]
+
+    for (let i = 0; i < sampleSubs.length; i++) {
+      const sub = sampleSubs[i]
+      const { data: insertedSub } = await supabase.from('project_stages').insert({
+        project_id: projectId, parent_id: sampleDevRoot.id, stage_name: sub.name, step_order: i + 1, status: 'Pending'
+      }).select()
+
+      // Expandimos automáticamente el nivel 2 para ver las fechas
+      if (insertedSub && insertedSub[0]) {
+        expanded.value.push(insertedSub[0].id)
+        
+        // 3. Insertamos el Nivel 3 (Sub-subtareas)
+        if (sub.children && sub.children.length > 0) {
+          const grandChildren = sub.children.map((gcName, j) => ({
+            project_id: projectId, parent_id: insertedSub[0].id, stage_name: gcName, step_order: j + 1, status: 'Pending'
+          }))
+          await supabase.from('project_stages').insert(grandChildren)
+        }
+      }
+    }
+  }
+}
+
 async function reloadTimelineData(projectId) {
   const { data } = await supabase.from('project_stages').select('*').eq('project_id', projectId)
   timelineModal.value.stages = data || []
@@ -234,44 +295,41 @@ async function openTimeline(p) {
   timelineModal.value.projectName = p.project_name
   timelineModal.value.projectId = p.id
   timelineModal.value.loading = true
+  expanded.value = [] // Reset expansiones
 
   await reloadTimelineData(p.id)
 
   if (timelineModal.value.stages.length === 0) {
-    const newStages = DEFAULT_STAGES.map((name, index) => ({
-      project_id: p.id, stage_name: name, step_order: index + 1, status: 'Pending', parent_id: null
-    }))
-    await supabase.from('project_stages').insert(newStages)
+    // Si está vacío, construye el árbol gigante
+    await seedDefaultTree(p.id)
     await reloadTimelineData(p.id)
   }
+  
   timelineModal.value.loading = false
 }
 
-// Agregar una nueva subtarea directamente a la BD
 async function addSubtask(parentId) {
   const newTask = {
     project_id: timelineModal.value.projectId,
     parent_id: parentId,
     stage_name: 'New Task',
     status: 'Pending',
-    step_order: 99 // Arbitrario para hijos
+    step_order: 99
   }
   await supabase.from('project_stages').insert([newTask])
+  if (!expanded.value.includes(parentId)) expanded.value.push(parentId) // Expande el padre para ver al hijo
   await reloadTimelineData(timelineModal.value.projectId)
 }
 
-// Borrar una subtarea de la BD
 async function deleteStage(id) {
-  if (!confirm('Delete this task?')) return
+  if (!confirm('Delete this task and all its subtasks?')) return
   await supabase.from('project_stages').delete().eq('id', id)
   await reloadTimelineData(timelineModal.value.projectId)
 }
 
-// Guardar cambios masivos (nombres, fechas, estados)
 async function saveTimeline() {
   timelineModal.value.saving = true
   for (const stage of timelineModal.value.stages) {
-    // Solo actualizamos hijos (los root no cambian nombre ni fechas)
     if (stage.parent_id) {
       await supabase.from('project_stages').update({
         stage_name: stage.stage_name,
@@ -283,7 +341,6 @@ async function saveTimeline() {
   }
   timelineModal.value.saving = false
   timelineModal.value.show = false
-  alert('Timeline updated successfully!')
 }
 
 onMounted(fetchProjects)
@@ -336,10 +393,12 @@ textarea { resize: vertical; }
 .btn-danger { background: #fff1f2; color: #e11d48; border: none; padding: 0.5rem 1rem; border-radius: 8px; cursor: pointer; font-size: 0.88rem; font-family: 'Inter', sans-serif; font-weight: 500; }
 .loading, .empty { text-align: center; padding: 3rem; color: #9ca3af; }
 
-/* MODAL DE TIMELINE (NUEVO DISEÑO JERÁRQUICO) */
+/* -------------------------------------
+   MODAL DE TIMELINE (DISEÑO CLICKUP)
+-------------------------------------- */
 .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 1rem; }
 .modal { background: white; padding: 2rem; border-radius: 16px; width: 100%; max-height: 90vh; overflow-y: auto; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); }
-.modal-large { max-width: 900px; }
+.modal-large { max-width: 950px; }
 .modal-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e5e7eb; padding-bottom: 1rem; margin-bottom: 1.5rem; }
 .modal-header h2 { margin: 0; font-size: 1.25rem; color: #1a1a2e; }
 .modal-close { background: #f3f4f6; border: none; width: 32px; height: 32px; border-radius: 8px; cursor: pointer; color: #6b7280; display: flex; align-items: center; justify-content: center; font-weight: bold;}
@@ -351,29 +410,41 @@ textarea { resize: vertical; }
 .th-status { flex: 1; text-align: center; }
 .th-action { width: 60px; }
 
-.stage-group { border: 1px solid #e5e7eb; border-radius: 8px; margin-bottom: 0.75rem; overflow: hidden; }
+.stage-group { border: 1px solid #e5e7eb; border-radius: 8px; margin-bottom: 0.75rem; overflow: hidden; background: #f8fafc; }
 
-/* Nivel 1 (Padres sin inputs) */
-.level-1 { display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 1rem; background: #f8fafc; }
-.cat-title { display: flex; align-items: center; gap: 0.75rem; font-size: 0.9rem; color: #1f2937; }
-.stage-number { background: linear-gradient(135deg, #667eea, #764ba2); color: white; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; border-radius: 50%; font-weight: 700; font-size: 0.7rem; }
+/* ICONOS DE EXPANSIÓN (LAS FLECHITAS) */
+.expand-arrow { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; color: #6b7280; font-size: 0.75rem; transition: transform 0.2s; user-select: none; }
+.small-arrow { font-size: 0.65rem; color: #9ca3af; }
+.empty-dot { color: #d1d5db; }
+
+/* NIVEL 1 (CARPETAS) */
+.level-1 { display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 1rem; cursor: pointer; transition: background 0.2s; }
+.level-1:hover { background: #f1f5f9; }
+.cat-title { display: flex; align-items: center; gap: 0.5rem; font-size: 0.95rem; color: #111827; }
 .btn-add-sub { background: #e0e7ff; color: #4338ca; border: none; padding: 0.3rem 0.8rem; border-radius: 6px; font-size: 0.75rem; font-weight: 700; cursor: pointer; transition: background 0.2s; }
 .btn-add-sub:hover { background: #c7d2fe; }
 
-/* Niveles 2 y 3 (Subtareas con inputs) */
-.level-2, .level-3 { display: flex; align-items: center; padding: 0.6rem 0.5rem; border-top: 1px solid #f3f4f6; gap: 0.5rem; background: white; }
-.level-3 { background: #fcfcfd; }
+/* CONTENEDOR DE HIJOS */
+.children-container { border-top: 1px solid #e5e7eb; background: white; }
 
-.task-input-wrapper { flex: 2; display: flex; align-items: center; gap: 0.5rem; }
-.tree-line { color: #d1d5db; font-weight: bold; margin-left: 1rem; }
-.indent-more { margin-left: 2.5rem; }
+/* NIVEL 2 y 3 (SUBTAREAS) */
+.subtask-wrapper { border-bottom: 1px solid #f3f4f6; }
+.subtask-wrapper:last-child { border-bottom: none; }
 
-.task-name-input { flex: 1; border: 1px solid transparent; background: transparent; padding: 0.4rem; font-size: 0.85rem; font-weight: 500; border-radius: 6px; transition: border 0.2s; }
+.level-2, .level-3 { display: flex; align-items: center; padding: 0.6rem 0.5rem; gap: 0.5rem; cursor: pointer; transition: background 0.15s; }
+.level-2:hover, .level-3:hover { background: #fafbff; }
+.level-3 { background: #fcfcfd; border-top: 1px dashed #f3f4f6; }
+
+.task-input-wrapper { flex: 2; display: flex; align-items: center; gap: 0.2rem; }
+.tree-line { color: #d1d5db; font-weight: bold; margin-left: 0.5rem; font-size: 0.9rem; }
+.indent-more { margin-left: 2.2rem; }
+
+.task-name-input { flex: 1; border: 1px solid transparent; background: transparent; padding: 0.4rem; font-size: 0.88rem; font-weight: 500; border-radius: 6px; transition: border 0.2s; color: #374151; margin-left: 0.2rem;}
 .task-name-input:focus { border: 1px solid #4f46e5; background: white; }
-.micro-input { font-size: 0.8rem; color: #4b5563; }
+.micro-input { font-size: 0.82rem; color: #6b7280; }
 
 .task-date { flex: 1; display: flex; justify-content: center; }
-.date-input { width: 100%; max-width: 125px; padding: 0.3rem; font-size: 0.75rem; color: #4b5563; border: 1px solid #e5e7eb; border-radius: 6px; }
+.date-input { width: 100%; max-width: 125px; padding: 0.3rem; font-size: 0.75rem; color: #4b5563; border: 1px solid #e5e7eb; border-radius: 6px; cursor: text;}
 
 .task-status { flex: 1; display: flex; justify-content: center; }
 .status-select { padding: 0.3rem 0.5rem; border-radius: 6px; font-size: 0.75rem; font-weight: 600; border: 1px solid #e5e7eb; outline: none; cursor: pointer; width: 110px; }
