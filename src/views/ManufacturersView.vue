@@ -77,81 +77,82 @@
 
     <div v-if="loading" class="loading">Loading...</div>
     <div v-else-if="filteredManufacturers.length === 0" class="empty">No manufacturers found.</div>
-    <div v-else class="cards-grid">
+    
+    <div v-else class="list-container">
       
-      <div v-for="m in filteredManufacturers" :key="m.id" class="card">
+      <div v-for="m in filteredManufacturers" :key="m.id" class="horizontal-card">
         
-        <div class="card-content">
-          <div class="card-top">
-            <div class="card-avatar">{{ m.company_name?.charAt(0) }}</div>
-            <div class="card-title">
-              <h3>{{ m.company_name }}</h3>
-              <div class="badges-row">
-                <span class="country-badge">🌍 {{ m.country || 'Unknown' }}</span>
-                <span v-if="m.nda_signed" class="legal-badge nda">NDA</span>
-                <span v-if="m.mma_signed" class="legal-badge mma">MMA</span>
-              </div>
+        <div class="card-identity">
+          <div class="card-avatar">{{ m.company_name?.charAt(0) }}</div>
+          <div class="card-title-block">
+            <h3>{{ m.company_name }}</h3>
+            <div class="badges-row">
+              <span class="country-badge">🌍 {{ m.country || 'Unknown' }}</span>
+              <span v-if="m.nda_signed" class="legal-badge nda">NDA</span>
+              <span v-if="m.mma_signed" class="legal-badge mma">MMA</span>
             </div>
           </div>
+        </div>
           
-          <div class="card-body">
-            <div class="info-group">
-              <div class="info-row" v-if="m.contact_name">
-                <span class="info-icon">👤</span><strong>{{ m.contact_name }}</strong>
-              </div>
-              <div class="info-row" v-if="m.phone">
-                <span class="info-icon">📞</span><a :href="'tel:'+m.phone">{{ m.phone }}</a>
-              </div>
-              <div class="info-row" v-if="m.email">
-                <span class="info-icon">✉️</span><a :href="'mailto:'+m.email">{{ m.email }}</a>
-              </div>
-              <div class="info-row" v-if="m.website">
-                <span class="info-icon">🌐</span><a :href="m.website" target="_blank">Website</a>
-              </div>
+        <div class="card-info-block">
+          <div class="contact-info">
+            <div class="info-row" v-if="m.contact_name">
+              <span class="info-icon">👤</span><strong>{{ m.contact_name }}</strong>
             </div>
-
-            <div class="tags-section">
-              <div class="info-row align-start" v-if="m.product_categories">
-                <span class="info-icon mt-1">🏷️</span>
-                <div class="tags-container">
-                  <span v-for="tag in m.product_categories.split(',')" :key="tag" class="category-tag">
-                    {{ tag.trim() }}
-                  </span>
-                </div>
-              </div>
-
-              <div class="info-row" v-if="m.certifications">
-                <span class="info-icon">📜</span>
-                <button @click="showCertsPopup(m)" class="btn-view-certs">
-                  View {{ m.certifications.split(',').length }} Certification{{ m.certifications.split(',').length !== 1 ? 's' : '' }}
-                </button>
-              </div>
+            <div class="info-row" v-if="m.phone">
+              <span class="info-icon">📞</span><a :href="'tel:'+m.phone">{{ m.phone }}</a>
             </div>
-
-            <div class="info-row notes-row" v-if="m.notes">
-              <span class="info-icon">📝</span>{{ m.notes }}
+            <div class="info-row" v-if="m.email">
+              <span class="info-icon">✉️</span><a :href="'mailto:'+m.email">{{ m.email }}</a>
             </div>
-            
-            <div v-if="m.email_logs && m.email_logs.length > 0" class="email-history">
-              <div v-for="(log, index) in m.email_logs" :key="index" 
-                   class="reach-date"
-                   :class="{ 'overdue': index === m.email_logs.length - 1 && isOverdue(log.sentAt) }">
-                <span class="log-icon">🕒</span> {{ log.templateName }}: {{ new Date(log.sentAt).toLocaleDateString('en-US', { day: '2-digit', month: 'short' }) }}
-                <span v-if="index === m.email_logs.length - 1 && isOverdue(log.sentAt)" class="warning-icon" title="More than 7 days ago">⚠️</span>
+            <div class="info-row" v-if="m.website">
+              <span class="info-icon">🌐</span><a :href="m.website" target="_blank">Website</a>
+            </div>
+          </div>
+
+          <div class="tags-section">
+            <div class="info-row align-start" v-if="m.product_categories">
+              <span class="info-icon mt-1">🏷️</span>
+              <div class="tags-container">
+                <span v-for="tag in m.product_categories.split(',')" :key="tag" class="category-tag">
+                  {{ tag.trim() }}
+                </span>
               </div>
             </div>
           </div>
         </div>
 
-        <div class="card-actions">
-          <button @click="editManufacturer(m)" class="btn-action btn-edit">✏️ EDIT</button>
-          <button @click="logExternalContact(m)" class="btn-action btn-log">📝 LOG</button>
+        <div class="card-details-block">
+          <div class="info-row" v-if="m.certifications">
+            <span class="info-icon">📜</span>
+            <button @click="showCertsPopup(m)" class="btn-view-certs">
+              View {{ m.certifications.split(',').length }} Certs
+            </button>
+          </div>
           
-          <button v-if="m.email" @click="openInitialReachModal(m)" class="btn-action btn-initial-reach">🚀 INITIAL REACH</button>
-          <button v-if="m.email" @click="openEmailModal(m)" class="btn-action btn-email">✉️ EMAIL</button>
-          
-          <div class="spacer"></div>
-          <button @click="deleteManufacturer(m.id)" class="btn-action btn-delete">🗑️ DELETE</button>
+          <div class="info-row notes-row" v-if="m.notes">
+            <span class="info-icon">📝</span>
+            <span class="truncate-text" :title="m.notes">{{ m.notes }}</span>
+          </div>
+            
+          <div v-if="m.email_logs && m.email_logs.length > 0" class="email-history">
+            <div v-for="(log, index) in m.email_logs.slice(-1)" :key="index" 
+                 class="reach-date"
+                 :class="{ 'overdue': isOverdue(log.sentAt) }">
+              <span class="log-icon">🕒</span> {{ log.templateName }}: {{ new Date(log.sentAt).toLocaleDateString('en-US', { day: '2-digit', month: 'short' }) }}
+              <span v-if="isOverdue(log.sentAt)" class="warning-icon" title="More than 7 days ago">⚠️</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="card-actions-vertical">
+          <div class="action-top-row">
+            <button @click="editManufacturer(m)" class="btn-action-icon btn-edit" title="Edit">✏️</button>
+            <button @click="logExternalContact(m)" class="btn-action-icon btn-log" title="Log Contact">📝</button>
+            <button @click="deleteManufacturer(m.id)" class="btn-action-icon btn-delete" title="Delete">🗑️</button>
+          </div>
+          <button v-if="m.email" @click="openInitialReachModal(m)" class="btn-action-full btn-initial-reach">🚀 REACH</button>
+          <button v-if="m.email" @click="openEmailModal(m)" class="btn-action-full btn-email">✉️ EMAIL</button>
         </div>
 
       </div>
@@ -508,7 +509,7 @@ onMounted(() => {
 <style scoped>
 /* GENERAL LAYOUT */
 .container { 
-  max-width: 1200px; 
+  max-width: 1400px; /* Aumentado un poco para dar espacio a la lista horizontal */
   margin: 0 auto; 
   padding: 2rem 1.5rem; 
   font-family: 'Inter', sans-serif; 
@@ -581,7 +582,8 @@ input:focus, textarea:focus, select:focus {
   display: flex; 
   gap: 0.4rem; 
   align-items: center; 
-  margin-top: 0.2rem; 
+  margin-top: 0.4rem; 
+  flex-wrap: wrap;
 }
 .legal-badge { 
   font-size: 0.65rem; 
@@ -655,79 +657,86 @@ input:focus, textarea:focus, select:focus {
 }
 .results-count { font-size: 0.85rem; color: var(--text-muted); margin-left: auto; }
 
-/* CARDS GRID & LAYOUT */
-.cards-grid { 
-  display: grid; 
-  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); 
-  gap: 1.5rem; 
+/* LISTA HORIZONTAL (NUEVA ESTRUCTURA) */
+.list-container { 
+  display: flex; 
+  flex-direction: column; 
+  gap: 1.2rem; 
 }
-.card { 
+
+.horizontal-card { 
   background: var(--bg-card); 
   border-radius: 16px; 
   border: 1px solid var(--border-main); 
   display: flex; 
-  flex-direction: column; 
-  height: 100%; 
-  transition: transform 0.2s; 
+  align-items: stretch; /* Para que todas las columnas midan lo mismo */
+  transition: transform 0.2s, box-shadow 0.2s; 
   box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+  overflow: hidden; /* Asegura bordes redondeados limpios */
 }
-.card:hover { transform: translateY(-3px); border-color: var(--primary); }
-.card-content { padding: 1.5rem; flex-grow: 1; display: flex; flex-direction: column; }
 
-/* CARD HEADER */
-.card-top { 
+.horizontal-card:hover { 
+  transform: translateX(4px); 
+  border-color: var(--primary); 
+  box-shadow: 0 8px 15px rgba(0,0,0,0.15);
+}
+
+/* Bloque 1: Identidad */
+.card-identity { 
   display: flex; 
-  align-items: center; 
+  align-items: flex-start; 
   gap: 1rem; 
-  margin-bottom: 1.5rem; 
-  padding-bottom: 1rem; 
-  border-bottom: 1px solid var(--border-light); 
+  min-width: 260px;
+  max-width: 300px;
+  padding: 1.5rem;
+  border-right: 1px solid var(--border-light);
+  background: rgba(255,255,255,0.01);
 }
 .card-avatar { 
-  width: 50px; height: 50px; 
+  width: 48px; height: 48px; 
   background: linear-gradient(135deg, var(--primary), #8b5cf6); 
   color: white; border-radius: 12px; 
   display: flex; align-items: center; justify-content: center; 
-  font-size: 1.4rem; font-weight: 800; 
+  font-size: 1.3rem; font-weight: 800; 
+  flex-shrink: 0;
 }
-.card-title h3 { margin: 0 0 0.3rem 0; font-size: 1.1rem; font-weight: 700; color: var(--text-main); }
-.country-badge { background: var(--bg-app); color: var(--text-muted); padding: 0.2rem 0.6rem; border-radius: 20px; font-size: 0.75rem; }
+.card-title-block h3 { margin: 0; font-size: 1.1rem; font-weight: 700; color: var(--text-main); line-height: 1.2;}
+.country-badge { background: var(--bg-app); color: var(--text-muted); padding: 0.2rem 0.6rem; border-radius: 20px; font-size: 0.75rem; border: 1px solid var(--border-main);}
 
-/* CARD BODY */
+/* Bloque 2: Info Main */
+.card-info-block { 
+  flex: 2; 
+  padding: 1.5rem;
+  display: flex; 
+  flex-direction: column; 
+  gap: 1rem; 
+}
+.contact-info {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.2rem;
+}
 .info-row { 
   display: flex; 
   align-items: center; 
   gap: 0.6rem; 
   font-size: 0.9rem; 
   color: var(--text-body); 
-  margin-bottom: 0.5rem; 
 }
+.info-row a { color: var(--primary); text-decoration: none; font-weight: 500; }
 
-.info-row a { 
-  color: var(--primary); 
-  text-decoration: none; 
-  font-weight: 500; 
-}
-
-/* Sección de etiquetas corregida para evitar desbordes */
 .tags-section { 
   background: rgba(0,0,0,0.1); 
-  padding: 0.8rem; 
+  padding: 0.6rem 0.8rem; 
   border-radius: 10px; 
   border: 1px dashed var(--border-main); 
-  margin: 0.5rem 0; 
-  display: flex;
-  gap: 0.6rem;
-  align-items: flex-start;
 }
-
-.tags-container {
-  display: flex;
-  flex-wrap: wrap; /* Esto hace que las etiquetas bajen de línea */
-  gap: 0.4rem;
-  flex: 1;
+.tags-container { 
+  display: flex; 
+  flex-wrap: wrap; 
+  gap: 0.4rem; 
+  flex: 1; 
 }
-
 .category-tag { 
   background: rgba(99, 102, 241, 0.15); 
   color: var(--primary); 
@@ -735,9 +744,19 @@ input:focus, textarea:focus, select:focus {
   border-radius: 6px; 
   font-size: 0.75rem; 
   font-weight: 600; 
-  white-space: nowrap; /* Mantiene la palabra junta */
+  white-space: nowrap; 
 }
 
+/* Bloque 3: Detalles Extras */
+.card-details-block {
+  flex: 1.5;
+  padding: 1.5rem;
+  border-left: 1px dashed var(--border-light);
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+  min-width: 250px;
+}
 .btn-view-certs { 
   background: var(--bg-app); 
   color: #0ea5e9; 
@@ -746,34 +765,34 @@ input:focus, textarea:focus, select:focus {
   border-radius: 6px; 
   font-size: 0.8rem; 
   cursor: pointer; 
-  width: 100%; /* Ocupa todo el ancho disponible */
-  margin-top: 0.5rem;
 }
-
 .notes-row { 
   background: rgba(0,0,0,0.15); 
-  padding: 0.8rem; 
+  padding: 0.6rem; 
   border-radius: 8px; 
   border-left: 3px solid var(--border-main); 
-  color: var(--text-body); 
+  color: var(--text-muted); 
   font-style: italic; 
-  display: flex;
-  gap: 0.6rem;
   align-items: flex-start;
 }
-
+.truncate-text {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font-size: 0.8rem;
+}
 .reach-date { 
-  font-size: 0.82rem; 
+  font-size: 0.8rem; 
   color: var(--text-muted); 
   background: var(--bg-app); 
-  padding: 0.4rem 0.6rem; 
+  padding: 0.3rem 0.6rem; 
   border-radius: 6px; 
-  margin-bottom: 0.4rem; 
   display: flex; 
   align-items: center; 
   gap: 0.4rem; 
+  width: max-content;
 }
-
 .overdue { 
   background-color: var(--danger-bg); 
   color: var(--danger-text); 
@@ -781,20 +800,51 @@ input:focus, textarea:focus, select:focus {
   font-weight: 700;
 }
 
-/* CARD ACTIONS */
-.card-actions { 
-  margin-top: auto; padding: 1.2rem 1.5rem; 
-  background: rgba(0,0,0,0.1); 
-  border-top: 1px solid var(--border-main); 
-  border-radius: 0 0 16px 16px; 
-  display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; 
+/* Bloque 4: Acciones */
+.card-actions-vertical { 
+  background: rgba(0,0,0,0.15); 
+  border-left: 1px solid var(--border-main); 
+  padding: 1.5rem 1rem; 
+  display: flex; 
+  flex-direction: column; 
+  gap: 0.6rem; 
+  min-width: 140px;
+  justify-content: center;
 }
-.btn-action { padding: 0.5rem 0.7rem; border-radius: 8px; font-size: 0.75rem; font-weight: 700; border: none; cursor: pointer; text-transform: uppercase; }
-.btn-edit { background: var(--border-light); color: var(--text-main); }
-.btn-log { background: var(--border-light); color: var(--text-main); }
-.btn-email { background: var(--success-bg); color: var(--success-text); }
-.btn-delete { background: var(--danger-bg); color: var(--danger-text); }
+.action-top-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.3rem;
+}
+.btn-action-icon {
+  background: var(--bg-app);
+  border: 1px solid var(--border-main);
+  border-radius: 6px;
+  padding: 0.4rem;
+  cursor: pointer;
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  transition: 0.2s;
+}
+.btn-action-icon.btn-edit:hover { background: var(--border-light); }
+.btn-action-icon.btn-delete:hover { background: var(--danger-bg); border-color: rgba(251, 113, 133, 0.3);}
+.btn-action-full {
+  width: 100%;
+  padding: 0.6rem;
+  border-radius: 8px;
+  font-size: 0.75rem;
+  font-weight: 800;
+  border: none;
+  cursor: pointer;
+  text-transform: uppercase;
+  transition: filter 0.2s;
+}
+.btn-action-full:hover { filter: brightness(1.1); }
 .btn-initial-reach { background: var(--primary); color: white; }
+.btn-email { background: var(--success-bg); color: var(--success-text); }
+
 
 /* MODALS */
 .modal-overlay { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.8); z-index: 1000; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(4px); }
@@ -809,4 +859,16 @@ input:focus, textarea:focus, select:focus {
 .btn-secondary { background: var(--border-light); color: var(--text-main); border: none; padding: 0.7rem 1.5rem; border-radius: 10px; cursor: pointer; font-weight: 600; }
 .btn-clear { background: var(--border-light); color: var(--text-muted); border: none; padding: 0.7rem 1rem; border-radius: 8px; cursor: pointer; }
 .loading, .empty { text-align: center; padding: 3rem; color: var(--text-muted); }
+
+/* RESPONSIVE: En pantallas más pequeñas, que se vuelva tarjeta normal */
+@media (max-width: 1000px) {
+  .horizontal-card {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .card-identity { border-right: none; border-bottom: 1px solid var(--border-light); padding-bottom: 1rem;}
+  .card-details-block { border-left: none; border-top: 1px dashed var(--border-light); padding-top: 1rem;}
+  .card-actions-vertical { border-left: none; border-top: 1px solid var(--border-main); flex-direction: row; flex-wrap: wrap; }
+  .card-actions-vertical > * { flex: 1; min-width: 100px;}
+}
 </style>
