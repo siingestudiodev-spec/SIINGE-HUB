@@ -1,5 +1,5 @@
 <template>
-  <div>
+  <div class="app-container">
     <nav v-if="session">
       <div class="nav-brand">
         <img src="https://i.ibb.co/xK52ckkK/Whats-App-Image-2026-02-24-at-13-58-58-1.jpg" alt="logo" class="nav-logo" />
@@ -43,6 +43,21 @@ async function logout() {
 </script>
 
 <style>
+/* ESTILO MAESTRO PARA EL FONDO OSCURO */
+.app-container {
+  background-color: var(--bg-app);
+  min-height: 100vh;
+  width: 100%;
+  color: var(--text-body);
+}
+
+/* Forzamos que el body y el html también sean oscuros para evitar parpadeos blancos */
+html, body {
+  background-color: var(--bg-app) !important;
+  margin: 0;
+  padding: 0;
+}
+
 nav {
   background: var(--bg-card);
   padding: 0 2rem;
@@ -50,7 +65,7 @@ nav {
   display: flex;
   align-items: center;
   gap: 2rem;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
   position: sticky;
   top: 0;
   z-index: 100;
@@ -67,7 +82,7 @@ nav {
   border-radius: 8px; transition: all 0.15s;
 }
 .nav-links a:hover { background: var(--border-light); color: var(--text-main); }
-.nav-links a.router-link-active { background: var(--bg-app); color: var(--primary); font-weight: 700; border: 1px solid var(--border-main); }
+.nav-links a.router-link-active { background: var(--border-light); color: var(--primary); font-weight: 700; border: 1px solid var(--border-main); }
 .btn-logout {
   background: transparent; color: var(--text-muted);
   border: 1px solid var(--border-main); padding: 0.4rem 0.9rem;
