@@ -1,52 +1,36 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+:root {
+  /* --- FONDOS --- */
+  /* Un gris un poco más notorio para que las tarjetas blancas resalten */
+  --bg-app: #f1f5f9; 
+  --bg-card: #ffffff;
+  
+  /* --- TEXTOS (Más oscuros para contraste total) --- */
+  --text-main: #0f172a; /* Casi negro para títulos */
+  --text-body: #334155; /* Gris muy oscuro, excelente para leer */
+  --text-muted: #64748b; /* Gris medio para notas secundarias */
 
-* { box-sizing: border-box; margin: 0; padding: 0; }
+  /* --- COLORES DE MARCA --- */
+  --primary: #4f46e5;
+  --primary-hover: #3730a3; /* Un hover más profundo para que se note el clic */
+  
+  /* --- BORDES (Más definidos) --- */
+  --border-light: #e2e8f0;
+  --border-main: #cbd5e1; /* Bordes un poco más marcados para que no se pierdan los inputs */
+  
+  /* --- ESTADOS (Más contraste en los colores) --- */
+  --success-bg: #dcfce7;
+  --success-text: #166534; /* Verde oscuro */
+  
+  --warning-bg: #fef9c3;
+  --warning-text: #854d0e; /* Amarillo oscuro / ocre */
+  
+  --danger-bg: #fee2e2;
+  --danger-text: #991b1b; /* Rojo oscuro */
+}
 
 body {
+  background-color: var(--bg-app);
+  color: var(--text-body);
+  margin: 0;
   font-family: 'Inter', sans-serif;
-  background: #e8eaf0;
-  color: #1a1a2e;
-  min-height: 100vh;
-}
-
-input, textarea, select {
-  color: #1a1a2e;
-  background: white;
-  font-family: 'Inter', sans-serif;
-}
-
-.container {
-  background: transparent;
-}
-
-.card {
-  background: white !important;
-  border: 1.5px solid #d1d5db !important;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.07), 0 1px 2px rgba(0,0,0,0.05) !important;
-  transition: transform 0.18s, box-shadow 0.18s, border-color 0.18s !important;
-}
-
-.card:hover {
-  border-color: #a5b4fc !important;
-  box-shadow: 0 12px 32px rgba(79,70,229,0.15), 0 4px 8px rgba(0,0,0,0.06) !important;
-  transform: translateY(-4px) !important;
-}
-
-.form-card {
-  background: white !important;
-  border: 1.5px solid #d1d5db !important;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.07) !important;
-}
-
-.table-wrapper {
-  background: white !important;
-  border: 1.5px solid #d1d5db !important;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.07) !important;
-}
-
-.filters input,
-.filters select {
-  background: white !important;
-  border: 1.5px solid #d1d5db !important;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.05) !important;
 }

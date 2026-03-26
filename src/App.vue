@@ -44,34 +44,35 @@ async function logout() {
 
 <style>
 nav {
-  background: white;
+  background: var(--bg-card);
   padding: 0 2rem;
   height: 64px;
   display: flex;
   align-items: center;
   gap: 2rem;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.05);
   position: sticky;
   top: 0;
   z-index: 100;
+  border-bottom: 1px solid var(--border-main);
 }
 .nav-brand { display: flex; align-items: center; gap: 0.75rem; margin-right: 1rem; }
 .nav-logo { width: 36px; height: 36px; border-radius: 8px; object-fit: contain; }
-.brand-name { font-weight: 800; font-size: 0.88rem; color: #1a1a2e; letter-spacing: 0.05em; text-transform: uppercase; }
-.brand-sub { font-size: 0.72rem; color: #4f46e5; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; }
+.brand-name { font-weight: 800; font-size: 0.88rem; color: var(--text-main); letter-spacing: 0.05em; text-transform: uppercase; }
+.brand-sub { font-size: 0.72rem; color: var(--primary); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; }
 .nav-links { display: flex; gap: 0.5rem; flex: 1; }
 .nav-links a {
-  color: #666; text-decoration: none; font-weight: 500;
+  color: var(--text-muted); text-decoration: none; font-weight: 600;
   font-size: 0.92rem; padding: 0.5rem 0.9rem;
   border-radius: 8px; transition: all 0.15s;
 }
-.nav-links a:hover { background: #f0f2f5; color: #1a1a2e; }
-.nav-links a.router-link-active { background: #eef2ff; color: #4f46e5; font-weight: 600; }
+.nav-links a:hover { background: var(--border-light); color: var(--text-main); }
+.nav-links a.router-link-active { background: var(--bg-app); color: var(--primary); font-weight: 700; border: 1px solid var(--border-main); }
 .btn-logout {
-  background: transparent; color: #999;
-  border: 1px solid #e5e7eb; padding: 0.4rem 0.9rem;
+  background: transparent; color: var(--text-muted);
+  border: 1px solid var(--border-main); padding: 0.4rem 0.9rem;
   border-radius: 8px; cursor: pointer; font-size: 0.88rem;
-  font-family: 'Inter', sans-serif; transition: all 0.15s;
+  font-family: 'Inter', sans-serif; transition: all 0.15s; font-weight: 600;
 }
-.btn-logout:hover { color: #1a1a2e; border-color: #999; }
+.btn-logout:hover { color: var(--text-main); border-color: var(--text-main); background: var(--bg-app); }
 </style>
