@@ -22,7 +22,9 @@
       </div>
       <textarea v-model="form.description" placeholder="Description" rows="3" style="margin-top: 0.75rem;"></textarea>
       <div class="form-actions">
-        <button @click="saveProject" class="btn-primary">{{ editing ? 'Update' : 'Save' }}</button>
+        <button @click="saveProject" class="btn-primary" :disabled="savingProject">
+          {{ savingProject ? 'Saving...' : (editing ? 'Update' : 'Save') }}
+        </button>
       </div>
     </div>
 
@@ -70,7 +72,12 @@
       <div class="modal modal-large">
         <div class="modal-header">
           <h2>⏱️ Timeline: {{ timelineModal.projectName }}</h2>
-          <button @click="timelineModal.show = false" class="modal-close">✕</button>
+          <div class="header-actions">
+            <button @click="forceResetTimeline" class="btn-reset-template" title="Erases current stages and generates the new ClickUp structure">
+              ⚠️ Reset Template
+            </button>
+            <button @click="timelineModal.show = false" class="modal-close">✕</button>
+          </div>
         </div>
         
         <div v-if="timelineModal.loading" class="loading">Loading structure...</div>
@@ -171,12 +178,13 @@ const editing = ref(false)
 const editId = ref(null)
 const search = ref('')
 const filterStatus = ref('')
+const savingProject = ref(false)
 
 const form = ref({ project_name: '', client_name: '', description: '', status: 'active', tech_pack_url: '', quotes: '' })
 
 // TIMELINE STATE
 const timelineModal = ref({ show: false, loading: false, saving: false, projectId: null, projectName: '', stages: [] })
-const expanded = ref([]) // IDs de las carpetas desplegadas
+const expanded = ref([])
 
 const DEFAULT_STAGES = [
   'CONCEPT & DESIGN', 'QUOTE', 'MATERIAL & TRIM SOURCING', 
@@ -218,11 +226,31 @@ async function fetchProjects() {
   loading.value = false
 }
 
+// CORRECCIÓN AL GUARDAR PROYECTO (Manejo de errores reales)
 async function saveProject() {
   if (!form.value.project_name) return alert('Project name is required')
-  if (editing.value) await supabase.from('projects').update(form.value).eq('id', editId.value)
-  else await supabase.from('projects').insert([form.value])
-  resetForm(); fetchProjects()
+  
+  savingProject.value = true
+  let errorObj = null
+
+  if (editing.value) {
+    const { error } = await supabase.from('projects').update(form.value).eq('id', editId.value)
+    errorObj = error
+  } else {
+    const { error } = await supabase.from('projects').insert([form.value])
+    errorObj = error
+  }
+
+  savingProject.value = false
+
+  if (errorObj) {
+    console.error('Database Error:', errorObj)
+    alert(`Error saving project: ${errorObj.message}\n\nMake sure all database columns (like 'quotes') exist in Supabase.`)
+    return
+  }
+
+  resetForm()
+  fetchProjects()
 }
 
 function editProject(p) {
@@ -242,7 +270,6 @@ function resetForm() {
 
 // ---- LÓGICA DE CREACIÓN DEL ÁRBOL CLICKUP ----
 async function seedDefaultTree(projectId) {
-  // 1. Insertamos las categorías principales
   const rootInserts = DEFAULT_STAGES.map((name, i) => ({
     project_id: projectId, stage_name: name, step_order: i + 1, status: 'Pending', parent_id: null
   }))
@@ -251,10 +278,8 @@ async function seedDefaultTree(projectId) {
   const sampleDevRoot = insertedRoots?.find(r => r.stage_name === 'SAMPLE DEVELOPMENT')
   
   if (sampleDevRoot) {
-    // Expandimos automáticamente la carpeta principal
     expanded.value.push(sampleDevRoot.id)
 
-    // 2. Insertamos el Nivel 2 de Sample Development
     const sampleSubs = [
       { name: 'First Sample', children: ['First Sample Due Date', 'Images Received Date', 'Corrections Completed Date', 'First Sample Received Date', 'Fit Notes Sent Date'] },
       { name: 'Second Sample', children: ['Second sample due date', 'Images received date', 'Corrections completed date', 'Second sample received date', 'Fit Notes Sent Date'] },
@@ -269,11 +294,8 @@ async function seedDefaultTree(projectId) {
         project_id: projectId, parent_id: sampleDevRoot.id, stage_name: sub.name, step_order: i + 1, status: 'Pending'
       }).select()
 
-      // Expandimos automáticamente el nivel 2 para ver las fechas
       if (insertedSub && insertedSub[0]) {
         expanded.value.push(insertedSub[0].id)
-        
-        // 3. Insertamos el Nivel 3 (Sub-subtareas)
         if (sub.children && sub.children.length > 0) {
           const grandChildren = sub.children.map((gcName, j) => ({
             project_id: projectId, parent_id: insertedSub[0].id, stage_name: gcName, step_order: j + 1, status: 'Pending'
@@ -295,16 +317,30 @@ async function openTimeline(p) {
   timelineModal.value.projectName = p.project_name
   timelineModal.value.projectId = p.id
   timelineModal.value.loading = true
-  expanded.value = [] // Reset expansiones
+  expanded.value = []
 
   await reloadTimelineData(p.id)
 
   if (timelineModal.value.stages.length === 0) {
-    // Si está vacío, construye el árbol gigante
     await seedDefaultTree(p.id)
     await reloadTimelineData(p.id)
   }
   
+  timelineModal.value.loading = false
+}
+
+// NUEVO: Función para resetear proyectos viejos al árbol nuevo
+async function forceResetTimeline() {
+  if (!confirm('WARNING: This will erase all current stages and dates for this project and rebuild the new default template. Are you sure?')) return
+  
+  timelineModal.value.loading = true
+  // Borra todo lo de este proyecto
+  await supabase.from('project_stages').delete().eq('project_id', timelineModal.value.projectId)
+  expanded.value = []
+  
+  // Reconstruye el árbol completo
+  await seedDefaultTree(timelineModal.value.projectId)
+  await reloadTimelineData(timelineModal.value.projectId)
   timelineModal.value.loading = false
 }
 
@@ -317,7 +353,7 @@ async function addSubtask(parentId) {
     step_order: 99
   }
   await supabase.from('project_stages').insert([newTask])
-  if (!expanded.value.includes(parentId)) expanded.value.push(parentId) // Expande el padre para ver al hijo
+  if (!expanded.value.includes(parentId)) expanded.value.push(parentId)
   await reloadTimelineData(timelineModal.value.projectId)
 }
 
@@ -393,14 +429,15 @@ textarea { resize: vertical; }
 .btn-danger { background: #fff1f2; color: #e11d48; border: none; padding: 0.5rem 1rem; border-radius: 8px; cursor: pointer; font-size: 0.88rem; font-family: 'Inter', sans-serif; font-weight: 500; }
 .loading, .empty { text-align: center; padding: 3rem; color: #9ca3af; }
 
-/* -------------------------------------
-   MODAL DE TIMELINE (DISEÑO CLICKUP)
--------------------------------------- */
+/* MODAL DE TIMELINE */
 .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 1rem; }
 .modal { background: white; padding: 2rem; border-radius: 16px; width: 100%; max-height: 90vh; overflow-y: auto; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); }
 .modal-large { max-width: 950px; }
 .modal-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e5e7eb; padding-bottom: 1rem; margin-bottom: 1.5rem; }
 .modal-header h2 { margin: 0; font-size: 1.25rem; color: #1a1a2e; }
+.header-actions { display: flex; gap: 1rem; align-items: center; }
+.btn-reset-template { background: #fff1f2; color: #e11d48; border: 1px solid #fecdd3; padding: 0.4rem 0.8rem; border-radius: 8px; font-size: 0.8rem; font-weight: 600; cursor: pointer; }
+.btn-reset-template:hover { background: #ffe4e6; }
 .modal-close { background: #f3f4f6; border: none; width: 32px; height: 32px; border-radius: 8px; cursor: pointer; color: #6b7280; display: flex; align-items: center; justify-content: center; font-weight: bold;}
 
 .timeline-container { display: flex; flex-direction: column; gap: 0.5rem; }
@@ -412,22 +449,17 @@ textarea { resize: vertical; }
 
 .stage-group { border: 1px solid #e5e7eb; border-radius: 8px; margin-bottom: 0.75rem; overflow: hidden; background: #f8fafc; }
 
-/* ICONOS DE EXPANSIÓN (LAS FLECHITAS) */
 .expand-arrow { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; color: #6b7280; font-size: 0.75rem; transition: transform 0.2s; user-select: none; }
 .small-arrow { font-size: 0.65rem; color: #9ca3af; }
 .empty-dot { color: #d1d5db; }
 
-/* NIVEL 1 (CARPETAS) */
 .level-1 { display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 1rem; cursor: pointer; transition: background 0.2s; }
 .level-1:hover { background: #f1f5f9; }
 .cat-title { display: flex; align-items: center; gap: 0.5rem; font-size: 0.95rem; color: #111827; }
 .btn-add-sub { background: #e0e7ff; color: #4338ca; border: none; padding: 0.3rem 0.8rem; border-radius: 6px; font-size: 0.75rem; font-weight: 700; cursor: pointer; transition: background 0.2s; }
 .btn-add-sub:hover { background: #c7d2fe; }
 
-/* CONTENEDOR DE HIJOS */
 .children-container { border-top: 1px solid #e5e7eb; background: white; }
-
-/* NIVEL 2 y 3 (SUBTAREAS) */
 .subtask-wrapper { border-bottom: 1px solid #f3f4f6; }
 .subtask-wrapper:last-child { border-bottom: none; }
 
