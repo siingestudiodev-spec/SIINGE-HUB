@@ -1,35 +1,37 @@
 :root {
-  /* FONDOS: Un modo oscuro "suave" (Twilight / Azul Oscuro) */
-  --bg-app: #1e1e2d;      /* Fondo principal (detrás de las tarjetas) */
-  --bg-card: #272736;     /* Fondo de las tarjetas y modales */
+  /* --- FONDOS --- */
+  --bg-app: #0b0b14;      /* Fondo de toda la pantalla (Súper oscuro, casi negro) */
+  --bg-card: #1a1a2e;     /* Fondo de las tarjetas (Tu azul oscuro original) */
   
-  /* TEXTOS */
-  --text-main: #f8fafc;   /* Blanco suave para títulos y nombres importantes */
-  --text-body: #cbd5e1;   /* Gris azulado claro para lectura cómoda */
-  --text-muted: #8b95a5;  /* Gris medio para iconos, fechas y placeholders */
+  /* --- TEXTOS --- */
+  --text-main: #ffffff;   /* Títulos y textos principales en blanco */
+  --text-body: #cbd5e1;   /* Textos normales en un gris muy claro */
+  --text-muted: #64748b;  /* Textos secundarios e iconos */
 
-  /* COLORES DE MARCA */
-  --primary: #818cf8;     /* Un morado/azul pastel que resalta hermoso en oscuro */
-  --primary-hover: #6366f1;
+  /* --- COLORES DE MARCA --- */
+  --primary: #4f46e5;       /* Tu morado/azul característico */
+  --primary-hover: #4338ca;
   
-  /* BORDES */
-  --border-light: #3f3f4e; /* Líneas muy sutiles para separar tareas */
-  --border-main: #525266;  /* Bordes de inputs y tarjetas */
+  /* --- BORDES Y LÍNEAS --- */
+  --border-light: #2a2a40;  /* Líneas divisorias sutiles */
+  --border-main: #3b3b54;   /* Bordes de botones y tarjetas */
   
-  /* ESTADOS (Con fondo semitransparente para un look neón/premium) */
-  --success-bg: rgba(74, 222, 128, 0.15);
+  /* --- ESTADOS (Botones pequeños con transparencia para look moderno) --- */
+  --success-bg: rgba(34, 197, 94, 0.15);
   --success-text: #4ade80;
   
-  --warning-bg: rgba(250, 204, 21, 0.15);
+  --warning-bg: rgba(234, 179, 8, 0.15);
   --warning-text: #facc15;
   
-  --danger-bg: rgba(251, 113, 133, 0.15);
+  --danger-bg: rgba(225, 29, 72, 0.15);
   --danger-text: #fb7185;
 }
 
+/* Forzamos a que toda la aplicación tome el fondo oscuro por defecto */
 body {
   background-color: var(--bg-app);
   color: var(--text-body);
   margin: 0;
   font-family: 'Inter', sans-serif;
+  min-height: 100vh;
 }
