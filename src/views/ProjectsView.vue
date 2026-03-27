@@ -43,16 +43,11 @@
 
         <div class="card-info-main">
           <div class="contact-info">
-            <div class="info-row" v-if="p.client_name">
-              <span class="info-icon">👤</span><strong>{{ p.client_name }}</strong>
-            </div>
-            <div class="info-row text-muted">
-              <span class="info-icon">📅</span> Created: {{ new Date(p.created_at).toLocaleDateString() }}
-            </div>
+            <div class="info-row" v-if="p.client_name"><span class="info-icon">👤</span><strong>{{ p.client_name }}</strong></div>
+            <div class="info-row text-muted"><span class="info-icon">📅</span> Created: {{ new Date(p.created_at).toLocaleDateString() }}</div>
           </div>
           <div class="info-row notes-row" v-if="p.description">
-            <span class="info-icon">📄</span>
-            <span class="truncate-text" :title="p.description">{{ p.description }}</span>
+            <span class="info-icon">📄</span><span class="truncate-text" :title="p.description">{{ p.description }}</span>
           </div>
         </div>
 
@@ -77,10 +72,7 @@
     <div v-else-if="currentView === 'board'" class="board-container">
       <div v-for="stage in projectStages" :key="stage" class="board-column">
         <div class="column-header" :style="{ borderTopColor: getStageColor(stage) }">
-          <div class="col-title">
-            <span class="stage-dot" :style="{ backgroundColor: getStageColor(stage) }"></span>
-            {{ stage }}
-          </div>
+          <div class="col-title"><span class="stage-dot" :style="{ backgroundColor: getStageColor(stage) }"></span>{{ stage }}</div>
           <span class="col-count">{{ getProjectsByStage(stage).length }}</span>
         </div>
         
@@ -94,9 +86,7 @@
               </div>
             </div>
             
-            <div class="bc-body" v-if="p.description">
-              <p class="truncate-text">{{ p.description }}</p>
-            </div>
+            <div class="bc-body" v-if="p.description"><p class="truncate-text">{{ p.description }}</p></div>
 
             <div class="bc-footer">
               <div class="bc-links">
@@ -111,10 +101,7 @@
               </div>
             </div>
           </div>
-          
-          <div v-if="getProjectsByStage(stage).length === 0" class="board-empty">
-            No projects in this stage
-          </div>
+          <div v-if="getProjectsByStage(stage).length === 0" class="board-empty">No projects in this stage</div>
         </div>
       </div>
     </div>
@@ -141,7 +128,7 @@
               <option v-for="stage in projectStages" :key="stage" :value="stage">{{ stage }}</option>
             </select>
           </div>
-          <div class="input-group">
+          <div class="input-group full-width">
             <label>Tech Pack URL</label>
             <input v-model="form.tech_pack_url" placeholder="Google Drive, Dropbox, etc." />
           </div>
@@ -160,21 +147,17 @@
       </div>
     </div>
 
-    <div v-if="timelineModal.show" class="modal-overlay" @click.self="timelineModal.show = false">
+    <div v-if="timelineModal.show" class="modal-overlay" @click.self="closeTimeline">
       <div class="modal modal-large">
         <div class="modal-header">
           <h2>⏱️ Timeline: {{ timelineModal.projectName }}</h2>
           <div class="header-actions">
-            <button @click="forceResetTimeline" class="btn-reset-template">
-              ⚠️ Load ClickUp Template
-            </button>
-            <button @click="timelineModal.show = false" class="modal-close">✕</button>
+            <button @click="forceResetTimeline" class="btn-reset-template">⚠️ Load ClickUp Template</button>
+            <button @click="closeTimeline" class="modal-close">✕</button>
           </div>
         </div>
         
-        <div v-if="timelineModal.loading" class="loading">
-          <p>Processing structure...</p>
-        </div>
+        <div v-if="timelineModal.loading" class="loading"><p>Processing structure...</p></div>
         
         <div v-else class="timeline-container">
           <div class="timeline-header-row">
@@ -208,9 +191,7 @@
                     <span v-if="sub.notes && sub.notes.length > 0" class="notes-indicator">{{ sub.notes.length }}</span>
                   </div>
                   
-                  <template v-if="getChildren(sub.id).length > 0">
-                    <div class="task-empty-slots"></div>
-                  </template>
+                  <template v-if="getChildren(sub.id).length > 0"><div class="task-empty-slots"></div></template>
                   <template v-else>
                     <div class="task-date" @click.stop><input type="date" v-model="sub.due_date" class="date-input" /></div>
                     <div class="task-date" @click.stop><input type="date" v-model="sub.completed_date" class="date-input" /></div>
@@ -258,7 +239,7 @@
         </div>
 
         <div class="modal-actions">
-          <button @click="timelineModal.show = false" class="btn-secondary">Cancel</button>
+          <button @click="closeTimeline" class="btn-secondary">Cancel</button>
           <button @click="saveTimeline" class="btn-primary" :disabled="timelineModal.saving || timelineModal.loading">
             {{ timelineModal.saving ? 'Saving...' : 'Save Timeline' }}
           </button>
@@ -266,28 +247,39 @@
       </div>
     </div>
 
-    <div v-if="notesModal.show" class="modal-overlay z-high" @click.self="notesModal.show = false">
+    <div v-if="notesModal.show" class="modal-overlay z-high" @click.self="closeNotesModal">
       <div class="modal notes-modal">
         <div class="modal-header">
           <h2>💬 Notes: {{ notesModal.stageName }}</h2>
-          <button @click="notesModal.show = false" class="modal-close">✕</button>
+          <button @click="closeNotesModal" class="modal-close">✕</button>
         </div>
         
         <div class="notes-list">
-          <div v-if="notesModal.notes.length === 0" class="empty-notes">
-            No notes yet. Be the first to add one!
-          </div>
+          <div v-if="notesModal.notes.length === 0" class="empty-notes">No notes yet. Be the first to add one!</div>
           <div v-for="note in notesModal.notes" :key="note.id" class="note-item">
             <div class="note-meta">
               <strong>{{ note.user_email }}</strong> 
               <span>{{ new Date(note.created_at).toLocaleString() }}</span>
             </div>
-            <div class="note-text">{{ note.text }}</div>
+            <div class="note-text" v-html="formatNoteText(note.text)"></div>
           </div>
         </div>
 
-        <div class="add-note-box">
-          <textarea v-model="notesModal.newNoteText" placeholder="Write an update or note..." rows="3"></textarea>
+        <div class="add-note-box relative">
+          <textarea 
+            v-model="notesModal.newNoteText" 
+            @input="handleNoteInput"
+            placeholder="Write an update or use @ to tag someone..." 
+            rows="3">
+          </textarea>
+          
+          <div v-if="showMentions" class="mentions-dropdown">
+            <div v-for="member in filteredMembers" :key="member.email" 
+                 class="mention-item" @click="selectMention(member)">
+              {{ member.full_name }}
+            </div>
+          </div>
+
           <button @click="saveNote" class="btn-primary mt-2" :disabled="notesModal.saving || !notesModal.newNoteText.trim()">
             {{ notesModal.saving ? 'Saving...' : 'Add Note' }}
           </button>
@@ -300,39 +292,25 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { supabase } from '../lib/supabase'
 
+const route = useRoute()
+const router = useRouter()
+
 const projectStages = [
-  'Concept & Design',
-  'Quote',
-  'Material & Trim Sourcing',
-  'Sample Development',
-  'Final Tech Pack & Bulk Prep',
-  'Quality Inspection',
-  'Shipping & Logistics',
-  'Project Completion'
+  'Concept & Design', 'Quote', 'Material & Trim Sourcing', 'Sample Development',
+  'Final Tech Pack & Bulk Prep', 'Quality Inspection', 'Shipping & Logistics', 'Project Completion'
 ]
 
 function getStageColor(stage) {
-  const colors = {
-    'Concept & Design': '#f97316', 
-    'Quote': '#0ea5e9', 
-    'Material & Trim Sourcing': '#8b5cf6', 
-    'Sample Development': '#d946ef', 
-    'Final Tech Pack & Bulk Prep': '#14b8a6', 
-    'Quality Inspection': '#eab308', 
-    'Shipping & Logistics': '#3b82f6', 
-    'Project Completion': '#22c55e' 
-  }
+  const colors = { 'Concept & Design': '#f97316', 'Quote': '#0ea5e9', 'Material & Trim Sourcing': '#8b5cf6', 'Sample Development': '#d946ef', 'Final Tech Pack & Bulk Prep': '#14b8a6', 'Quality Inspection': '#eab308', 'Shipping & Logistics': '#3b82f6', 'Project Completion': '#22c55e' }
   return colors[stage] || '#64748b'
 }
-
-function getStageGradient(stage) {
-  const color = getStageColor(stage)
-  return `linear-gradient(135deg, ${color}, #334155)`
-}
+function getStageGradient(stage) { return `linear-gradient(135deg, ${getStageColor(stage)}, #334155)` }
 
 const projects = ref([])
+const teamMembers = ref([])
 const loading = ref(true)
 const showForm = ref(false)
 const editing = ref(false)
@@ -341,14 +319,17 @@ const search = ref('')
 const filterStatus = ref('')
 const savingProject = ref(false)
 const currentUser = ref(null)
-
 const currentView = ref('board')
 
 const form = ref({ project_name: '', client_name: '', description: '', status: projectStages[0], tech_pack_url: '' })
 
 const timelineModal = ref({ show: false, loading: false, saving: false, projectId: null, projectName: '', stages: [] })
 const expanded = ref([])
+
+// NOTAS Y MENCIONES
 const notesModal = ref({ show: false, stageId: null, stageName: '', notes: [], newNoteText: '', saving: false })
+const showMentions = ref(false)
+const mentionQuery = ref('')
 
 const CLICKUP_TEMPLATE = [
   { name: 'CONCEPT & DESIGN', children: [{ name: 'Sketches Sent to Client' }, { name: 'Design Approved' }, { name: 'Tech Pack Due Date' }, { name: '3D Design Approved' }, { name: 'Tech Pack Completed' }] },
@@ -364,16 +345,12 @@ const CLICKUP_TEMPLATE = [
 const filteredProjects = computed(() => {
   return projects.value.filter(p => {
     const s = search.value.toLowerCase()
-    const matchSearch = !s || p.project_name?.toLowerCase().includes(s) || p.client_name?.toLowerCase().includes(s) || p.description?.toLowerCase().includes(s)
-    const matchStatus = !filterStatus.value || p.status === filterStatus.value
-    return matchSearch && matchStatus
+    return (!s || p.project_name?.toLowerCase().includes(s) || p.client_name?.toLowerCase().includes(s) || p.description?.toLowerCase().includes(s)) &&
+           (!filterStatus.value || p.status === filterStatus.value)
   })
 })
 
-function getProjectsByStage(stage) {
-  return filteredProjects.value.filter(p => p.status === stage)
-}
-
+function getProjectsByStage(stage) { return filteredProjects.value.filter(p => p.status === stage) }
 const rootStages = computed(() => timelineModal.value.stages.filter(s => !s.parent_id).sort((a, b) => a.step_order - b.step_order))
 function getChildren(parentId) { return timelineModal.value.stages.filter(s => s.parent_id === parentId).sort((a, b) => a.step_order - b.step_order) }
 function toggleExpand(id) { if (expanded.value.includes(id)) expanded.value = expanded.value.filter(i => i !== id); else expanded.value.push(id) }
@@ -382,7 +359,20 @@ function clearFilters() { search.value = ''; filterStatus.value = '' }
 onMounted(async () => {
   const { data: { session } } = await supabase.auth.getSession()
   if (session) currentUser.value = session.user
-  fetchProjects()
+  
+  await fetchTeamMembers()
+  await fetchProjects()
+
+  // AUTO-ABRIR DESDE NOTIFICACIONES
+  if (route.query.project && route.query.stage) {
+    const p = projects.value.find(proj => proj.id === route.query.project)
+    if (p) {
+      await openTimeline(p)
+      const stage = timelineModal.value.stages.find(s => s.id === route.query.stage)
+      if (stage) openNotes(stage)
+      router.replace('/projects') // Limpia la URL
+    }
+  }
 })
 
 async function fetchProjects() {
@@ -392,48 +382,106 @@ async function fetchProjects() {
   loading.value = false
 }
 
-function openProjectForm() {
-  resetForm()
-  showForm.value = true
+async function fetchTeamMembers() {
+  const { data } = await supabase.from('team_members').select('*')
+  teamMembers.value = data || []
 }
+
+function openProjectForm() { resetForm(); showForm.value = true }
 
 async function saveProject() {
   if (!form.value.project_name) return alert('Project name is required')
   savingProject.value = true
-  
   if (editing.value) await supabase.from('projects').update(form.value).eq('id', editId.value)
   else await supabase.from('projects').insert([form.value])
-  
   savingProject.value = false
   resetForm(); fetchProjects()
 }
 
-function editProject(p) {
-  form.value = { ...p }; editId.value = p.id; editing.value = true; showForm.value = true
+function editProject(p) { form.value = { ...p }; editId.value = p.id; editing.value = true; showForm.value = true }
+async function deleteProject(id) { if (!confirm('Delete this project?')) return; await supabase.from('projects').delete().eq('id', id); fetchProjects() }
+function resetForm() { form.value = { project_name: '', client_name: '', description: '', status: projectStages[0], tech_pack_url: '' }; editing.value = false; editId.value = null; showForm.value = false }
+
+// LOGICA DE MENCIONES
+const filteredMembers = computed(() => {
+  if (!mentionQuery.value) return teamMembers.value
+  return teamMembers.value.filter(m => m.full_name.toLowerCase().includes(mentionQuery.value.toLowerCase()))
+})
+
+function handleNoteInput(e) {
+  const text = e.target.value
+  const cursorPos = e.target.selectionStart
+  const textBeforeCursor = text.substring(0, cursorPos)
+  const match = textBeforeCursor.match(/@(\w*)$/)
+  
+  if (match) {
+    mentionQuery.value = match[1]
+    showMentions.value = true
+  } else {
+    showMentions.value = false
+  }
 }
 
-async function deleteProject(id) {
-  if (!confirm('Delete this project?')) return
-  await supabase.from('projects').delete().eq('id', id)
-  fetchProjects()
+function selectMention(member) {
+  const text = notesModal.value.newNoteText
+  const matchPos = text.lastIndexOf('@' + mentionQuery.value)
+  if (matchPos !== -1) {
+    notesModal.value.newNoteText = text.substring(0, matchPos) + '@' + member.full_name + ' ' + text.substring(matchPos + mentionQuery.value.length + 1)
+  }
+  showMentions.value = false
 }
 
-function resetForm() {
-  form.value = { project_name: '', client_name: '', description: '', status: projectStages[0], tech_pack_url: '' }
-  editing.value = false; editId.value = null; showForm.value = false
+function formatNoteText(text) {
+  // Pone los @ en morado/azul para que resalten
+  return text.replace(/@([A-Za-zÁ-Úá-úñ ]+)/g, '<span style="color: var(--primary); font-weight: 700;">@$1</span>')
 }
 
-function openNotes(stage) { notesModal.value = { show: true, stageId: stage.id, stageName: stage.stage_name, notes: stage.notes || [], newNoteText: '', saving: false } }
+function openNotes(stage) { notesModal.value = { show: true, stageId: stage.id, stageName: stage.stage_name, notes: stage.notes || [], newNoteText: '', saving: false }; showMentions.value = false }
+function closeNotesModal() { notesModal.value.show = false; showMentions.value = false }
+
 async function saveNote() {
   if (!notesModal.value.newNoteText.trim()) return
   notesModal.value.saving = true
-  const newNote = { id: crypto.randomUUID(), text: notesModal.value.newNoteText, user_email: currentUser.value?.email || 'Team Member', created_at: new Date().toISOString() }
+  
+  const rawText = notesModal.value.newNoteText
+  const newNote = { id: crypto.randomUUID(), text: rawText, user_email: currentUser.value?.email || 'Team Member', created_at: new Date().toISOString() }
   const updatedNotes = [...notesModal.value.notes, newNote]
+  
   const { error } = await supabase.from('project_stages').update({ notes: updatedNotes }).eq('id', notesModal.value.stageId)
-  if (!error) { notesModal.value.notes = updatedNotes; notesModal.value.newNoteText = ''; const stage = timelineModal.value.stages.find(s => s.id === notesModal.value.stageId); if (stage) stage.notes = updatedNotes } else alert('Error: ' + error.message)
+  
+  if (!error) { 
+    notesModal.value.notes = updatedNotes
+    notesModal.value.newNoteText = ''
+    showMentions.value = false
+    const stage = timelineModal.value.stages.find(s => s.id === notesModal.value.stageId)
+    if (stage) stage.notes = updatedNotes 
+    
+    // ENVIAR NOTIFICACIÓN A LOS MENCIONADOS
+    const mentionedUsers = []
+    teamMembers.value.forEach(m => {
+      if (rawText.includes('@' + m.full_name) && m.email !== currentUser.value?.email) {
+        mentionedUsers.push(m)
+      }
+    })
+    
+    if (mentionedUsers.length > 0) {
+      const notifs = mentionedUsers.map(m => ({
+        recipient_email: m.email,
+        sender_email: currentUser.value?.email,
+        message: `${currentUser.value?.email.split('@')[0]} tagged you in ${timelineModal.value.projectName} > ${notesModal.value.stageName}`,
+        project_id: timelineModal.value.projectId,
+        stage_id: notesModal.value.stageId
+      }))
+      await supabase.from('notifications').insert(notifs)
+    }
+
+  } else {
+    alert('Error: ' + error.message)
+  }
   notesModal.value.saving = false
 }
 
+// LOGICA DE TIMELINE
 async function seedDefaultTree(projectId) {
   const allStagesToInsert = []
   for (let i = 0; i < CLICKUP_TEMPLATE.length; i++) {
@@ -462,6 +510,8 @@ async function openTimeline(p) {
   if (timelineModal.value.stages.length === 0) { await seedDefaultTree(p.id); await reloadTimelineData(p.id) }
   timelineModal.value.loading = false
 }
+
+function closeTimeline() { timelineModal.value.show = false }
 
 async function forceResetTimeline() {
   if (!confirm('This will erase current dates. Proceed?')) return
@@ -498,7 +548,6 @@ async function saveTimeline() {
 h1, h2, h3, h4 { color: var(--text-main); font-weight: 700; margin-bottom: 0.5rem; }
 h1 { font-size: 2rem; margin: 0; }
 
-/* FILTROS Y VISTAS */
 .filters-container { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; margin-bottom: 2rem; background: var(--bg-card); padding: 1rem; border-radius: 12px; border: 1px solid var(--border-main); }
 .filters { display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; flex: 1;}
 .search-input, .filter-select { background: var(--bg-app); color: var(--text-main); border-color: var(--border-main); padding: 0.6rem 1rem; border-radius: 8px; font-family: inherit;}
@@ -509,7 +558,6 @@ h1 { font-size: 2rem; margin: 0; }
 .view-toggle button { background: transparent; border: none; color: var(--text-muted); padding: 0.5rem 1rem; border-radius: 8px; cursor: pointer; font-size: 0.85rem; font-weight: 600; transition: 0.2s; }
 .view-toggle button.active { background: var(--border-light); color: var(--text-main); box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
 
-/* VISTA 1: LISTA HORIZONTAL */
 .list-container { display: flex; flex-direction: column; gap: 1.2rem; }
 .horizontal-card { background: var(--bg-card); border-radius: 16px; border: 1px solid var(--border-main); display: flex; align-items: stretch; transition: transform 0.2s, box-shadow 0.2s; box-shadow: 0 4px 6px rgba(0,0,0,0.1); overflow: hidden; }
 .horizontal-card:hover { transform: translateX(4px); border-color: var(--primary); box-shadow: 0 8px 15px rgba(0,0,0,0.15); }
@@ -538,7 +586,6 @@ h1 { font-size: 2rem; margin: 0; }
 .btn-timeline { background: var(--primary); color: white; }
 .btn-timeline:hover { filter: brightness(1.1); }
 
-/* VISTA 2: TABLERO KANBAN */
 .board-container { display: flex; gap: 1rem; overflow-x: auto; padding-bottom: 1rem; align-items: flex-start; scrollbar-width: thin; scrollbar-color: var(--border-main) var(--bg-app); }
 .board-container::-webkit-scrollbar { height: 8px; }
 .board-container::-webkit-scrollbar-track { background: var(--bg-app); border-radius: 4px; }
@@ -569,7 +616,6 @@ h1 { font-size: 2rem; margin: 0; }
 .btn-micro-tl:hover { background: var(--primary); color: white;}
 .board-empty { text-align: center; padding: 2rem 0; color: var(--text-muted); font-size: 0.85rem; font-style: italic; border: 1px dashed var(--border-main); border-radius: 8px;}
 
-/* BOTONES GLOBALES */
 .btn-primary { background: var(--primary); color: white; border: none; padding: 0.7rem 1.5rem; border-radius: 10px; cursor: pointer; font-size: 0.92rem; font-weight: 600; transition: 0.15s; }
 .btn-primary:hover { opacity: 0.9; }
 .btn-secondary { background: var(--bg-app); color: var(--text-main); border: 1px solid var(--border-main); padding: 0.5rem 1rem; border-radius: 8px; cursor: pointer; font-weight: 500; }
@@ -577,19 +623,18 @@ h1 { font-size: 2rem; margin: 0; }
 .loading, .empty { text-align: center; padding: 3rem; color: var(--text-muted); }
 .mt-3 { margin-top: 1rem; }
 .mt-4 { margin-top: 1.5rem; }
+.relative { position: relative; }
 
-/* ========================================= */
-/* MODALES                                   */
-/* ========================================= */
 .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.8); display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 1rem; backdrop-filter: blur(4px);}
 .modal { background: var(--bg-card); padding: 2rem; border-radius: 16px; width: 100%; max-height: 90vh; overflow-y: auto; border: 1px solid var(--border-main); box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5);}
 .modal-large { max-width: 950px; }
 
-/* NUEVO: MODAL COMPACTO PARA EL FORMULARIO DE PROYECTO */
-.form-modal { max-width: 650px; }
-.input-group { margin-bottom: 1rem; }
-.input-group label { display: block; font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.4rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
-.input-group input, .input-group select, .input-group textarea { width: 100%; padding: 0.7rem 1rem; background: var(--bg-app); color: var(--text-main); border: 1px solid var(--border-main); border-radius: 8px; font-family: inherit; font-size: 0.95rem;}
+.form-modal { max-width: 550px; padding: 1.5rem 2rem; }
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.2rem; margin-bottom: 1.2rem; }
+.input-group.full-width { grid-column: 1 / -1; }
+.input-group { margin-bottom: 0; }
+.input-group label { display: block; font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.4rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
+.input-group input, .input-group select, .input-group textarea { width: 100%; padding: 0.65rem 1rem; background: var(--bg-app); color: var(--text-main); border: 1px solid var(--border-main); border-radius: 8px; font-family: inherit; font-size: 0.9rem;}
 .input-group input:focus, .input-group select:focus, .input-group textarea:focus { border-color: var(--primary); outline: none; box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.1);}
 
 .modal-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-light); padding-bottom: 1rem; margin-bottom: 1.5rem; }
@@ -603,13 +648,11 @@ h1 { font-size: 2rem; margin: 0; }
 .th-date { flex: 1; text-align: center; }
 .th-status { flex: 1; text-align: center; }
 .th-action { width: 80px; }
-
 .stage-group { border-bottom: 1px solid var(--border-light); background: var(--bg-card); }
 .expand-arrow { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; color: var(--text-muted); font-size: 0.75rem; transition: transform 0.2s; user-select: none; }
 .expand-arrow.expanded { transform: rotate(90deg); }
 .expand-arrow.hidden { visibility: hidden; }
 .spacer-icon { width: 20px; display: inline-block; }
-
 .task-row { display: flex; align-items: center; padding: 0.5rem 1rem; border-bottom: 1px solid var(--border-light); cursor: pointer; transition: background 0.2s; }
 .task-row:last-child { border-bottom: none; }
 .level-1 { background: var(--bg-card); }
@@ -619,23 +662,19 @@ h1 { font-size: 2rem; margin: 0; }
 .level-2, .level-3 { background: transparent; }
 .level-2:hover, .level-3:hover { background: var(--bg-card); }
 .level-3 { border-top: 1px dashed var(--border-light); }
-
 .task-info { flex: 3; display: flex; align-items: center; gap: 0.4rem; font-size: 0.9rem; color: var(--text-main); }
 .indent-1 { padding-left: 1rem; }
 .indent-2 { padding-left: 2.5rem; }
 .task-name-input { width: 100%; border: 1px solid transparent; background: transparent; padding: 0.2rem 0.4rem; font-size: 0.88rem; font-weight: 500; border-radius: 4px; color: var(--text-main); transition: border 0.2s; }
 .task-name-input:focus { border: 1px solid var(--primary); background: var(--bg-card); }
-
 .task-empty-slots { flex: 2; }
 .task-date { flex: 1; display: flex; justify-content: center; }
 .date-input { width: 100%; max-width: 130px; padding: 0.3rem; font-size: 0.75rem; color: var(--text-main); background: var(--bg-card); border: 1px solid var(--border-main); border-radius: 6px; }
-
 .task-status { flex: 1; display: flex; justify-content: center; }
 .status-select { padding: 0.3rem 0.5rem; border-radius: 6px; font-size: 0.75rem; font-weight: 600; outline: none; cursor: pointer; width: 110px; background: var(--bg-card); border: 1px solid var(--border-main); color: var(--text-main); }
 .status-pending { background: var(--warning-bg); color: var(--warning-text); border-color: transparent;}
 .status-in-progress { background: rgba(14, 165, 233, 0.15); color: #7dd3fc; border-color: transparent;}
 .status-completed { background: var(--success-bg); color: var(--success-text); border-color: transparent;}
-
 .notes-indicator { background: var(--primary); color: white; font-size: 0.65rem; font-weight: 800; padding: 0.1rem 0.4rem; border-radius: 20px; margin-left: 0.3rem; }
 .task-actions { width: 80px; display: flex; gap: 0.3rem; justify-content: flex-end; opacity: 0; transition: opacity 0.2s; }
 .task-row:hover .task-actions { opacity: 1; }
@@ -644,9 +683,7 @@ h1 { font-size: 2rem; margin: 0; }
 .btn-add-micro:hover { color: var(--success-text); }
 .btn-del-micro:hover { color: var(--danger-text); }
 
-.modal-actions { display: flex; justify-content: flex-end; gap: 1rem; margin-top: 1.5rem; }
-
-/* MODAL DE NOTAS */
+/* MENCIONES Y NOTAS */
 .z-high { z-index: 2000; }
 .notes-modal { max-width: 450px; padding: 1.5rem; }
 .notes-list { max-height: 300px; overflow-y: auto; margin-bottom: 1rem; border: 1px solid var(--border-main); border-radius: 8px; padding: 0.5rem; background: var(--bg-app); }
@@ -655,6 +692,8 @@ h1 { font-size: 2rem; margin: 0; }
 .note-meta { display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.4rem; border-bottom: 1px dashed var(--border-light); padding-bottom: 0.3rem;}
 .note-meta strong { color: var(--primary); }
 .note-text { font-size: 0.85rem; color: var(--text-body); line-height: 1.5; white-space: pre-wrap; }
-.add-note-box { display: flex; flex-direction: column; gap: 0.5rem; }
 
+.mentions-dropdown { position: absolute; bottom: 100%; left: 0; width: 100%; background: var(--bg-card); border: 1px solid var(--border-main); border-radius: 8px; box-shadow: 0 -4px 15px rgba(0,0,0,0.5); z-index: 10; max-height: 150px; overflow-y: auto; margin-bottom: 0.5rem;}
+.mention-item { padding: 0.5rem 1rem; font-size: 0.85rem; color: var(--text-main); cursor: pointer; border-bottom: 1px solid var(--border-light);}
+.mention-item:hover { background: var(--bg-app); color: var(--primary); font-weight: 600;}
 </style>
