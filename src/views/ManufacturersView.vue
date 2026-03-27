@@ -149,7 +149,7 @@
         <div class="card-actions-vertical">
           <div class="action-top-row">
             <button @click="editManufacturer(m)" class="btn-action-icon btn-edit" title="Edit">✏️</button>
-            <button @click="logExternalContact(m)" class="btn-action-icon btn-log" title="Log Contact">📝</button>
+            <button @click="openLogContactModal(m)" class="btn-action-icon btn-log" title="Log Contact">📝</button>
             <button @click="deleteManufacturer(m.id)" class="btn-action-icon btn-delete" title="Delete">🗑️</button>
           </div>
           <button v-if="m.email" @click="openInitialReachModal(m)" class="btn-action-full btn-initial-reach">🚀 REACH</button>
@@ -181,6 +181,32 @@
         </div>
         <div class="modal-body" style="padding: 20px; max-height: 400px; overflow-y: auto;">
           <p style="white-space: pre-wrap; line-height: 1.6; color: var(--text-main);">{{ notesPopup.text }}</p>
+        </div>
+      </div>
+    </div>
+
+    <div v-if="logContactModal.show" class="modal-overlay" @click.self="logContactModal.show = false">
+      <div class="modal">
+        <div class="modal-header">
+          <h2>📝 Log Contact: {{ logContactModal.companyName }}</h2>
+          <button @click="logContactModal.show = false" class="modal-close">✕</button>
+        </div>
+        
+        <div class="modal-field mt-3">
+          <label>Date of Contact</label>
+          <input type="date" v-model="logContactModal.date" />
+        </div>
+        
+        <div class="modal-field mt-3">
+          <label>Contact Note / Action</label>
+          <input v-model="logContactModal.note" placeholder="E.g., Called to discuss MOQ, Sent tech pack..." />
+        </div>
+        
+        <div class="modal-actions mt-4">
+          <button @click="logContactModal.show = false" class="btn-secondary">CANCEL</button>
+          <button @click="saveLogContact" class="btn-primary" :disabled="!logContactModal.note.trim() || !logContactModal.date">
+            SAVE LOG
+          </button>
         </div>
       </div>
     </div>
@@ -303,6 +329,15 @@ const selectedCategories = ref([])
 const selectedCertifications = ref([])
 const certPopup = ref({ show: false, list: [] })
 const notesPopup = ref({ show: false, text: '' })
+
+// NUEVO: ESTADO DEL MODAL LOG CONTACT
+const logContactModal = ref({
+  show: false,
+  manufacturerId: null,
+  companyName: '',
+  note: '',
+  date: new Date().toISOString().split('T')[0] // Se inicializa con la fecha actual
+})
 
 const form = ref({ 
   company_name: '', country: '', contact_name: '', phone: '', 
@@ -464,12 +499,34 @@ function applyTemplate() {
   emailModal.value.body = t.body.replace(/{{company_name}}/g, emailModal.value.companyName)
 }
 
-async function logExternalContact(m) {
-  const note = prompt(`Log manual contact for ${m.company_name}:`, '')
-  if (!note) return
-  const sentAt = new Date().toISOString()
-  const updatedLogs = [...(m.email_logs || []), { templateName: note.trim(), sentAt }]
-  await supabase.from('manufacturers').update({ email_logs: updatedLogs, last_email_sent_at: sentAt }).eq('id', m.id)
+// NUEVO: FUNCIONES DEL MODAL LOG CONTACT
+function openLogContactModal(m) {
+  logContactModal.value = {
+    show: true,
+    manufacturerId: m.id,
+    companyName: m.company_name,
+    note: '',
+    date: new Date().toISOString().split('T')[0] // Formato YYYY-MM-DD para el input type="date"
+  }
+}
+
+async function saveLogContact() {
+  if (!logContactModal.value.note.trim()) return
+  
+  const m = manufacturers.value.find(man => man.id === logContactModal.value.manufacturerId)
+  
+  // Convertimos la fecha seleccionada en un formato ISO para que se guarde correctamente
+  const dateObj = new Date(logContactModal.value.date + 'T12:00:00') 
+  const sentAt = dateObj.toISOString()
+  
+  const updatedLogs = [...(m.email_logs || []), { templateName: logContactModal.value.note.trim(), sentAt }]
+  
+  await supabase.from('manufacturers').update({ 
+    email_logs: updatedLogs, 
+    last_email_sent_at: sentAt 
+  }).eq('id', m.id)
+  
+  logContactModal.value.show = false
   fetchManufacturers()
 }
 
@@ -532,7 +589,7 @@ onMounted(() => {
 <style scoped>
 /* GENERAL LAYOUT */
 .container { 
-  max-width: 1400px; /* Aumentado un poco para dar espacio a la lista horizontal */
+  max-width: 1400px; 
   margin: 0 auto; 
   padding: 2rem 1.5rem; 
   font-family: 'Inter', sans-serif; 
@@ -621,6 +678,7 @@ input:focus, textarea:focus, select:focus {
 
 /* SECTIONS (Categories & Certs) */
 .mt-4 { margin-top: 1.5rem; }
+.mt-3 { margin-top: 1rem; }
 .section-label { 
   display: block; 
   font-size: 0.8rem; 
@@ -680,7 +738,7 @@ input:focus, textarea:focus, select:focus {
 }
 .results-count { font-size: 0.85rem; color: var(--text-muted); margin-left: auto; }
 
-/* LISTA HORIZONTAL (NUEVA ESTRUCTURA) */
+/* LISTA HORIZONTAL */
 .list-container { 
   display: flex; 
   flex-direction: column; 
@@ -692,10 +750,10 @@ input:focus, textarea:focus, select:focus {
   border-radius: 16px; 
   border: 1px solid var(--border-main); 
   display: flex; 
-  align-items: stretch; /* Para que todas las columnas midan lo mismo */
+  align-items: stretch; 
   transition: transform 0.2s, box-shadow 0.2s; 
   box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-  overflow: hidden; /* Asegura bordes redondeados limpios */
+  overflow: hidden; 
 }
 
 .horizontal-card:hover { 
@@ -872,13 +930,27 @@ input:focus, textarea:focus, select:focus {
 /* MODALS */
 .modal-overlay { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.8); z-index: 1000; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(4px); }
 .modal { background: var(--bg-card); border-radius: 20px; width: 90%; max-width: 600px; padding: 2rem; border: 1px solid var(--border-main); }
-.modal-header h2 { color: var(--text-main); margin: 0; }
-.modal-close { background: var(--bg-app); border: none; color: var(--text-muted); width: 32px; height: 32px; border-radius: 8px; cursor: pointer; }
+.modal-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-light); padding-bottom: 1rem; margin-bottom: 1.5rem; }
+.modal-header h2 { color: var(--text-main); margin: 0; font-size: 1.25rem;}
+.modal-close { background: var(--bg-app); border: 1px solid var(--border-main); color: var(--text-muted); width: 32px; height: 32px; border-radius: 8px; cursor: pointer; display: flex; justify-content: center; align-items: center; font-weight: bold;}
 .signature-notice { background: rgba(234, 179, 8, 0.1); color: var(--warning-text); padding: 0.5rem 0.8rem; border-radius: 8px; font-size: 0.85rem; border: 1px dashed var(--warning-text); }
 .cert-item { background: var(--bg-app); padding: 0.8rem 1rem; border-radius: 8px; margin-bottom: 0.5rem; color: var(--text-main); display: flex; gap: 0.6rem; }
 
+/* NUEVO: ESTILOS PARA LOS CAMPOS DEL MODAL */
+.modal-field { margin-bottom: 1.2rem; }
+.modal-field label { 
+  display: block; 
+  font-size: 0.8rem; 
+  font-weight: 700; 
+  color: var(--text-muted); 
+  margin-bottom: 0.4rem; 
+  text-transform: uppercase; 
+  letter-spacing: 0.05em;
+}
+
 /* GLOBAL BUTTONS */
 .btn-primary { background: var(--primary); color: white; border: none; padding: 0.7rem 1.5rem; border-radius: 10px; cursor: pointer; font-weight: 700; }
+.btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
 .btn-secondary { background: var(--border-light); color: var(--text-main); border: none; padding: 0.7rem 1.5rem; border-radius: 10px; cursor: pointer; font-weight: 600; }
 .btn-clear { background: var(--border-light); color: var(--text-muted); border: none; padding: 0.7rem 1rem; border-radius: 8px; cursor: pointer; }
 .loading, .empty { text-align: center; padding: 3rem; color: var(--text-muted); }
