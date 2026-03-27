@@ -507,5 +507,3 @@ async function logout() {
   background: var(--border-light);
 }
 </style>
-}
-</style>
