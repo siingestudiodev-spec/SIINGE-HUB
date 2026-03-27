@@ -56,6 +56,7 @@
         <button @click="saveManufacturer" class="btn-primary">
           {{ editing ? 'UPDATE MANUFACTURER' : 'SAVE MANUFACTURER' }}
         </button>
+        <button @click="resetForm" class="btn-secondary">Cancel</button>
       </div>
     </div>
 
@@ -377,9 +378,13 @@ async function fetchTemplates() {
   templatesList.value = data || []
 }
 
-function openAddForm() { 
+function openAddForm() {
+  if (showForm.value) {
+    resetForm()
+    return
+  }
   resetForm()
-  showForm.value = !showForm.value 
+  showForm.value = true
 }
 
 function clearFilters() { 
