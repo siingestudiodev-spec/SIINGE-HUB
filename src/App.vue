@@ -1,83 +1,67 @@
 <template>
   <div class="app-container" v-if="session">
-    <div class="sidebar">
-      <div class="sidebar-header">
-        <img src="https://i.ibb.co/xK52ckkK/Whats-App-Image-2026-02-24-at-13-58-58-1.jpg" alt="logo" class="logo" />
-        <div class="brand-text">
-          <div class="brand-name">SIINGE</div>
-          <div class="brand-sub">Hub</div>
+    <header class="top-navbar">
+      <div class="navbar-left">
+        <div class="logo-section">
+          <img src="https://i.ibb.co/xK52ckkK/Whats-App-Image-2026-02-24-at-13-58-58-1.jpg" alt="logo" class="logo" />
+          <div class="brand-name">SIINGE Hub</div>
         </div>
       </div>
 
-      <nav class="nav-menu">
+      <nav class="navbar-menu">
         <router-link to="/manufacturers" class="nav-item" :class="{ active: isActive('/manufacturers') }">
-          <span class="icon">🏭</span>
-          <span class="label">Manufacturers</span>
+          🏭 Manufacturers
         </router-link>
         <router-link to="/projects" class="nav-item" :class="{ active: isActive('/projects') }">
-          <span class="icon">📋</span>
-          <span class="label">Projects</span>
+          📋 Projects
         </router-link>
         <router-link to="/sourcing" class="nav-item" :class="{ active: isActive('/sourcing') }">
-          <span class="icon">🔍</span>
-          <span class="label">Sourcing</span>
+          🔍 Sourcing
         </router-link>
         <router-link to="/templates" class="nav-item" :class="{ active: isActive('/templates') }">
-          <span class="icon">📧</span>
-          <span class="label">Templates</span>
+          📧 Templates
         </router-link>
         <router-link to="/calendar" class="nav-item" :class="{ active: isActive('/calendar') }">
-          <span class="icon">📅</span>
-          <span class="label">Calendar</span>
+          📅 Calendar
         </router-link>
         <router-link to="/events" class="nav-item" :class="{ active: isActive('/events') }">
-          <span class="icon">🎪</span>
-          <span class="label">Events</span>
+          🎪 Events
         </router-link>
       </nav>
 
-      <div class="sidebar-footer">
-        <button @click="toggleTheme" class="btn-icon-sidebar" :title="isDark ? 'Light Mode' : 'Dark Mode'">
-          {{ isDark ? '☀️' : '🌙' }}
-        </button>
-        <button @click="logout" class="btn-icon-sidebar" title="Sign Out">
-          ⎋
-        </button>
-      </div>
-    </div>
-
-    <div class="main-layout">
-      <header class="top-header">
-        <div class="notif-section">
-          <div class="notifications-wrapper" v-click-outside="closeNotifs">
-            <button @click="showNotifs = !showNotifs" class="btn-notif">
-              <span class="notif-icon">🔔</span>
-              <span v-if="unreadCount > 0" class="badge">{{ unreadCount }}</span>
-            </button>
-            <div v-if="showNotifs" class="notifs-dropdown">
-              <div class="notifs-header">
-                <h4>Notifications</h4>
-                <button v-if="unreadCount > 0" @click="markAllRead" class="btn-clear">Clear</button>
-              </div>
-              <div class="notifs-body">
-                <div v-if="notifications.length === 0" class="empty-notifs">All caught up</div>
-                <div v-for="n in notifications" :key="n.id" 
-                     class="notif-item" 
-                     :class="{ 'unread': !n.is_read }"
-                     @click="goToNotification(n)">
-                  <div class="notif-text">{{ n.message }}</div>
-                  <div class="notif-time">{{ formatDate(n.created_at) }}</div>
-                </div>
+      <div class="navbar-right">
+        <div class="notifications-wrapper" v-click-outside="closeNotifs">
+          <button @click="showNotifs = !showNotifs" class="btn-notif">
+            <span>🔔</span>
+            <span v-if="unreadCount > 0" class="badge">{{ unreadCount }}</span>
+          </button>
+          <div v-if="showNotifs" class="notifs-dropdown">
+            <div class="notifs-header">
+              <h4>Notifications</h4>
+              <button v-if="unreadCount > 0" @click="markAllRead" class="btn-clear">Clear</button>
+            </div>
+            <div class="notifs-body">
+              <div v-if="notifications.length === 0" class="empty-notifs">All caught up</div>
+              <div v-for="n in notifications" :key="n.id" 
+                   class="notif-item" 
+                   :class="{ 'unread': !n.is_read }"
+                   @click="goToNotification(n)">
+                <div class="notif-text">{{ n.message }}</div>
+                <div class="notif-time">{{ formatDate(n.created_at) }}</div>
               </div>
             </div>
           </div>
         </div>
-      </header>
+        <button @click="toggleTheme" class="btn-theme">
+          {{ isDark ? '☀️' : '🌙' }}
+        </button>
+        <button @click="logout" class="btn-logout">⎋</button>
+      </div>
+    </header>
 
-      <main class="content-area">
-        <router-view />
-      </main>
-    </div>
+    <main class="content-area">
+      <router-view />
+    </main>
   </div>
   <div v-else>
     <router-view />
@@ -180,78 +164,71 @@ async function logout() {
 /* LAYOUT PRINCIPAL */
 .app-container {
   display: flex;
+  flex-direction: column;
   min-height: 100vh;
   background: var(--bg-app);
 }
 
-/* SIDEBAR */
-.sidebar {
-  width: 260px;
+/* NAVBAR SUPERIOR */
+.top-navbar {
+  height: 64px;
   background: var(--bg-card);
-  border-right: 1px solid var(--border-main);
+  border-bottom: 1px solid var(--border-main);
   display: flex;
-  flex-direction: column;
-  position: fixed;
-  left: 0;
+  align-items: center;
+  padding: 0 1.5rem;
+  position: sticky;
   top: 0;
-  height: 100vh;
-  overflow-y: auto;
-  z-index: 90;
+  z-index: 100;
+  gap: 2rem;
 }
 
-.sidebar-header {
-  padding: 1.2rem 1rem;
-  border-bottom: 1px solid var(--border-light);
+.navbar-left {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.logo-section {
   display: flex;
   align-items: center;
   gap: 0.75rem;
 }
 
 .logo {
-  width: 32px;
-  height: 32px;
+  width: 36px;
+  height: 36px;
   border-radius: 6px;
   object-fit: contain;
 }
 
-.brand-text {
-  flex: 1;
-}
-
 .brand-name {
-  font-size: 0.9rem;
+  font-size: 0.95rem;
   font-weight: 700;
   color: var(--text-main);
-  line-height: 1;
 }
 
-.brand-sub {
-  font-size: 0.7rem;
-  color: var(--primary);
-  font-weight: 600;
-}
-
-/* NAVEGACIÓN */
-.nav-menu {
+/* MENÚ NAVEGACIÓN */
+.navbar-menu {
   flex: 1;
-  padding: 0.75rem 0.5rem;
   display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
+  gap: 0.5rem;
+  align-items: center;
 }
 
 .nav-item {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  padding: 0.7rem 0.75rem;
+  gap: 0.4rem;
+  padding: 0.6rem 1rem;
   color: var(--text-body);
   text-decoration: none;
   border-radius: 6px;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   font-weight: 500;
   transition: all 0.15s;
-  border-left: 3px solid transparent;
+  white-space: nowrap;
+  border-bottom: 2px solid transparent;
 }
 
 .nav-item:hover {
@@ -260,78 +237,16 @@ async function logout() {
 }
 
 .nav-item.active {
-  background: rgba(79, 70, 229, 0.1);
   color: var(--primary);
-  border-left-color: var(--primary);
+  border-bottom-color: var(--primary);
   font-weight: 600;
 }
 
-.nav-item .icon {
-  font-size: 1.1rem;
-  width: 24px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.nav-item .label {
-  flex: 1;
-  white-space: nowrap;
-}
-
-/* PIE DE SIDEBAR */
-.sidebar-footer {
-  padding: 1rem 0.75rem;
-  border-top: 1px solid var(--border-light);
-  display: flex;
-  gap: 0.5rem;
-}
-
-.btn-icon-sidebar {
-  flex: 1;
-  padding: 0.6rem;
-  background: transparent;
-  border: 1px solid var(--border-main);
-  color: var(--text-muted);
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 1rem;
-  transition: all 0.15s;
+/* SECCIÓN DERECHA */
+.navbar-right {
   display: flex;
   align-items: center;
-  justify-content: center;
-}
-
-.btn-icon-sidebar:hover {
-  background: var(--border-light);
-  color: var(--text-main);
-  border-color: var(--primary);
-}
-
-/* MAIN LAYOUT */
-.main-layout {
-  flex: 1;
-  margin-left: 260px;
-  display: flex;
-  flex-direction: column;
-}
-
-/* TOP HEADER */
-.top-header {
-  height: 56px;
-  background: var(--bg-card);
-  border-bottom: 1px solid var(--border-main);
-  display: flex;
-  align-items: center;
-  padding: 0 1.5rem;
-  position: sticky;
-  top: 0;
-  z-index: 80;
-}
-
-.notif-section {
-  display: flex;
-  gap: 1rem;
+  gap: 0.75rem;
   margin-left: auto;
 }
 
@@ -359,12 +274,6 @@ async function logout() {
   border-color: var(--primary);
 }
 
-.notif-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
 .badge {
   position: absolute;
   top: -4px;
@@ -380,6 +289,27 @@ async function logout() {
   align-items: center;
   justify-content: center;
   border: 2px solid var(--bg-card);
+}
+
+.btn-theme,
+.btn-logout {
+  background: transparent;
+  border: 1px solid var(--border-main);
+  width: 36px;
+  height: 36px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: all 0.15s;
+}
+
+.btn-theme:hover,
+.btn-logout:hover {
+  background: var(--border-light);
+  border-color: var(--primary);
 }
 
 /* NOTIFICACIONES DROPDOWN */
@@ -402,32 +332,33 @@ async function logout() {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background: rgba(0, 0, 0, 0.02);
 }
 
 .notifs-header h4 {
   margin: 0;
   font-size: 0.9rem;
   color: var(--text-main);
-  font-weight: 600;
 }
 
 .btn-clear {
   background: transparent;
+  color: var(--text-muted);
   border: none;
-  color: var(--primary);
-  font-size: 0.75rem;
   cursor: pointer;
+  font-size: 0.75rem;
   font-weight: 600;
-  transition: color 0.15s;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  transition: 0.2s;
 }
 
 .btn-clear:hover {
-  color: var(--primary-hover);
+  color: var(--primary);
+  background: var(--border-light);
 }
 
 .notifs-body {
-  max-height: 360px;
+  max-height: 350px;
   overflow-y: auto;
 }
 
@@ -436,66 +367,43 @@ async function logout() {
   text-align: center;
   color: var(--text-muted);
   font-size: 0.85rem;
+  font-style: italic;
 }
 
 .notif-item {
-  padding: 0.9rem 1rem;
+  padding: 0.8rem 1rem;
   border-bottom: 1px solid var(--border-light);
   cursor: pointer;
-  transition: background 0.15s;
+  transition: background 0.2s;
+}
+
+.notif-item:last-child {
+  border-bottom: none;
 }
 
 .notif-item:hover {
-  background: rgba(79, 70, 229, 0.05);
+  background: var(--bg-app);
 }
 
 .notif-item.unread {
   background: rgba(79, 70, 229, 0.08);
-  border-left: 3px solid var(--primary);
 }
 
 .notif-text {
   font-size: 0.85rem;
-  color: var(--text-body);
+  color: var(--text-main);
   margin-bottom: 0.3rem;
-  line-height: 1.3;
+  line-height: 1.4;
 }
 
 .notif-time {
-  font-size: 0.7rem;
+  font-size: 0.75rem;
   color: var(--text-muted);
 }
 
-/* CONTENT AREA */
+/* ÁREA DE CONTENIDO */
 .content-area {
   flex: 1;
   overflow-y: auto;
-  padding: 0;
-}
-
-/* SCROLLBAR */
-.sidebar::-webkit-scrollbar,
-.notifs-body::-webkit-scrollbar,
-.content-area::-webkit-scrollbar {
-  width: 6px;
-}
-
-.sidebar::-webkit-scrollbar-track,
-.notifs-body::-webkit-scrollbar-track,
-.content-area::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.sidebar::-webkit-scrollbar-thumb,
-.notifs-body::-webkit-scrollbar-thumb,
-.content-area::-webkit-scrollbar-thumb {
-  background: var(--border-main);
-  border-radius: 3px;
-}
-
-.sidebar::-webkit-scrollbar-thumb:hover,
-.notifs-body::-webkit-scrollbar-thumb:hover,
-.content-area::-webkit-scrollbar-thumb:hover {
-  background: var(--border-light);
 }
 </style>

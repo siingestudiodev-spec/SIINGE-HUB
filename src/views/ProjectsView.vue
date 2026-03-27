@@ -707,12 +707,22 @@ h1 { font-size: 2rem; margin: 0; }
 .status-in-progress { background: rgba(14, 165, 233, 0.15); color: #7dd3fc; border-color: transparent;}
 .status-completed { background: var(--success-bg); color: var(--success-text); border-color: transparent;}
 .notes-indicator { background: var(--primary); color: white; font-size: 0.65rem; font-weight: 800; padding: 0.1rem 0.4rem; border-radius: 20px; margin-left: 0.3rem; }
-.task-actions { width: 80px; display: flex; gap: 0.3rem; justify-content: flex-end; opacity: 0; transition: opacity 0.2s; }
-.task-row:hover .task-actions { opacity: 1; }
-.btn-note-micro, .btn-add-micro, .btn-del-micro { background: transparent; color: var(--text-main); border: none; font-size: 0.8rem; cursor: pointer; padding: 0.2rem; border-radius: 4px; }
-.btn-note-micro:hover { color: var(--primary); background: var(--border-light); }
-.btn-add-micro:hover { color: var(--success-text); background: var(--border-light); }
-.btn-del-micro:hover { color: var(--danger-text); background: var(--border-light); }
+.btn-note-micro, .btn-add-micro, .btn-del-micro { 
+  background: transparent; 
+  color: var(--primary); 
+  border: none; 
+  font-size: 0.8rem; 
+  cursor: pointer; 
+  padding: 0.2rem; 
+  border-radius: 4px; 
+  opacity: 0.7;
+  transition: all 0.2s;
+}
+.btn-note-micro:hover { color: var(--primary); background: var(--border-light); opacity: 1; }
+.btn-add-micro { color: var(--success-text); opacity: 0.7; }
+.btn-add-micro:hover { color: var(--success-text); background: var(--border-light); opacity: 1; }
+.btn-del-micro { color: var(--danger-text); opacity: 0.7; }
+.btn-del-micro:hover { color: var(--danger-text); background: var(--border-light); opacity: 1; }
 
 /* ========================================= */
 /* MENCIONES Y NOTAS (REDISEÑADO COMPLETO)   */
