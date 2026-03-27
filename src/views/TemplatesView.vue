@@ -96,30 +96,32 @@ const form = ref({
 // ==========================================
 async function descargarDocumento(tipo) {
   try {
-    // 1. Seleccionar el archivo correcto (Debe estar en la carpeta /public)
     const archivoOrigen = tipo === 'NDA' ? '/template_nda.pdf' : '/template_mma.pdf'
     const prefijoNombre = tipo === 'NDA' ? 'SIINGE_NDA' : 'SIINGE_MMA'
 
-    // 2. Cargar el PDF
     const existingPdfBytes = await fetch(archivoOrigen).then(res => res.arrayBuffer())
     const pdfDoc = await PDFDocument.load(existingPdfBytes)
     const formPdf = pdfDoc.getForm()
 
-    // 3. Buscar las cajitas de formulario
     const campoFecha1 = formPdf.getTextField('fecha_firma')
     const campoFecha2 = formPdf.getTextField('fecha_firma2')
 
-    // 4. Generar la fecha de hoy
-    const fechaHoy = new Date().toLocaleDateString()
+    // ==========================================
+    // NUEVO FORMATO DE FECHA: MM/DD/YYYY
+    // ==========================================
+    const hoy = new Date()
+    const mes = String(hoy.getMonth() + 1).padStart(2, '0') // +1 porque enero es 0
+    const dia = String(hoy.getDate()).padStart(2, '0')
+    const anio = hoy.getFullYear()
+    
+    const fechaHoy = `${mes}/${dia}/${anio}`
+    // ==========================================
 
-    // 5. Llenar las cajitas si existen
     if (campoFecha1) campoFecha1.setText(fechaHoy)
     if (campoFecha2) campoFecha2.setText(fechaHoy)
 
-    // 6. "Aplanar" el PDF para sellar la fecha
     formPdf.flatten() 
 
-    // 7. Preparar y lanzar la descarga
     const pdfBytes = await pdfDoc.save()
     const blob = new Blob([pdfBytes], { type: 'application/pdf' })
     
@@ -133,7 +135,6 @@ async function descargarDocumento(tipo) {
     alert(`Hubo un error al generar el ${tipo}. Verifica que el archivo (template_nda.pdf o template_mma.pdf) exista en la carpeta 'public'.`)
   }
 }
-// ==========================================
 
 async function fetchTemplates() {
   loading.value = true
