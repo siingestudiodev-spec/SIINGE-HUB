@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap');
+
 * {
   box-sizing: border-box;
 }
@@ -62,8 +64,6 @@
   --danger-bg: rgba(225, 29, 72, 0.1);
   --danger-text: #dc2626;
 }
-
-@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap');
 
 html, body {
   margin: 0;
