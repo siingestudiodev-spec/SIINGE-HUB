@@ -32,6 +32,7 @@
               class="task-badge"
               :class="getTaskClass(task)"
               :title="task.projects?.project_name + ' - ' + task.stage_name"
+              @click="goToProject(task)"
             >
               <strong>{{ task.projects?.project_name || 'Unknown Project' }}</strong>
               <span>{{ task.stage_name }}</span>
@@ -45,8 +46,10 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { supabase } from '../lib/supabase'
 
+const router = useRouter()
 const loading = ref(true)
 const tasks = ref([])
 
@@ -113,6 +116,14 @@ function isToday(dateStr) {
   if (!dateStr) return false
   const today = new Date().toISOString().split('T')[0]
   return dateStr === today
+}
+
+// NUEVA FUNCIÓN: Ir al proyecto y abrir la tarea
+function goToProject(task) {
+  router.push({
+    path: '/projects',
+    query: { project: task.project_id, stage: task.id }
+  })
 }
 
 onMounted(fetchTasks)
@@ -192,8 +203,17 @@ h1 { font-size: 2rem; font-weight: 800; color: var(--text-main); margin: 0; }
 .task-badge { 
   padding: 0.4rem; border-radius: 6px; font-size: 0.7rem; 
   line-height: 1.2; display: flex; flex-direction: column; 
-  border-left: 3px solid transparent; cursor: default; 
+  border-left: 3px solid transparent; 
+  cursor: pointer; /* Añadido cursor de puntero */
+  transition: filter 0.2s, transform 0.1s; /* Transición suave */
 }
+
+/* Efecto Hover para que se note que es clickeable */
+.task-badge:hover {
+  filter: brightness(1.2);
+  transform: translateY(-1px);
+}
+
 .task-badge strong { font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .task-badge span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; opacity: 0.9; }
 
