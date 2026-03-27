@@ -1,14 +1,40 @@
 <template>
   <div class="container">
     <div class="header">
-      <h1>Email Templates</h1>
+      <h1>Email Templates & Documents</h1>
       <button @click="showForm = !showForm" class="btn-primary">
-        {{ showForm ? 'Cancel' : '+ Add Template' }}
+        {{ showForm ? 'Cancel' : '+ Add Email Template' }}
       </button>
     </div>
 
+    <div class="legal-documents-section">
+      <div class="legal-header">
+        <h2>⚖️ Legal Documents</h2>
+        <p>Download your official SIINGE templates automatically stamped with today's date.</p>
+      </div>
+      <div class="legal-actions">
+        <button @click="descargarDocumento('NDA')" class="btn-legal nda">
+          <span class="icon">📄</span>
+          <div class="btn-text">
+            <strong>Download NDA</strong>
+            <span>Non-Disclosure Agreement</span>
+          </div>
+        </button>
+        
+        <button @click="descargarDocumento('MMA')" class="btn-legal mma">
+          <span class="icon">📄</span>
+          <div class="btn-text">
+            <strong>Download MMA</strong>
+            <span>Master Manufacturing Agreement</span>
+          </div>
+        </button>
+      </div>
+    </div>
+    
+    <hr class="section-divider" />
+
     <div v-if="showForm" class="form-card">
-      <h2>{{ editing ? 'Edit Template' : 'New Template' }}</h2>
+      <h2>{{ editing ? 'Edit Email Template' : 'New Email Template' }}</h2>
       <div class="form-grid-single">
         <input v-model="form.name" placeholder="Template Name (e.g., Initial Reach) *" />
         <input v-model="form.subject" placeholder="Email Subject *" />
@@ -19,8 +45,12 @@
       </div>
     </div>
 
+    <div class="section-title">
+      <h2>✉️ Saved Email Templates</h2>
+    </div>
+
     <div v-if="loading" class="loading">Loading...</div>
-    <div v-else-if="templates.length === 0" class="empty">No templates found. Create one above!</div>
+    <div v-else-if="templates.length === 0" class="empty">No email templates found. Create one above!</div>
     <div v-else class="cards-grid">
       <div v-for="t in templates" :key="t.id" class="card">
         <div class="card-top">
@@ -46,7 +76,8 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { supabase } from '../lib/supabase' // Make sure this path is correct
+import { supabase } from '../lib/supabase' 
+import { PDFDocument } from 'pdf-lib' // NUEVO: Importación para PDFs
 
 const templates = ref([])
 const loading = ref(true)
@@ -59,6 +90,50 @@ const form = ref({
   subject: '',
   body: ''
 })
+
+// ==========================================
+// NUEVO: LÓGICA DE DESCARGA DE PDFS
+// ==========================================
+async function descargarDocumento(tipo) {
+  try {
+    // 1. Seleccionar el archivo correcto (Debe estar en la carpeta /public)
+    const archivoOrigen = tipo === 'NDA' ? '/template_nda.pdf' : '/template_mma.pdf'
+    const prefijoNombre = tipo === 'NDA' ? 'SIINGE_NDA' : 'SIINGE_MMA'
+
+    // 2. Cargar el PDF
+    const existingPdfBytes = await fetch(archivoOrigen).then(res => res.arrayBuffer())
+    const pdfDoc = await PDFDocument.load(existingPdfBytes)
+    const formPdf = pdfDoc.getForm()
+
+    // 3. Buscar las cajitas de formulario
+    const campoFecha1 = formPdf.getTextField('fecha_firma')
+    const campoFecha2 = formPdf.getTextField('fecha_firma2')
+
+    // 4. Generar la fecha de hoy
+    const fechaHoy = new Date().toLocaleDateString()
+
+    // 5. Llenar las cajitas si existen
+    if (campoFecha1) campoFecha1.setText(fechaHoy)
+    if (campoFecha2) campoFecha2.setText(fechaHoy)
+
+    // 6. "Aplanar" el PDF para sellar la fecha
+    formPdf.flatten() 
+
+    // 7. Preparar y lanzar la descarga
+    const pdfBytes = await pdfDoc.save()
+    const blob = new Blob([pdfBytes], { type: 'application/pdf' })
+    
+    const link = document.createElement('a')
+    link.href = URL.createObjectURL(blob)
+    link.download = `${prefijoNombre}_${fechaHoy.replace(/\//g, '-')}.pdf`
+    link.click()
+    
+  } catch (error) {
+    console.error(`Error generando el ${tipo}:`, error)
+    alert(`Hubo un error al generar el ${tipo}. Verifica que el archivo (template_nda.pdf o template_mma.pdf) exista en la carpeta 'public'.`)
+  }
+}
+// ==========================================
 
 async function fetchTemplates() {
   loading.value = true
@@ -106,9 +181,59 @@ onMounted(fetchTemplates)
 
 <style scoped>
 .container { max-width: 1200px; margin: 0 auto; padding: 2rem 1.5rem; }
-.header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; }
-h1 { font-size: 2rem; font-weight: 700; color: var(--text-main); }
+.header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; }
+h1 { font-size: 2rem; font-weight: 700; color: var(--text-main); margin: 0; }
 
+/* NUEVO: ESTILOS PARA LA SECCIÓN LEGAL */
+.legal-documents-section {
+  background: rgba(0,0,0,0.1);
+  border: 1px solid var(--border-main);
+  border-radius: 16px;
+  padding: 2rem;
+  margin-bottom: 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+.legal-header h2 { margin: 0 0 0.5rem 0; font-size: 1.25rem; color: var(--text-main); }
+.legal-header p { margin: 0; color: var(--text-muted); font-size: 0.9rem; }
+
+.legal-actions {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+.btn-legal {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border-main);
+  padding: 1rem 1.5rem;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex: 1;
+  min-width: 250px;
+  text-align: left;
+}
+.btn-legal:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+}
+.btn-legal.nda:hover { border-color: #8b5cf6; }
+.btn-legal.mma:hover { border-color: #ec4899; }
+
+.btn-legal .icon { font-size: 2rem; }
+.btn-text { display: flex; flex-direction: column; gap: 0.2rem; }
+.btn-text strong { color: var(--text-main); font-size: 1.05rem; }
+.btn-text span { color: var(--text-muted); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;}
+
+.section-divider { border: none; border-top: 1px dashed var(--border-main); margin: 2.5rem 0; opacity: 0.5; }
+.section-title { margin-bottom: 1.5rem; }
+.section-title h2 { font-size: 1.25rem; color: var(--text-main); margin: 0; }
+
+/* ESTILOS ORIGINALES DEL FORMULARIO Y TARJETAS */
 .form-card { background: var(--bg-card); padding: 2rem; border-radius: 16px; margin-bottom: 2rem; border: 1.5px solid var(--border-main); box-shadow: 0 4px 24px rgba(79,70,229,0.07); }
 .form-card h2 { font-size: 1.1rem; margin-bottom: 1.25rem; color: var(--text-main); }
 .form-grid-single { display: flex; flex-direction: column; gap: 0.75rem; margin-bottom: 0.75rem; }
