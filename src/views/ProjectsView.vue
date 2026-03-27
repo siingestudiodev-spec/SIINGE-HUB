@@ -2,7 +2,9 @@
   <div class="container">
     <div class="header">
       <h1>Projects</h1>
-      <button @click="openNewProject" class="btn-primary">+ New Project</button>
+      <button @click="openProjectForm" class="btn-primary">
+        + New Project
+      </button>
     </div>
 
     <div class="filters-container">
@@ -118,34 +120,41 @@
     </div>
 
     <div v-if="showForm" class="modal-overlay" @click.self="resetForm">
-      <div class="modal">
+      <div class="modal form-modal">
         <div class="modal-header">
           <h2>{{ editing ? 'Edit Project' : 'New Project' }}</h2>
           <button @click="resetForm" class="modal-close">✕</button>
         </div>
+        
         <div class="form-grid">
-          <div class="modal-field">
-            <input v-model="form.project_name" placeholder="Project Name *" />
+          <div class="input-group">
+            <label>Project Name *</label>
+            <input v-model="form.project_name" placeholder="E.g. Dream Bralette" />
           </div>
-          <div class="modal-field">
-            <input v-model="form.client_name" placeholder="Client Name" />
+          <div class="input-group">
+            <label>Client Name</label>
+            <input v-model="form.client_name" placeholder="E.g. Mari Mother" />
           </div>
-          <div class="modal-field">
+          <div class="input-group">
+            <label>Development Stage</label>
             <select v-model="form.status">
               <option v-for="stage in projectStages" :key="stage" :value="stage">{{ stage }}</option>
             </select>
           </div>
-          <div class="modal-field">
-            <input v-model="form.tech_pack_url" placeholder="Tech Pack URL (Google Drive, etc.)" />
+          <div class="input-group">
+            <label>Tech Pack URL</label>
+            <input v-model="form.tech_pack_url" placeholder="Google Drive, Dropbox, etc." />
           </div>
         </div>
-        <div class="modal-field mt-4">
-          <textarea v-model="form.description" placeholder="Description" rows="3"></textarea>
+        <div class="input-group mt-3">
+          <label>Description</label>
+          <textarea v-model="form.description" placeholder="Project details and notes..." rows="3"></textarea>
         </div>
+        
         <div class="modal-actions mt-4">
           <button @click="resetForm" class="btn-secondary">Cancel</button>
           <button @click="saveProject" class="btn-primary" :disabled="savingProject">
-            {{ savingProject ? 'Saving...' : (editing ? 'Update' : 'Save') }}
+            {{ savingProject ? 'Saving...' : (editing ? 'Update' : 'Save Project') }}
           </button>
         </div>
       </div>
@@ -383,8 +392,7 @@ async function fetchProjects() {
   loading.value = false
 }
 
-// NUEVA FUNCIÓN: Abre el modal limpio
-function openNewProject() {
+function openProjectForm() {
   resetForm()
   showForm.value = true
 }
@@ -490,14 +498,11 @@ async function saveTimeline() {
 h1, h2, h3, h4 { color: var(--text-main); font-weight: 700; margin-bottom: 0.5rem; }
 h1 { font-size: 2rem; margin: 0; }
 
-.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem; }
-input, textarea, select { width: 100%; padding: 0.7rem 1rem; background: var(--bg-app); color: var(--text-main); border: 1px solid var(--border-main); border-radius: 10px; font-size: 0.92rem; font-family: 'Inter', sans-serif; transition: border-color 0.15s; box-sizing: border-box; }
-input:focus, textarea:focus, select:focus { outline: none; border-color: var(--primary); }
-textarea { resize: vertical; }
-
+/* FILTROS Y VISTAS */
 .filters-container { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; margin-bottom: 2rem; background: var(--bg-card); padding: 1rem; border-radius: 12px; border: 1px solid var(--border-main); }
 .filters { display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; flex: 1;}
-.search-input, .filter-select { background: var(--bg-app); color: var(--text-main); border-color: var(--border-main); }
+.search-input, .filter-select { background: var(--bg-app); color: var(--text-main); border-color: var(--border-main); padding: 0.6rem 1rem; border-radius: 8px; font-family: inherit;}
+.search-input:focus, .filter-select:focus { outline: none; border-color: var(--primary);}
 .results-count { color: var(--text-muted); font-size: 0.85rem; }
 
 .view-toggle { display: flex; background: var(--bg-app); padding: 0.3rem; border-radius: 10px; border: 1px solid var(--border-main); }
@@ -538,19 +543,15 @@ textarea { resize: vertical; }
 .board-container::-webkit-scrollbar { height: 8px; }
 .board-container::-webkit-scrollbar-track { background: var(--bg-app); border-radius: 4px; }
 .board-container::-webkit-scrollbar-thumb { background-color: var(--border-main); border-radius: 4px; }
-
 .board-column { min-width: 320px; width: 320px; background: var(--bg-card); border-radius: 12px; border: 1px solid var(--border-main); display: flex; flex-direction: column; max-height: calc(100vh - 200px); }
 .column-header { padding: 1rem; font-size: 0.85rem; font-weight: 800; color: var(--text-main); border-bottom: 1px solid var(--border-main); border-top: 3px solid; display: flex; justify-content: space-between; align-items: center; border-radius: 12px 12px 0 0; background: rgba(0,0,0,0.2); }
 .col-title { display: flex; align-items: center; gap: 0.5rem; text-transform: uppercase; letter-spacing: 0.05em;}
 .stage-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
 .col-count { background: var(--bg-app); padding: 0.1rem 0.5rem; border-radius: 20px; color: var(--text-muted); font-size: 0.75rem; border: 1px solid var(--border-main);}
-
 .column-content { padding: 1rem; overflow-y: auto; display: flex; flex-direction: column; gap: 1rem; scrollbar-width: none; }
 .column-content::-webkit-scrollbar { display: none; }
-
 .board-card { background: var(--bg-app); border: 1px solid var(--border-main); border-radius: 10px; padding: 1rem; display: flex; flex-direction: column; gap: 0.8rem; box-shadow: 0 2px 4px rgba(0,0,0,0.1); transition: transform 0.15s, border-color 0.15s; }
 .board-card:hover { transform: translateY(-2px); border-color: var(--text-muted); }
-
 .bc-header { display: flex; align-items: center; gap: 0.8rem; }
 .bc-avatar { width: 36px; height: 36px; border-radius: 8px; color: white; display: flex; justify-content: center; align-items: center; font-weight: 800; font-size: 1.1rem; flex-shrink: 0;}
 .bc-title-wrap h4 { margin: 0; font-size: 0.95rem; line-height: 1.2;}
@@ -566,7 +567,6 @@ textarea { resize: vertical; }
 .btn-micro.del:hover { color: var(--danger-text); background: var(--danger-bg);}
 .btn-micro-tl { background: rgba(99, 102, 241, 0.1); border: 1px solid rgba(99, 102, 241, 0.3); color: var(--primary); border-radius: 4px; cursor: pointer; padding: 0.2rem 0.4rem; font-size: 0.75rem;}
 .btn-micro-tl:hover { background: var(--primary); color: white;}
-
 .board-empty { text-align: center; padding: 2rem 0; color: var(--text-muted); font-size: 0.85rem; font-style: italic; border: 1px dashed var(--border-main); border-radius: 8px;}
 
 /* BOTONES GLOBALES */
@@ -575,20 +575,28 @@ textarea { resize: vertical; }
 .btn-secondary { background: var(--bg-app); color: var(--text-main); border: 1px solid var(--border-main); padding: 0.5rem 1rem; border-radius: 8px; cursor: pointer; font-weight: 500; }
 .btn-clear { background: var(--border-light); color: var(--text-muted); border: none; padding: 0.7rem 1rem; border-radius: 8px; cursor: pointer; font-weight: 600; }
 .loading, .empty { text-align: center; padding: 3rem; color: var(--text-muted); }
-.mt-4 { margin-top: 1rem; }
+.mt-3 { margin-top: 1rem; }
+.mt-4 { margin-top: 1.5rem; }
 
-/* MODALES */
-.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.8); display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 1rem; backdrop-filter: blur(4px); }
-.modal { background: var(--bg-card); padding: 2rem; border-radius: 16px; width: 100%; max-height: 90vh; overflow-y: auto; border: 1px solid var(--border-main); }
+/* ========================================= */
+/* MODALES                                   */
+/* ========================================= */
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.8); display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 1rem; backdrop-filter: blur(4px);}
+.modal { background: var(--bg-card); padding: 2rem; border-radius: 16px; width: 100%; max-height: 90vh; overflow-y: auto; border: 1px solid var(--border-main); box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5);}
 .modal-large { max-width: 950px; }
+
+/* NUEVO: MODAL COMPACTO PARA EL FORMULARIO DE PROYECTO */
+.form-modal { max-width: 650px; }
+.input-group { margin-bottom: 1rem; }
+.input-group label { display: block; font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.4rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
+.input-group input, .input-group select, .input-group textarea { width: 100%; padding: 0.7rem 1rem; background: var(--bg-app); color: var(--text-main); border: 1px solid var(--border-main); border-radius: 8px; font-family: inherit; font-size: 0.95rem;}
+.input-group input:focus, .input-group select:focus, .input-group textarea:focus { border-color: var(--primary); outline: none; box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.1);}
+
 .modal-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-light); padding-bottom: 1rem; margin-bottom: 1.5rem; }
 .header-actions { display: flex; gap: 1rem; align-items: center; }
 .btn-reset-template { background: var(--danger-bg); color: var(--danger-text); border: 1px solid transparent; padding: 0.4rem 0.8rem; border-radius: 8px; font-size: 0.8rem; font-weight: 600; cursor: pointer; }
 .modal-close { background: var(--bg-app); color: var(--text-muted); border: 1px solid var(--border-main); width: 32px; height: 32px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-weight: bold;}
-.modal-field { margin-bottom: 1rem; }
-.modal-actions { display: flex; justify-content: flex-end; gap: 1rem; margin-top: 1.5rem; }
 
-/* MODAL DEL TIMELINE */
 .timeline-container { display: flex; flex-direction: column; gap: 0; border: 1px solid var(--border-main); border-radius: 8px; overflow: hidden; }
 .timeline-header-row { display: flex; padding: 0.75rem 1rem; background: var(--bg-app); font-size: 0.75rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; border-bottom: 1px solid var(--border-main); }
 .th-name { flex: 3; }
@@ -636,6 +644,8 @@ textarea { resize: vertical; }
 .btn-add-micro:hover { color: var(--success-text); }
 .btn-del-micro:hover { color: var(--danger-text); }
 
+.modal-actions { display: flex; justify-content: flex-end; gap: 1rem; margin-top: 1.5rem; }
+
 /* MODAL DE NOTAS */
 .z-high { z-index: 2000; }
 .notes-modal { max-width: 450px; padding: 1.5rem; }
@@ -646,4 +656,5 @@ textarea { resize: vertical; }
 .note-meta strong { color: var(--primary); }
 .note-text { font-size: 0.85rem; color: var(--text-body); line-height: 1.5; white-space: pre-wrap; }
 .add-note-box { display: flex; flex-direction: column; gap: 0.5rem; }
+
 </style>
