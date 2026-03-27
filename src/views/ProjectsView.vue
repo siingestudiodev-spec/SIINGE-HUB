@@ -141,7 +141,7 @@
               <option v-for="stage in projectStages" :key="stage" :value="stage">{{ stage }}</option>
             </select>
           </div>
-          <div class="input-group full-width">
+          <div class="input-group">
             <label>Tech Pack URL</label>
             <input v-model="form.tech_pack_url" placeholder="Google Drive, Dropbox, etc." />
           </div>
@@ -585,13 +585,11 @@ h1 { font-size: 2rem; margin: 0; }
 .modal { background: var(--bg-card); padding: 2rem; border-radius: 16px; width: 100%; max-height: 90vh; overflow-y: auto; border: 1px solid var(--border-main); box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5);}
 .modal-large { max-width: 950px; }
 
-/* MODAL COMPACTO PARA EL FORMULARIO DE PROYECTO */
-.form-modal { max-width: 550px; padding: 1.5rem 2rem; }
-.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.2rem; margin-bottom: 1.2rem; }
-.input-group.full-width { grid-column: 1 / -1; }
-.input-group { margin-bottom: 0; }
-.input-group label { display: block; font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.4rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
-.input-group input, .input-group select, .input-group textarea { width: 100%; padding: 0.65rem 1rem; background: var(--bg-app); color: var(--text-main); border: 1px solid var(--border-main); border-radius: 8px; font-family: inherit; font-size: 0.9rem;}
+/* NUEVO: MODAL COMPACTO PARA EL FORMULARIO DE PROYECTO */
+.form-modal { max-width: 650px; }
+.input-group { margin-bottom: 1rem; }
+.input-group label { display: block; font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.4rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
+.input-group input, .input-group select, .input-group textarea { width: 100%; padding: 0.7rem 1rem; background: var(--bg-app); color: var(--text-main); border: 1px solid var(--border-main); border-radius: 8px; font-family: inherit; font-size: 0.95rem;}
 .input-group input:focus, .input-group select:focus, .input-group textarea:focus { border-color: var(--primary); outline: none; box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.1);}
 
 .modal-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-light); padding-bottom: 1rem; margin-bottom: 1.5rem; }
