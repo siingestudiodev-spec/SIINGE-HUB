@@ -3,7 +3,7 @@
     <div class="header">
       <h1>Projects</h1>
       <button @click="openProjectForm" class="btn-primary">
-        + New Project
+        {{ showForm ? 'Cancel' : '+ New Project' }}
       </button>
     </div>
 
@@ -291,7 +291,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { supabase } from '../lib/supabase'
 
@@ -363,17 +363,26 @@ onMounted(async () => {
   await fetchTeamMembers()
   await fetchProjects()
 
-  // AUTO-ABRIR DESDE NOTIFICACIONES
+  // Revisar la URL al cargar la página por primera vez
+  checkUrlForNotification()
+})
+
+// NUEVO: Escuchar cambios en la URL por si el usuario YA está en la página de Projects
+watch(() => route.query, () => {
+  checkUrlForNotification()
+})
+
+async function checkUrlForNotification() {
   if (route.query.project && route.query.stage) {
     const p = projects.value.find(proj => proj.id === route.query.project)
     if (p) {
       await openTimeline(p)
       const stage = timelineModal.value.stages.find(s => s.id === route.query.stage)
       if (stage) openNotes(stage)
-      router.replace('/projects') // Limpia la URL
+      router.replace('/projects') // Limpia la URL para evitar que se abra de nuevo al recargar
     }
   }
-})
+}
 
 async function fetchProjects() {
   loading.value = true
@@ -543,11 +552,24 @@ async function saveTimeline() {
 </script>
 
 <style scoped>
-.container { max-width: 1500px; margin: 0 auto; padding: 2rem 1.5rem; color: var(--text-body); }
-.header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; }
+/* GENERAL LAYOUT */
+.container { 
+  max-width: 1500px; 
+  margin: 0 auto; 
+  padding: 2rem 1.5rem; 
+  font-family: 'Inter', sans-serif; 
+  color: var(--text-body); 
+}
+.header { 
+  display: flex; 
+  justify-content: space-between; 
+  align-items: center; 
+  margin-bottom: 2rem; 
+}
 h1, h2, h3, h4 { color: var(--text-main); font-weight: 700; margin-bottom: 0.5rem; }
 h1 { font-size: 2rem; margin: 0; }
 
+/* FILTROS Y VISTAS */
 .filters-container { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; margin-bottom: 2rem; background: var(--bg-card); padding: 1rem; border-radius: 12px; border: 1px solid var(--border-main); }
 .filters { display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; flex: 1;}
 .search-input, .filter-select { background: var(--bg-app); color: var(--text-main); border-color: var(--border-main); padding: 0.6rem 1rem; border-radius: 8px; font-family: inherit;}
@@ -558,6 +580,7 @@ h1 { font-size: 2rem; margin: 0; }
 .view-toggle button { background: transparent; border: none; color: var(--text-muted); padding: 0.5rem 1rem; border-radius: 8px; cursor: pointer; font-size: 0.85rem; font-weight: 600; transition: 0.2s; }
 .view-toggle button.active { background: var(--border-light); color: var(--text-main); box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
 
+/* VISTA 1: LISTA HORIZONTAL */
 .list-container { display: flex; flex-direction: column; gap: 1.2rem; }
 .horizontal-card { background: var(--bg-card); border-radius: 16px; border: 1px solid var(--border-main); display: flex; align-items: stretch; transition: transform 0.2s, box-shadow 0.2s; box-shadow: 0 4px 6px rgba(0,0,0,0.1); overflow: hidden; }
 .horizontal-card:hover { transform: translateX(4px); border-color: var(--primary); box-shadow: 0 8px 15px rgba(0,0,0,0.15); }
@@ -586,6 +609,7 @@ h1 { font-size: 2rem; margin: 0; }
 .btn-timeline { background: var(--primary); color: white; }
 .btn-timeline:hover { filter: brightness(1.1); }
 
+/* VISTA 2: TABLERO KANBAN */
 .board-container { display: flex; gap: 1rem; overflow-x: auto; padding-bottom: 1rem; align-items: flex-start; scrollbar-width: thin; scrollbar-color: var(--border-main) var(--bg-app); }
 .board-container::-webkit-scrollbar { height: 8px; }
 .board-container::-webkit-scrollbar-track { background: var(--bg-app); border-radius: 4px; }
@@ -616,6 +640,7 @@ h1 { font-size: 2rem; margin: 0; }
 .btn-micro-tl:hover { background: var(--primary); color: white;}
 .board-empty { text-align: center; padding: 2rem 0; color: var(--text-muted); font-size: 0.85rem; font-style: italic; border: 1px dashed var(--border-main); border-radius: 8px;}
 
+/* BOTONES GLOBALES */
 .btn-primary { background: var(--primary); color: white; border: none; padding: 0.7rem 1.5rem; border-radius: 10px; cursor: pointer; font-size: 0.92rem; font-weight: 600; transition: 0.15s; }
 .btn-primary:hover { opacity: 0.9; }
 .btn-secondary { background: var(--bg-app); color: var(--text-main); border: 1px solid var(--border-main); padding: 0.5rem 1rem; border-radius: 8px; cursor: pointer; font-weight: 500; }
@@ -625,10 +650,12 @@ h1 { font-size: 2rem; margin: 0; }
 .mt-4 { margin-top: 1.5rem; }
 .relative { position: relative; }
 
+/* MODALES */
 .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.8); display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 1rem; backdrop-filter: blur(4px);}
 .modal { background: var(--bg-card); padding: 2rem; border-radius: 16px; width: 100%; max-height: 90vh; overflow-y: auto; border: 1px solid var(--border-main); box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5);}
 .modal-large { max-width: 950px; }
 
+/* MODAL COMPACTO PARA EL FORMULARIO DE PROYECTO */
 .form-modal { max-width: 550px; padding: 1.5rem 2rem; }
 .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.2rem; margin-bottom: 1.2rem; }
 .input-group.full-width { grid-column: 1 / -1; }
@@ -696,4 +723,13 @@ h1 { font-size: 2rem; margin: 0; }
 .mentions-dropdown { position: absolute; bottom: 100%; left: 0; width: 100%; background: var(--bg-card); border: 1px solid var(--border-main); border-radius: 8px; box-shadow: 0 -4px 15px rgba(0,0,0,0.5); z-index: 10; max-height: 150px; overflow-y: auto; margin-bottom: 0.5rem;}
 .mention-item { padding: 0.5rem 1rem; font-size: 0.85rem; color: var(--text-main); cursor: pointer; border-bottom: 1px solid var(--border-light);}
 .mention-item:hover { background: var(--bg-app); color: var(--primary); font-weight: 600;}
+
+/* RESPONSIVE PARA LISTA HORIZONTAL */
+@media (max-width: 1000px) {
+  .horizontal-card { flex-direction: column; align-items: stretch; }
+  .card-identity { border-right: none; border-bottom: 1px solid var(--border-light); max-width: none; }
+  .card-details-block { border-left: none; border-top: 1px dashed var(--border-light); }
+  .card-actions-vertical { border-left: none; border-top: 1px solid var(--border-main); flex-direction: row; flex-wrap: wrap; justify-content: space-between;}
+  .card-actions-vertical > * { flex: 1; }
+}
 </style>
