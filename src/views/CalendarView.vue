@@ -163,11 +163,21 @@ h1 { font-size: 2rem; font-weight: 800; color: var(--text-main); margin: 0; }
   box-shadow: 0 4px 24px rgba(0,0,0,0.2); 
   overflow: hidden; 
 }
+
+:root.light-mode .calendar-card {
+  border: 2px solid var(--border-main);
+  box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+}
 .calendar-grid { 
   display: grid; 
   grid-template-columns: repeat(7, 1fr); 
   border-top: 1px solid var(--border-main); 
   border-left: 1px solid var(--border-main); 
+}
+
+:root.light-mode .calendar-grid {
+  border-top: 2px solid var(--border-main);
+  border-left: 2px solid var(--border-main);
 }
 
 .weekday { 
@@ -177,6 +187,11 @@ h1 { font-size: 2rem; font-weight: 800; color: var(--text-main); margin: 0; }
   color: var(--text-muted); text-transform: uppercase; 
   border-right: 1px solid var(--border-main); 
   border-bottom: 1px solid var(--border-main); 
+}
+
+:root.light-mode .weekday {
+  border-right: 2px solid var(--border-main);
+  border-bottom: 2px solid var(--border-main);
 }
 
 .day-cell { 
@@ -189,6 +204,12 @@ h1 { font-size: 2rem; font-weight: 800; color: var(--text-main); margin: 0; }
 .day-cell:hover:not(.is-empty) { background: rgba(255,255,255,0.02); }
 .is-empty { background: rgba(0,0,0,0.1); }
 .is-today { background: rgba(79, 70, 229, 0.05) !important; }
+
+:root.light-mode .day-cell {
+  border-right: 2px solid var(--border-main);
+  border-bottom: 2px solid var(--border-main);
+}
+:root.light-mode .day-cell:hover:not(.is-empty) { background: rgba(79, 70, 229, 0.03); }
 
 .day-number-container { display: flex; justify-content: flex-end; margin-bottom: 0.5rem; }
 .day-number { font-size: 0.9rem; font-weight: 700; color: var(--text-muted); }

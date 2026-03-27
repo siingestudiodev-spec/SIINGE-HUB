@@ -174,6 +174,29 @@ nav {
 .btn-logout { background: transparent; color: var(--text-muted); border: 1px solid var(--border-main); padding: 0.4rem 0.9rem; border-radius: 8px; cursor: pointer; font-size: 0.88rem; font-family: 'Inter', sans-serif; transition: all 0.15s; font-weight: 600; }
 .btn-logout:hover { color: var(--text-main); border-color: var(--text-main); background: var(--bg-app); }
 
-.btn-theme { background: transparent; border: 1px solid var(--border-main); width: 40px; height: 40px; border-radius: 50%; font-size: 1.2rem; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center; }
-.btn-theme:hover { background: var(--border-light); border-color: var(--primary); }
+.btn-theme { 
+  background: transparent; 
+  border: 2px solid var(--border-main); 
+  width: 40px; height: 40px; 
+  border-radius: 50%; 
+  font-size: 1.2rem; 
+  cursor: pointer; 
+  transition: all 0.2s; 
+  display: flex; 
+  align-items: center; 
+  justify-content: center; 
+}
+.btn-theme:hover { 
+  background: var(--primary); 
+  border-color: var(--primary); 
+  transform: scale(1.05);
+}
+:root.light-mode .btn-theme {
+  background: #f3f1ff;
+  border-color: var(--primary);
+}
+:root.light-mode .btn-theme:hover {
+  background: var(--primary);
+  color: white;
+}
 </style>

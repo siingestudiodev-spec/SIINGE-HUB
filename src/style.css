@@ -38,15 +38,15 @@
   /* --- TEXTOS --- */
   --text-main: #1a202c;   /* Títulos en oscuro */
   --text-body: #374151;   /* Textos normales en gris oscuro */
-  --text-muted: #9ca3af;  /* Textos secundarios en gris */
+  --text-muted: #6b7280;  /* Textos secundarios en gris más oscuro */
 
   /* --- COLORES DE MARCA --- */
   --primary: #4f46e5;       /* Tu morado/azul característico */
   --primary-hover: #4338ca;
   
   /* --- BORDES Y LÍNEAS --- */
-  --border-light: #e5e7eb;  /* Líneas divisorias sutiles */
-  --border-main: #d1d5db;   /* Bordes de botones y tarjetas */
+  --border-light: #d1d5db;  /* Líneas divisorias más oscuras */
+  --border-main: #b0b5c2;   /* Bordes de botones y tarjetas - más oscuros y visibles */
   
   /* --- ESTADOS (Botones pequeños con transparencia para look moderno) --- */
   --success-bg: rgba(34, 197, 94, 0.1);
@@ -59,11 +59,13 @@
   --danger-text: #dc2626;
 }
 
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap');
+
 /* Forzamos a que toda la aplicación tome el fondo oscuro por defecto */
 body {
   background-color: var(--bg-app);
   color: var(--text-body);
   margin: 0;
-  font-family: 'Inter', sans-serif;
+  font-family: 'Poppins', sans-serif;
   min-height: 100vh;
 }
