@@ -42,6 +42,9 @@
         </div>
       </div>
 
+      <button @click="toggleTheme" class="btn-theme" :title="isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode'">
+        {{ isDark ? '☀️' : '🌙' }}
+      </button>
       <button @click="logout" class="btn-logout">Sign Out</button>
     </nav>
     <router-view />
@@ -51,10 +54,13 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
+import { useThemeStore } from './stores/themeStore'
 import { supabase } from './lib/supabase'
 
 const router = useRouter()
+const themeStore = useThemeStore()
 const session = ref(null)
+const isDark = computed(() => themeStore.isDark)
 
 // ESTADO DE NOTIFICACIONES
 const notifications = ref([])
@@ -72,7 +78,12 @@ const vClickOutside = {
 
 function closeNotifs() { showNotifs.value = false }
 
+function toggleTheme() {
+  themeStore.toggleTheme()
+}
+
 onMounted(async () => {
+  themeStore.loadTheme()
   const { data } = await supabase.auth.getSession()
   session.value = data.session
   
@@ -162,4 +173,7 @@ nav {
 
 .btn-logout { background: transparent; color: var(--text-muted); border: 1px solid var(--border-main); padding: 0.4rem 0.9rem; border-radius: 8px; cursor: pointer; font-size: 0.88rem; font-family: 'Inter', sans-serif; transition: all 0.15s; font-weight: 600; }
 .btn-logout:hover { color: var(--text-main); border-color: var(--text-main); background: var(--bg-app); }
+
+.btn-theme { background: transparent; border: 1px solid var(--border-main); width: 40px; height: 40px; border-radius: 50%; font-size: 1.2rem; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center; }
+.btn-theme:hover { background: var(--border-light); border-color: var(--primary); }
 </style>
