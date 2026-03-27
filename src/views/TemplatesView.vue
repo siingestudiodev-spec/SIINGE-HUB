@@ -105,36 +105,35 @@ onMounted(fetchTemplates)
 </script>
 
 <style scoped>
-/* Copying your exact styles to maintain consistency */
 .container { max-width: 1200px; margin: 0 auto; padding: 2rem 1.5rem; }
 .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; }
-h1 { font-size: 2rem; font-weight: 700; color: #1a1a2e; }
+h1 { font-size: 2rem; font-weight: 700; color: var(--text-main); }
 
-.form-card { background: white; padding: 2rem; border-radius: 16px; margin-bottom: 2rem; border: 1.5px solid #e5e7eb; box-shadow: 0 4px 24px rgba(79,70,229,0.07); }
-.form-card h2 { font-size: 1.1rem; margin-bottom: 1.25rem; color: #1a1a2e; }
+.form-card { background: var(--bg-card); padding: 2rem; border-radius: 16px; margin-bottom: 2rem; border: 1.5px solid var(--border-main); box-shadow: 0 4px 24px rgba(79,70,229,0.07); }
+.form-card h2 { font-size: 1.1rem; margin-bottom: 1.25rem; color: var(--text-main); }
 .form-grid-single { display: flex; flex-direction: column; gap: 0.75rem; margin-bottom: 0.75rem; }
-input, textarea { width: 100%; padding: 0.7rem 1rem; border: 1.5px solid #e5e7eb; border-radius: 10px; font-size: 0.92rem; color: #1a1a2e; background: white; font-family: 'Inter', sans-serif; transition: border-color 0.15s; box-sizing: border-box; }
-input:focus, textarea:focus { outline: none; border-color: #4f46e5; }
+input, textarea { width: 100%; padding: 0.7rem 1rem; border: 1.5px solid var(--border-main); border-radius: 10px; font-size: 0.92rem; color: var(--text-main); background: var(--bg-card); font-family: 'Poppins', sans-serif; transition: border-color 0.15s; box-sizing: border-box; }
+input:focus, textarea:focus { outline: none; border-color: var(--primary); }
 textarea { resize: vertical; }
 .form-actions { margin-top: 1rem; }
 
 .cards-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1.25rem; }
-.card { background: white; border-radius: 16px; padding: 1.5rem; border: 1.5px solid #e5e7eb; box-shadow: 0 2px 12px rgba(0,0,0,0.05); transition: transform 0.18s, box-shadow 0.18s; }
-.card:hover { transform: translateY(-4px); box-shadow: 0 12px 32px rgba(79,70,229,0.12); border-color: #c7d2fe; }
+.card { background: var(--bg-card); border-radius: 16px; padding: 1.5rem; border: 1.5px solid var(--border-main); box-shadow: 0 2px 12px rgba(0,0,0,0.05); transition: transform 0.18s, box-shadow 0.18s; }
+.card:hover { transform: translateY(-4px); box-shadow: 0 12px 32px rgba(79,70,229,0.12); border-color: var(--primary); }
 
 .card-top { display: flex; align-items: center; gap: 1rem; margin-bottom: 1.25rem; }
-.card-avatar { width: 48px; height: 48px; background: linear-gradient(135deg, #10b981, #047857); color: white; font-weight: 700; font-size: 1.3rem; border-radius: 12px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.card-title h3 { font-size: 1.05rem; font-weight: 700; color: #1a1a2e; margin-bottom: 0.25rem; }
+.card-avatar { width: 48px; height: 48px; background: var(--primary); color: white; font-weight: 700; font-size: 1.3rem; border-radius: 12px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.card-title h3 { font-size: 1.05rem; font-weight: 700; color: var(--text-main); margin-bottom: 0.25rem; }
 
 .card-body { margin-bottom: 1.25rem; }
-.info-row { font-size: 0.88rem; color: #4b5563; margin-bottom: 0.5rem; }
-.notes-row { color: #9ca3af !important; font-style: italic; }
+.info-row { font-size: 0.88rem; color: var(--text-body); margin-bottom: 0.5rem; }
+.notes-row { color: var(--text-muted) !important; font-style: italic; }
 .line-clamp { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 
-.card-actions { display: flex; gap: 0.5rem; padding-top: 1rem; border-top: 1px solid #f3f4f6; }
-.btn-primary { background: linear-gradient(135deg, #667eea, #764ba2); color: white; border: none; padding: 0.65rem 1.3rem; border-radius: 10px; cursor: pointer; font-size: 0.92rem; font-weight: 600; font-family: 'Inter', sans-serif; transition: opacity 0.15s, transform 0.15s; }
+.card-actions { display: flex; gap: 0.5rem; padding-top: 1rem; border-top: 1px solid var(--border-light); }
+.btn-primary { background: var(--primary); color: white; border: none; padding: 0.65rem 1.3rem; border-radius: 10px; cursor: pointer; font-size: 0.92rem; font-weight: 600; font-family: 'Poppins', sans-serif; transition: opacity 0.15s, transform 0.15s; }
 .btn-primary:hover { opacity: 0.9; transform: translateY(-1px); }
-.btn-secondary { background: #eef2ff; color: #4f46e5; border: none; padding: 0.5rem 1rem; border-radius: 8px; cursor: pointer; font-size: 0.88rem; font-family: 'Inter', sans-serif; font-weight: 500; }
-.btn-danger { background: #fff1f2; color: #e11d48; border: none; padding: 0.5rem 1rem; border-radius: 8px; cursor: pointer; font-size: 0.88rem; font-family: 'Inter', sans-serif; font-weight: 500; }
-.loading, .empty { text-align: center; padding: 3rem; color: #9ca3af; }
+.btn-secondary { background: rgba(79, 70, 229, 0.1); color: var(--primary); border: none; padding: 0.5rem 1rem; border-radius: 8px; cursor: pointer; font-size: 0.88rem; font-family: 'Poppins', sans-serif; font-weight: 500; }
+.btn-danger { background: var(--danger-bg); color: var(--danger-text); border: none; padding: 0.5rem 1rem; border-radius: 8px; cursor: pointer; font-size: 0.88rem; font-family: 'Poppins', sans-serif; font-weight: 500; }
+.loading, .empty { text-align: center; padding: 3rem; color: var(--text-muted); }
 </style>
