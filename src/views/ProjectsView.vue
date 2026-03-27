@@ -709,10 +709,10 @@ h1 { font-size: 2rem; margin: 0; }
 .notes-indicator { background: var(--primary); color: white; font-size: 0.65rem; font-weight: 800; padding: 0.1rem 0.4rem; border-radius: 20px; margin-left: 0.3rem; }
 .task-actions { width: 80px; display: flex; gap: 0.3rem; justify-content: flex-end; opacity: 0; transition: opacity 0.2s; }
 .task-row:hover .task-actions { opacity: 1; }
-.btn-note-micro, .btn-add-micro, .btn-del-micro { background: transparent; color: var(--text-muted); border: none; font-size: 0.8rem; cursor: pointer; padding: 0.2rem; border-radius: 4px; }
-.btn-note-micro:hover { color: var(--primary); }
-.btn-add-micro:hover { color: var(--success-text); }
-.btn-del-micro:hover { color: var(--danger-text); }
+.btn-note-micro, .btn-add-micro, .btn-del-micro { background: transparent; color: var(--text-main); border: none; font-size: 0.8rem; cursor: pointer; padding: 0.2rem; border-radius: 4px; }
+.btn-note-micro:hover { color: var(--primary); background: var(--border-light); }
+.btn-add-micro:hover { color: var(--success-text); background: var(--border-light); }
+.btn-del-micro:hover { color: var(--danger-text); background: var(--border-light); }
 
 /* ========================================= */
 /* MENCIONES Y NOTAS (REDISEÑADO COMPLETO)   */
