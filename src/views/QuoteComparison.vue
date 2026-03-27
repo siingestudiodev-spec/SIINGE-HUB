@@ -25,8 +25,8 @@
           </select>
         </div>
         <div class="input-field">
-          <label>Item Description</label>
-          <input v-model="form.item_description" placeholder="e.g. Cotton T-Shirt" />
+          <label>MATERIAL COMP</label>
+          <input v-model="form.material_comp" placeholder="e.g. Cotton, Polyester..." />
         </div>
         <div class="input-field">
           <label>Price Range</label>
@@ -63,10 +63,19 @@
     <div v-if="loading" class="loading">Loading...</div>
     <div v-else-if="quotes.length === 0" class="empty">No quotes yet. Add the first one!</div>
     <div v-else class="table-wrapper">
+      <div class="sort-controls">
+        <span>Sort by:</span>
+        <button type="button" @click="setSort('manufacturers.company_name')">Factory</button>
+        <button type="button" @click="setSort('material_comp')">Material Comp</button>
+        <button type="button" @click="setSort('price_range')">Price</button>
+        <button type="button" @click="setSort('moq_per_color')">MOQ</button>
+        <span class="sort-direction">{{ sortDirection === 'asc' ? '↑' : '↓' }}</span>
+      </div>
       <table>
         <thead>
           <tr>
             <th>Factory</th>
+            <th>MATERIAL COMP</th>
             <th>MOQ / Color</th>
             <th>Price Range</th>
             <th>Sample Cost</th>
@@ -76,7 +85,7 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-for="q in quotes" :key="q.id">
+          <tr v-for="q in sortedQuotes" :key="q.id">
             <td>
               <div class="factory-cell">
                 <div class="factory-avatar">{{ q.manufacturers?.company_name?.charAt(0) }}</div>
@@ -86,6 +95,7 @@
                 </div>
               </div>
             </td>
+            <td>{{ q.material_comp || q.item_description || '—' }}</td>
             <td>{{ q.moq_per_color ? q.moq_per_color.toLocaleString() + ' u' : '—' }}</td>
             <td><span class="price-tag">{{ q.price_range || '—' }}</span></td>
             <td>{{ q.sample_cost ? '$' + q.sample_cost.toFixed(2) : '—' }}</td>
@@ -115,7 +125,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { supabase } from '../lib/supabase'
 
@@ -129,11 +139,45 @@ const showForm = ref(false)
 const editingId = ref(null)
 const projectName = ref('')
 const clientName = ref('')
+const sortField = ref('manufacturers.company_name')
+const sortDirection = ref('asc')
+
+const sortedQuotes = computed(() => {
+  const list = [...quotes.value]
+  const field = sortField.value
+
+  return list.sort((a, b) => {
+    const getVal = (obj, key) => {
+      if (key === 'manufacturers.company_name') return (obj.manufacturers?.company_name || '').toString().toLowerCase()
+      if (key === 'material_comp') return (obj.material_comp || obj.item_description || '').toString().toLowerCase()
+      if (key === 'price_range') return (obj.price_range || '').toString().toLowerCase()
+      if (key === 'moq_per_color') return Number(obj.moq_per_color || 0)
+      if (key === 'lead_time_days') return Number(obj.lead_time_days || 0)
+      return (obj[key] || '').toString().toLowerCase()
+    }
+
+    const va = getVal(a, field)
+    const vb = getVal(b, field)
+
+    if (va < vb) return sortDirection.value === 'asc' ? -1 : 1
+    if (va > vb) return sortDirection.value === 'asc' ? 1 : -1
+    return 0
+  })
+})
+
+function setSort(field) {
+  if (sortField.value === field) {
+    sortDirection.value = sortDirection.value === 'asc' ? 'desc' : 'asc'
+  } else {
+    sortField.value = field
+    sortDirection.value = 'asc'
+  }
+}
 
 const notification = ref({ show: false, message: '', type: 'success' })
 
 const form = ref({
-  manufacturer_id: '', item_description: '', price_range: '',
+  manufacturer_id: '', material_comp: '', item_description: '', price_range: '',
   sample_cost: null, moq_per_color: null, lead_time_days: null, specialty: '', notes: ''
 })
 
@@ -169,12 +213,15 @@ function openCreateForm() {
 }
 
 function resetForm() {
-  form.value = { manufacturer_id: '', item_description: '', price_range: '', sample_cost: null, moq_per_color: null, lead_time_days: null, specialty: '', notes: '' }
+  form.value = { manufacturer_id: '', material_comp: '', item_description: '', price_range: '', sample_cost: null, moq_per_color: null, lead_time_days: null, specialty: '', notes: '' }
 }
 
 function editQuote(q) {
   editingId.value = q.id
-  form.value = { ...q }
+  form.value = {
+    ...q,
+    material_comp: q.material_comp || q.item_description || ''
+  }
   delete form.value.manufacturers // Limpiar objeto relacionado
   showForm.value = true
   window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -215,34 +262,40 @@ onMounted(fetchData)
 </script>
 
 <style scoped>
-.container { max-width: 1200px; margin: 0 auto; padding: 2rem 1.5rem; font-family: 'Inter', sans-serif; }
+.container { max-width: 1200px; margin: 0 auto; padding: 2rem 1.5rem; font-family: 'Inter', sans-serif; background: var(--bg-app); color: var(--text-main); }
 .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 2rem; }
-.back { color: #6366f1; text-decoration: none; font-size: 0.85rem; font-weight: 600; margin-bottom: 0.5rem; display: block; }
-h1 { font-size: 1.8rem; font-weight: 800; color: #111827; margin: 0; }
-.subtitle { color: #6b7280; font-size: 0.95rem; margin-top: 0.2rem; }
+.back { color: var(--primary); text-decoration: none; font-size: 0.85rem; font-weight: 600; margin-bottom: 0.5rem; display: block; }
+h1 { font-size: 1.8rem; font-weight: 800; color: var(--text-main); margin: 0; }
+.subtitle { color: var(--text-muted); font-size: 0.95rem; margin-top: 0.2rem; }
 
 /* FORM */
 .form-card { background: white; padding: 1.5rem; border-radius: 12px; border: 1px solid #e5e7eb; margin-bottom: 2rem; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); }
 .form-card h2 { font-size: 1rem; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 1.25rem; color: #4b5563; }
 .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; }
 .input-field label { display: block; font-size: 0.75rem; font-weight: 700; color: #6b7280; text-transform: uppercase; margin-bottom: 0.4rem; }
-input, select, textarea { width: 100%; padding: 0.6rem 0.8rem; border: 1.5px solid #d1d5db; border-radius: 8px; font-size: 0.9rem; transition: border-color 0.2s; }
-input:focus { border-color: #6366f1; outline: none; }
+input, select, textarea { width: 100%; padding: 0.6rem 0.8rem; border: 1.5px solid var(--border-light); border-radius: 8px; font-size: 0.9rem; transition: border-color 0.2s; background: var(--bg-app); color: var(--text-main); }
+input:focus { border-color: var(--primary); outline: none; }
 
 /* TABLE */
-.table-wrapper { background: white; border-radius: 12px; border: 1px solid #e5e7eb; overflow: hidden; }
+.table-wrapper { background: var(--bg-card); border-radius: 12px; border: 1px solid var(--border-light); overflow: hidden; }
 table { width: 100%; border-collapse: collapse; }
-th { background: #f9fafb; padding: 0.75rem 1rem; text-align: left; font-size: 0.7rem; text-transform: uppercase; color: #6b7280; border-bottom: 1px solid #e5e7eb; }
-td { padding: 1rem; border-bottom: 1px solid #f3f4f6; font-size: 0.88rem; vertical-align: middle; }
+th { background: var(--bg-card); padding: 0.75rem 1rem; text-align: left; font-size: 0.7rem; text-transform: uppercase; color: var(--text-muted); border-bottom: 1px solid var(--border-light); }
+td { padding: 1rem; border-bottom: 1px solid var(--border-light); font-size: 0.88rem; vertical-align: middle; color: var(--text-body); }
 .factory-cell { display: flex; align-items: center; gap: 0.75rem; }
-.factory-avatar { width: 32px; height: 32px; background: #e0e7ff; color: #4338ca; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 0.8rem; }
-.price-tag { font-weight: 700; color: #111827; background: #f0fdf4; padding: 0.2rem 0.5rem; border-radius: 6px; }
+.factory-avatar { width: 32px; height: 32px; background: rgba(99,102,241,.15); color: #4338ca; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 0.8rem; }
+.price-tag { font-weight: 700; color: var(--text-main); background: rgba(34,197,94,.12); padding: 0.2rem 0.5rem; border-radius: 6px; }
 
 /* ACTIONS */
 .table-actions { display: flex; gap: 0.5rem; justify-content: flex-end; }
 .btn-icon { background: none; border: none; cursor: pointer; padding: 0.4rem; border-radius: 6px; transition: background 0.2s; }
-.btn-edit-icon:hover { background: #eef2ff; }
-.btn-delete-icon:hover { background: #fef2f2; }
+.btn-edit-icon:hover { background: rgba(99,102,241,0.15); }
+.btn-delete-icon:hover { background: rgba(239,68,68,0.12); }
+
+.sort-controls { display: flex; align-items: center; gap: 0.6rem; margin: 0.8rem 1rem; flex-wrap: wrap; }
+.sort-controls span { color: var(--text-muted); font-weight: 600; font-size: 0.8rem; }
+.sort-controls button { background: var(--bg-card); color: var(--text-body); border: 1px solid var(--border-light); border-radius: 6px; padding: 0.35rem 0.7rem; cursor: pointer; font-size: 0.78rem; }
+.sort-controls button:hover { background: var(--border-light); }
+.sort-direction { color: var(--text-muted); font-size: 0.8rem; }
 
 /* NOTIFICATION MODAL */
 .notification-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; z-index: 2000; }
