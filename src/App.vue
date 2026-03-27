@@ -22,14 +22,6 @@
           <span class="icon">🔍</span>
           <span class="label">Sourcing</span>
         </router-link>
-        <router-link to="/project-sourcing" class="nav-item" :class="{ active: isActive('/project-sourcing') }">
-          <span class="icon">📦</span>
-          <span class="label">Components</span>
-        </router-link>
-        <router-link to="/quotes" class="nav-item" :class="{ active: isActive('/quotes') }">
-          <span class="icon">💰</span>
-          <span class="label">Quotes</span>
-        </router-link>
         <router-link to="/templates" class="nav-item" :class="{ active: isActive('/templates') }">
           <span class="icon">📧</span>
           <span class="label">Templates</span>
