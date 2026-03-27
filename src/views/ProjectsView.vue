@@ -267,13 +267,22 @@
           </div>
         </div>
 
-        <div class="add-note-box relative">
-          <textarea 
-            v-model="notesModal.newNoteText" 
-            @input="handleNoteInput"
-            placeholder="Write an update or use @ to tag someone..." 
-            rows="3">
-          </textarea>
+        <div class="add-note-wrapper relative">
+          <div class="chat-input-box">
+            <textarea 
+              id="note-textarea"
+              v-model="notesModal.newNoteText" 
+              @input="handleNoteInput"
+              placeholder="Write an update or use @ to tag someone..." 
+              rows="1">
+            </textarea>
+            
+            <div class="chat-input-actions">
+              <button @click="saveNote" class="btn-send-note" :disabled="notesModal.saving || !notesModal.newNoteText.trim()">
+                {{ notesModal.saving ? 'Saving...' : 'Add Note' }}
+              </button>
+            </div>
+          </div>
           
           <div v-if="showMentions" class="mentions-dropdown">
             <div v-for="member in filteredMembers" :key="member.email" 
@@ -281,10 +290,6 @@
               {{ member.full_name }}
             </div>
           </div>
-
-          <button @click="saveNote" class="btn-primary" :disabled="notesModal.saving || !notesModal.newNoteText.trim()">
-            {{ notesModal.saving ? 'Saving...' : 'Add Note' }}
-          </button>
         </div>
       </div>
     </div>
@@ -365,11 +370,9 @@ onMounted(async () => {
   await fetchTeamMembers()
   await fetchProjects()
 
-  // Revisar la URL al cargar la página por primera vez
   checkUrlForNotification()
 })
 
-// Escuchar cambios en la URL
 watch(() => route.query, () => {
   checkUrlForNotification()
 })
@@ -413,13 +416,18 @@ function editProject(p) { form.value = { ...p }; editId.value = p.id; editing.va
 async function deleteProject(id) { if (!confirm('Delete this project?')) return; await supabase.from('projects').delete().eq('id', id); fetchProjects() }
 function resetForm() { form.value = { project_name: '', client_name: '', description: '', status: projectStages[0], tech_pack_url: '' }; editing.value = false; editId.value = null; showForm.value = false }
 
-// LOGICA DE MENCIONES
+// LOGICA DE MENCIONES Y AUTO-RESIZE
 const filteredMembers = computed(() => {
   if (!mentionQuery.value) return teamMembers.value
   return teamMembers.value.filter(m => m.full_name.toLowerCase().includes(mentionQuery.value.toLowerCase()))
 })
 
 function handleNoteInput(e) {
+  // AUTO-RESIZE MAGIC
+  e.target.style.height = 'auto'
+  e.target.style.height = (e.target.scrollHeight) + 'px'
+
+  // MENTIONS LOGIC
   const text = e.target.value
   const cursorPos = e.target.selectionStart
   const textBeforeCursor = text.substring(0, cursorPos)
@@ -443,7 +451,6 @@ function selectMention(member) {
 }
 
 function formatNoteText(text) {
-  // Ahora las menciones se verán como pequeños "badges" en el texto
   return text.replace(/@([A-Za-zÁ-Úá-úñ ]+)/g, '<span style="background: rgba(99, 102, 241, 0.15); color: #818cf8; padding: 2px 6px; border-radius: 4px; font-weight: 600;">@$1</span>')
 }
 
@@ -463,6 +470,11 @@ async function saveNote() {
   if (!error) { 
     notesModal.value.notes = updatedNotes
     notesModal.value.newNoteText = ''
+    
+    // Resetear el alto de la caja de texto
+    const ta = document.getElementById('note-textarea')
+    if (ta) ta.style.height = 'auto'
+
     showMentions.value = false
     const stage = timelineModal.value.stages.find(s => s.id === notesModal.value.stageId)
     if (stage) stage.notes = updatedNotes 
@@ -555,19 +567,8 @@ async function saveTimeline() {
 
 <style scoped>
 /* GENERAL LAYOUT */
-.container { 
-  max-width: 1500px; 
-  margin: 0 auto; 
-  padding: 2rem 1.5rem; 
-  font-family: 'Inter', sans-serif; 
-  color: var(--text-body); 
-}
-.header { 
-  display: flex; 
-  justify-content: space-between; 
-  align-items: center; 
-  margin-bottom: 2rem; 
-}
+.container { max-width: 1500px; margin: 0 auto; padding: 2rem 1.5rem; font-family: 'Inter', sans-serif; color: var(--text-body); }
+.header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; }
 h1, h2, h3, h4 { color: var(--text-main); font-weight: 700; margin-bottom: 0.5rem; }
 h1 { font-size: 2rem; margin: 0; }
 
@@ -714,7 +715,7 @@ h1 { font-size: 2rem; margin: 0; }
 .btn-del-micro:hover { color: var(--danger-text); }
 
 /* ========================================= */
-/* MENCIONES Y NOTAS (REDISEÑADO)            */
+/* MENCIONES Y NOTAS (REDISEÑADO COMPLETO)   */
 /* ========================================= */
 .z-high { z-index: 2000; }
 .notes-modal { 
@@ -777,34 +778,66 @@ h1 { font-size: 2rem; margin: 0; }
   word-break: break-word;
 }
 
-.add-note-box { 
-  display: flex; 
-  flex-direction: column; 
-  gap: 0.8rem; 
-  background: rgba(0,0,0,0.1); 
-  padding: 1rem; 
-  border-radius: 12px; 
-  border: 1px solid var(--border-main); 
+/* CAJA DE CHAT UNIFICADA */
+.add-note-wrapper {
   margin-top: 0.5rem;
 }
 
-.add-note-box textarea { 
-  width: 100%; 
-  padding: 0.8rem; 
-  background: var(--bg-card); 
-  color: var(--text-main); 
-  border: 1px solid var(--border-main); 
-  border-radius: 8px; 
-  font-family: inherit; 
-  font-size: 0.9rem; 
-  resize: vertical;
+.chat-input-box {
+  background: var(--bg-app);
+  border: 1px solid var(--border-main);
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  transition: border-color 0.2s;
+  overflow: hidden; /* Mantiene los bordes limpios */
 }
-.add-note-box textarea:focus { 
-  outline: none; 
-  border-color: var(--primary); 
+
+.chat-input-box:focus-within {
+  border-color: var(--primary);
   box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.1);
 }
 
+.chat-input-box textarea {
+  width: 100%;
+  background: transparent;
+  border: none;
+  color: var(--text-main);
+  padding: 1rem 1rem 0.5rem 1rem;
+  font-size: 0.9rem;
+  font-family: inherit;
+  resize: none; /* Elimina la esquina de arrastre */
+  outline: none;
+  min-height: 48px;
+  max-height: 150px; /* Limite antes de que aparezca el scroll */
+  overflow-y: auto;
+  line-height: 1.4;
+}
+
+.chat-input-actions {
+  display: flex;
+  justify-content: flex-end;
+  padding: 0.5rem 1rem 0.8rem 1rem;
+}
+
+.btn-send-note {
+  background: var(--primary);
+  color: white;
+  border: none;
+  padding: 0.5rem 1.2rem;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.btn-send-note:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* MENÚ DE MENCIONES */
 .mentions-dropdown { 
   position: absolute; 
   bottom: 100%; 
