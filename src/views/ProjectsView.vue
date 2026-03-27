@@ -255,7 +255,9 @@
         </div>
         
         <div class="notes-list">
-          <div v-if="notesModal.notes.length === 0" class="empty-notes">No notes yet. Be the first to add one!</div>
+          <div v-if="notesModal.notes.length === 0" class="empty-notes">
+            No notes yet. Be the first to add one!
+          </div>
           <div v-for="note in notesModal.notes" :key="note.id" class="note-item">
             <div class="note-meta">
               <strong>{{ note.user_email }}</strong> 
@@ -280,7 +282,7 @@
             </div>
           </div>
 
-          <button @click="saveNote" class="btn-primary mt-2" :disabled="notesModal.saving || !notesModal.newNoteText.trim()">
+          <button @click="saveNote" class="btn-primary" :disabled="notesModal.saving || !notesModal.newNoteText.trim()">
             {{ notesModal.saving ? 'Saving...' : 'Add Note' }}
           </button>
         </div>
@@ -367,7 +369,7 @@ onMounted(async () => {
   checkUrlForNotification()
 })
 
-// NUEVO: Escuchar cambios en la URL por si el usuario YA está en la página de Projects
+// Escuchar cambios en la URL
 watch(() => route.query, () => {
   checkUrlForNotification()
 })
@@ -379,7 +381,7 @@ async function checkUrlForNotification() {
       await openTimeline(p)
       const stage = timelineModal.value.stages.find(s => s.id === route.query.stage)
       if (stage) openNotes(stage)
-      router.replace('/projects') // Limpia la URL para evitar que se abra de nuevo al recargar
+      router.replace('/projects')
     }
   }
 }
@@ -441,8 +443,8 @@ function selectMention(member) {
 }
 
 function formatNoteText(text) {
-  // Pone los @ en morado/azul para que resalten
-  return text.replace(/@([A-Za-zÁ-Úá-úñ ]+)/g, '<span style="color: var(--primary); font-weight: 700;">@$1</span>')
+  // Ahora las menciones se verán como pequeños "badges" en el texto
+  return text.replace(/@([A-Za-zÁ-Úá-úñ ]+)/g, '<span style="background: rgba(99, 102, 241, 0.15); color: #818cf8; padding: 2px 6px; border-radius: 4px; font-weight: 600;">@$1</span>')
 }
 
 function openNotes(stage) { notesModal.value = { show: true, stageId: stage.id, stageName: stage.stage_name, notes: stage.notes || [], newNoteText: '', saving: false }; showMentions.value = false }
@@ -650,7 +652,7 @@ h1 { font-size: 2rem; margin: 0; }
 .mt-4 { margin-top: 1.5rem; }
 .relative { position: relative; }
 
-/* MODALES */
+/* MODALES GLOBALES */
 .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.8); display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 1rem; backdrop-filter: blur(4px);}
 .modal { background: var(--bg-card); padding: 2rem; border-radius: 16px; width: 100%; max-height: 90vh; overflow-y: auto; border: 1px solid var(--border-main); box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5);}
 .modal-large { max-width: 950px; }
@@ -669,6 +671,7 @@ h1 { font-size: 2rem; margin: 0; }
 .btn-reset-template { background: var(--danger-bg); color: var(--danger-text); border: 1px solid transparent; padding: 0.4rem 0.8rem; border-radius: 8px; font-size: 0.8rem; font-weight: 600; cursor: pointer; }
 .modal-close { background: var(--bg-app); color: var(--text-muted); border: 1px solid var(--border-main); width: 32px; height: 32px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-weight: bold;}
 
+/* TIMELINE */
 .timeline-container { display: flex; flex-direction: column; gap: 0; border: 1px solid var(--border-main); border-radius: 8px; overflow: hidden; }
 .timeline-header-row { display: flex; padding: 0.75rem 1rem; background: var(--bg-app); font-size: 0.75rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; border-bottom: 1px solid var(--border-main); }
 .th-name { flex: 3; }
@@ -710,18 +713,123 @@ h1 { font-size: 2rem; margin: 0; }
 .btn-add-micro:hover { color: var(--success-text); }
 .btn-del-micro:hover { color: var(--danger-text); }
 
-/* MENCIONES Y NOTAS */
+/* ========================================= */
+/* MENCIONES Y NOTAS (REDISEÑADO)            */
+/* ========================================= */
 .z-high { z-index: 2000; }
-.notes-modal { max-width: 450px; padding: 1.5rem; }
-.notes-list { max-height: 300px; overflow-y: auto; margin-bottom: 1rem; border: 1px solid var(--border-main); border-radius: 8px; padding: 0.5rem; background: var(--bg-app); }
-.empty-notes { text-align: center; color: var(--text-muted); font-size: 0.85rem; padding: 2rem; }
-.note-item { background: var(--bg-card); padding: 0.75rem; border-radius: 8px; border: 1px solid var(--border-main); margin-bottom: 0.5rem; }
-.note-meta { display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.4rem; border-bottom: 1px dashed var(--border-light); padding-bottom: 0.3rem;}
-.note-meta strong { color: var(--primary); }
-.note-text { font-size: 0.85rem; color: var(--text-body); line-height: 1.5; white-space: pre-wrap; }
+.notes-modal { 
+  max-width: 500px; 
+  padding: 1.5rem 2rem; 
+  display: flex; 
+  flex-direction: column; 
+  gap: 1rem; 
+}
 
-.mentions-dropdown { position: absolute; bottom: 100%; left: 0; width: 100%; background: var(--bg-card); border: 1px solid var(--border-main); border-radius: 8px; box-shadow: 0 -4px 15px rgba(0,0,0,0.5); z-index: 10; max-height: 150px; overflow-y: auto; margin-bottom: 0.5rem;}
-.mention-item { padding: 0.5rem 1rem; font-size: 0.85rem; color: var(--text-main); cursor: pointer; border-bottom: 1px solid var(--border-light);}
+.notes-list { 
+  max-height: 350px; 
+  overflow-y: auto; 
+  display: flex; 
+  flex-direction: column; 
+  gap: 0.8rem; 
+  padding-right: 0.5rem; 
+  scrollbar-width: thin; 
+  scrollbar-color: var(--border-main) transparent; 
+}
+.notes-list::-webkit-scrollbar { width: 6px; }
+.notes-list::-webkit-scrollbar-track { background: transparent; }
+.notes-list::-webkit-scrollbar-thumb { background-color: var(--border-main); border-radius: 4px; }
+
+.empty-notes { 
+  text-align: center; 
+  color: var(--text-muted); 
+  font-size: 0.85rem; 
+  padding: 2rem; 
+  font-style: italic; 
+  border: 1px dashed var(--border-main); 
+  border-radius: 8px;
+}
+
+.note-item { 
+  background: var(--bg-app); 
+  padding: 1rem; 
+  border-radius: 12px; 
+  border: 1px solid var(--border-main); 
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.note-meta { 
+  display: flex; 
+  justify-content: space-between; 
+  align-items: center; 
+  font-size: 0.75rem; 
+  color: var(--text-muted); 
+  margin-bottom: 0.6rem; 
+  border-bottom: 1px solid var(--border-light); 
+  padding-bottom: 0.5rem;
+}
+.note-meta strong { color: var(--text-main); font-weight: 600; font-size: 0.8rem;}
+
+.note-text { 
+  font-size: 0.85rem; 
+  color: var(--text-body); 
+  line-height: 1.5; 
+  white-space: pre-wrap; 
+  word-break: break-word;
+}
+
+.add-note-box { 
+  display: flex; 
+  flex-direction: column; 
+  gap: 0.8rem; 
+  background: rgba(0,0,0,0.1); 
+  padding: 1rem; 
+  border-radius: 12px; 
+  border: 1px solid var(--border-main); 
+  margin-top: 0.5rem;
+}
+
+.add-note-box textarea { 
+  width: 100%; 
+  padding: 0.8rem; 
+  background: var(--bg-card); 
+  color: var(--text-main); 
+  border: 1px solid var(--border-main); 
+  border-radius: 8px; 
+  font-family: inherit; 
+  font-size: 0.9rem; 
+  resize: vertical;
+}
+.add-note-box textarea:focus { 
+  outline: none; 
+  border-color: var(--primary); 
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.1);
+}
+
+.mentions-dropdown { 
+  position: absolute; 
+  bottom: 100%; 
+  left: 0; 
+  width: 100%; 
+  background: var(--bg-card); 
+  border: 1px solid var(--border-light); 
+  border-radius: 8px; 
+  box-shadow: 0 -4px 15px rgba(0,0,0,0.3); 
+  z-index: 10; 
+  max-height: 150px; 
+  overflow-y: auto; 
+  margin-bottom: 0.5rem;
+}
+.mention-item { 
+  padding: 0.6rem 1rem; 
+  font-size: 0.85rem; 
+  color: var(--text-main); 
+  cursor: pointer; 
+  border-bottom: 1px solid var(--border-light); 
+  display: flex; 
+  align-items: center; 
+  gap: 0.5rem;
+}
+.mention-item:last-child { border-bottom: none; }
 .mention-item:hover { background: var(--bg-app); color: var(--primary); font-weight: 600;}
 
 /* RESPONSIVE PARA LISTA HORIZONTAL */
