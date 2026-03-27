@@ -232,12 +232,25 @@ async function saveQuote() {
   saving.value = true
   
   try {
+    // Use `material_comp` as a UI field but persist in schema column `item_description` if no material_comp column exists.
+    const payload = {
+      manufacturer_id: form.value.manufacturer_id,
+      item_description: form.value.material_comp || form.value.item_description || '',
+      price_range: form.value.price_range,
+      sample_cost: form.value.sample_cost,
+      moq_per_color: form.value.moq_per_color,
+      lead_time_days: form.value.lead_time_days,
+      specialty: form.value.specialty,
+      notes: form.value.notes,
+      project_id: projectId,
+    }
+
     if (editingId.value) {
-      const { error } = await supabase.from('quotes').update(form.value).eq('id', editingId.value)
+      const { error } = await supabase.from('quotes').update(payload).eq('id', editingId.value)
       if (error) throw error
       showMsg('Quote updated correctly')
     } else {
-      const { error } = await supabase.from('quotes').insert([{ ...form.value, project_id: projectId }])
+      const { error } = await supabase.from('quotes').insert([payload])
       if (error) throw error
       showMsg('New quote saved')
     }
