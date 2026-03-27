@@ -15,7 +15,7 @@
     </div>
 
     <div v-if="showForm" class="form-card">
-      <h2>{{ editingId ? 'Edit Quote' : 'New Quote' }}</h2>
+      <h2>{{ editingId ? 'Edit Quote Option' : 'New Quote Option' }}</h2>
       <div class="form-grid">
         <div class="input-field">
           <label>Factory *</label>
@@ -25,8 +25,8 @@
           </select>
         </div>
         <div class="input-field">
-          <label>MATERIAL COMP</label>
-          <input v-model="form.material_comp" placeholder="e.g. Cotton, Polyester..." />
+          <label>OPTION / MATERIAL</label>
+          <input v-model="form.material_comp" placeholder="e.g. 100% Cotton, Option B..." />
         </div>
         <div class="input-field">
           <label>Price Range</label>
@@ -66,16 +66,16 @@
       <div class="sort-controls">
         <span>Sort by:</span>
         <button type="button" @click="setSort('manufacturers.company_name')">Factory</button>
-        <button type="button" @click="setSort('material_comp')">Material Comp</button>
+        <button type="button" @click="setSort('material_comp')">Material / Option</button>
         <button type="button" @click="setSort('price_range')">Price</button>
         <button type="button" @click="setSort('moq_per_color')">MOQ</button>
         <span class="sort-direction">{{ sortDirection === 'asc' ? '↑' : '↓' }}</span>
       </div>
+      
       <table>
         <thead>
           <tr>
-            <th>Factory</th>
-            <th>MATERIAL COMP</th>
+            <th>OPTION / MATERIAL</th>
             <th>MOQ / Color</th>
             <th>Price Range</th>
             <th>Sample Cost</th>
@@ -84,18 +84,25 @@
             <th class="text-right">Actions</th>
           </tr>
         </thead>
-        <tbody>
-          <tr v-for="q in sortedQuotes" :key="q.id">
-            <td>
+        
+        <tbody v-for="group in groupedQuotes" :key="group.factoryId" class="factory-group">
+          <tr class="factory-header-row">
+            <td colspan="7">
               <div class="factory-cell">
-                <div class="factory-avatar">{{ q.manufacturers?.company_name?.charAt(0) }}</div>
+                <div class="factory-avatar">{{ group.factoryName.charAt(0) }}</div>
                 <div>
-                  <strong>{{ q.manufacturers?.company_name }}</strong>
-                  <div class="text-xs text-gray-400">{{ q.manufacturers?.country }}</div>
+                  <strong>{{ group.factoryName }}</strong>
+                  <div class="text-xs text-gray-400">{{ group.country || 'Location unknown' }}</div>
                 </div>
               </div>
             </td>
-            <td>{{ q.material_comp || q.item_description || '—' }}</td>
+          </tr>
+          
+          <tr v-for="q in group.quotes" :key="q.id" class="variant-row">
+            <td class="variant-name">
+              <span class="tree-line">└</span> 
+              <strong>{{ q.material_comp || q.item_description || 'Standard Option' }}</strong>
+            </td>
             <td>{{ q.moq_per_color ? q.moq_per_color.toLocaleString() + ' u' : '—' }}</td>
             <td><span class="price-tag">{{ q.price_range || '—' }}</span></td>
             <td>{{ q.sample_cost ? '$' + q.sample_cost.toFixed(2) : '—' }}</td>
@@ -103,8 +110,8 @@
             <td class="notes-cell">{{ q.notes || '—' }}</td>
             <td class="text-right">
               <div class="table-actions">
-                <button @click="editQuote(q)" class="btn-icon btn-edit-icon" title="Edit">✏️</button>
-                <button @click="confirmDelete(q.id)" class="btn-icon btn-delete-icon" title="Delete">🗑️</button>
+                <button @click="editQuote(q)" class="btn-icon btn-edit-icon" title="Edit Option">✏️</button>
+                <button @click="confirmDelete(q.id)" class="btn-icon btn-delete-icon" title="Delete Option">🗑️</button>
               </div>
             </td>
           </tr>
@@ -163,6 +170,29 @@ const sortedQuotes = computed(() => {
     if (va > vb) return sortDirection.value === 'asc' ? 1 : -1
     return 0
   })
+})
+
+// NUEVO: Agrupa las cotizaciones por fábrica respetando el ordenamiento actual
+const groupedQuotes = computed(() => {
+  const groupsMap = new Map()
+  const result = []
+  
+  sortedQuotes.value.forEach(q => {
+    const fId = q.manufacturer_id
+    if (!groupsMap.has(fId)) {
+      const newGroup = {
+        factoryId: fId,
+        factoryName: q.manufacturers?.company_name || 'Unknown',
+        country: q.manufacturers?.country || '',
+        quotes: []
+      }
+      groupsMap.set(fId, newGroup)
+      result.push(newGroup) // Mantiene el orden dictado por sortedQuotes
+    }
+    groupsMap.get(fId).quotes.push(q)
+  })
+  
+  return result
 })
 
 function setSort(field) {
@@ -232,7 +262,6 @@ async function saveQuote() {
   saving.value = true
   
   try {
-    // Use `material_comp` as a UI field but persist in schema column `item_description` if no material_comp column exists.
     const payload = {
       manufacturer_id: form.value.manufacturer_id,
       item_description: form.value.material_comp || form.value.item_description || '',
@@ -245,14 +274,17 @@ async function saveQuote() {
       project_id: projectId,
     }
 
+    // Guardamos explícitamente en material_comp si la columna existe en BD
+    payload.material_comp = payload.item_description
+
     if (editingId.value) {
       const { error } = await supabase.from('quotes').update(payload).eq('id', editingId.value)
       if (error) throw error
-      showMsg('Quote updated correctly')
+      showMsg('Quote option updated')
     } else {
       const { error } = await supabase.from('quotes').insert([payload])
       if (error) throw error
-      showMsg('New quote saved')
+      showMsg('New quote option saved')
     }
     showForm.value = false
     fetchData()
@@ -264,11 +296,15 @@ async function saveQuote() {
 }
 
 async function confirmDelete(id) {
-  if (confirm('Are you sure you want to delete this quote?')) {
+  if (confirm('Are you sure you want to delete this quote option?')) {
     await supabase.from('quotes').delete().eq('id', id)
     fetchData()
-    showMsg('Quote deleted')
+    showMsg('Quote option deleted')
   }
+}
+
+function exportExcel() {
+  alert('Export to Excel feature is coming soon!')
 }
 
 onMounted(fetchData)
@@ -282,43 +318,61 @@ h1 { font-size: 1.8rem; font-weight: 800; color: var(--text-main); margin: 0; }
 .subtitle { color: var(--text-muted); font-size: 0.95rem; margin-top: 0.2rem; }
 
 /* FORM */
-.form-card { background: white; padding: 1.5rem; border-radius: 12px; border: 1px solid #e5e7eb; margin-bottom: 2rem; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); }
-.form-card h2 { font-size: 1rem; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 1.25rem; color: #4b5563; }
+.form-card { background: var(--bg-card); padding: 1.5rem; border-radius: 12px; border: 1px solid var(--border-main); margin-bottom: 2rem; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.3); }
+.form-card h2 { font-size: 1rem; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 1.25rem; color: var(--text-main); }
 .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; }
-.input-field label { display: block; font-size: 0.75rem; font-weight: 700; color: #6b7280; text-transform: uppercase; margin-bottom: 0.4rem; }
-input, select, textarea { width: 100%; padding: 0.6rem 0.8rem; border: 1.5px solid var(--border-light); border-radius: 8px; font-size: 0.9rem; transition: border-color 0.2s; background: var(--bg-app); color: var(--text-main); }
-input:focus { border-color: var(--primary); outline: none; }
+.input-field label { display: block; font-size: 0.75rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-bottom: 0.4rem; }
+input, select, textarea { width: 100%; padding: 0.6rem 0.8rem; border: 1.5px solid var(--border-main); border-radius: 8px; font-size: 0.9rem; transition: border-color 0.2s; background: var(--bg-app); color: var(--text-main); }
+input:focus, select:focus, textarea:focus { border-color: var(--primary); outline: none; }
 
 /* TABLE */
-.table-wrapper { background: var(--bg-card); border-radius: 12px; border: 1px solid var(--border-light); overflow: hidden; }
+.table-wrapper { background: var(--bg-card); border-radius: 12px; border: 1px solid var(--border-main); overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.2);}
 table { width: 100%; border-collapse: collapse; }
-th { background: var(--bg-card); padding: 0.75rem 1rem; text-align: left; font-size: 0.7rem; text-transform: uppercase; color: var(--text-muted); border-bottom: 1px solid var(--border-light); }
-td { padding: 1rem; border-bottom: 1px solid var(--border-light); font-size: 0.88rem; vertical-align: middle; color: var(--text-body); }
+th { background: rgba(0,0,0,0.2); padding: 0.75rem 1rem; text-align: left; font-size: 0.75rem; font-weight: 800; text-transform: uppercase; color: var(--text-muted); border-bottom: 1px solid var(--border-main); }
+td { padding: 1rem; font-size: 0.88rem; vertical-align: middle; color: var(--text-body); }
+
+/* AGRUPACIONES DE FÁBRICA */
+.factory-group { border-bottom: 2px solid var(--border-main); }
+.factory-group:last-child { border-bottom: none; }
+
+.factory-header-row td { 
+  background: rgba(255,255,255,0.03); 
+  padding: 1rem; 
+  border-bottom: 1px solid var(--border-light); 
+}
 .factory-cell { display: flex; align-items: center; gap: 0.75rem; }
-.factory-avatar { width: 32px; height: 32px; background: rgba(99,102,241,.15); color: #4338ca; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 0.8rem; }
-.price-tag { font-weight: 700; color: var(--text-main); background: rgba(34,197,94,.12); padding: 0.2rem 0.5rem; border-radius: 6px; }
+.factory-avatar { width: 36px; height: 36px; background: rgba(99,102,241,.15); color: #818cf8; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 1rem; }
+
+.variant-row { transition: background 0.2s; }
+.variant-row:hover { background: rgba(255,255,255,0.02); }
+.variant-row td { border-bottom: 1px dashed var(--border-light); }
+.variant-row:last-child td { border-bottom: none; }
+
+.variant-name { display: flex; align-items: center; gap: 0.5rem; color: var(--text-main); }
+.tree-line { color: var(--text-muted); font-family: monospace; font-size: 1.2rem; opacity: 0.5; margin-left: 0.5rem;}
+.price-tag { font-weight: 800; color: var(--success-text); background: var(--success-bg); padding: 0.2rem 0.5rem; border-radius: 6px; }
 
 /* ACTIONS */
 .table-actions { display: flex; gap: 0.5rem; justify-content: flex-end; }
 .btn-icon { background: none; border: none; cursor: pointer; padding: 0.4rem; border-radius: 6px; transition: background 0.2s; }
 .btn-edit-icon:hover { background: rgba(99,102,241,0.15); }
-.btn-delete-icon:hover { background: rgba(239,68,68,0.12); }
+.btn-delete-icon:hover { background: rgba(239,68,68,0.15); }
 
 .sort-controls { display: flex; align-items: center; gap: 0.6rem; margin: 0.8rem 1rem; flex-wrap: wrap; }
 .sort-controls span { color: var(--text-muted); font-weight: 600; font-size: 0.8rem; }
-.sort-controls button { background: var(--bg-card); color: var(--text-body); border: 1px solid var(--border-light); border-radius: 6px; padding: 0.35rem 0.7rem; cursor: pointer; font-size: 0.78rem; }
+.sort-controls button { background: var(--bg-app); color: var(--text-main); border: 1px solid var(--border-main); border-radius: 6px; padding: 0.35rem 0.7rem; cursor: pointer; font-size: 0.78rem; font-weight: 600;}
 .sort-controls button:hover { background: var(--border-light); }
 .sort-direction { color: var(--text-muted); font-size: 0.8rem; }
 
 /* NOTIFICATION MODAL */
-.notification-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; z-index: 2000; }
-.notification-card { background: white; padding: 2rem; border-radius: 16px; width: 300px; text-align: center; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); }
+.notification-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; z-index: 2000; backdrop-filter: blur(2px);}
+.notification-card { background: var(--bg-card); border: 1px solid var(--border-main); padding: 2rem; border-radius: 16px; width: 300px; text-align: center; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.5); }
 .notif-icon { font-size: 2.5rem; margin-bottom: 1rem; }
-.notif-content p { font-weight: 600; color: #1f2937; margin-bottom: 1.5rem; }
-.btn-notif-close { background: #111827; color: white; border: none; padding: 0.6rem 2rem; border-radius: 8px; font-weight: 700; cursor: pointer; width: 100%; }
+.notif-content p { font-weight: 600; color: var(--text-main); margin-bottom: 1.5rem; }
+.btn-notif-close { background: var(--primary); color: white; border: none; padding: 0.6rem 2rem; border-radius: 8px; font-weight: 700; cursor: pointer; width: 100%; }
 
-.btn-primary { background: #111827; color: white; border: none; padding: 0.6rem 1.2rem; border-radius: 8px; font-weight: 700; cursor: pointer; font-size: 0.75rem; }
-.btn-export { background: white; color: #111827; border: 1.5px solid #e5e7eb; padding: 0.6rem 1.2rem; border-radius: 8px; font-weight: 700; cursor: pointer; font-size: 0.75rem; }
-.loading, .empty { text-align: center; padding: 4rem; color: #9ca3af; }
+.btn-primary { background: var(--primary); color: white; border: none; padding: 0.6rem 1.2rem; border-radius: 8px; font-weight: 700; cursor: pointer; font-size: 0.75rem; }
+.btn-export { background: transparent; color: var(--text-main); border: 1.5px solid var(--border-main); padding: 0.6rem 1.2rem; border-radius: 8px; font-weight: 700; cursor: pointer; font-size: 0.75rem; }
+.loading, .empty { text-align: center; padding: 4rem; color: var(--text-muted); }
 .text-right { text-align: right; }
 </style>
