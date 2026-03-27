@@ -131,7 +131,7 @@
             </button>
           </div>
           
-          <div class="info-row notes-row" v-if="m.notes">
+          <div class="info-row notes-row" v-if="m.notes" @click="showNotesPopup(m.notes)" style="cursor: pointer;">
             <span class="info-icon">📝</span>
             <span class="truncate-text" :title="m.notes">{{ m.notes }}</span>
           </div>
@@ -169,6 +169,18 @@
           <div v-for="c in certPopup.list" :key="c" class="cert-item">
             <span class="check-icon">✅</span> {{ c.trim() }}
           </div>
+        </div>
+      </div>
+    </div>
+
+    <div v-if="notesPopup.show" class="modal-overlay" @click.self="notesPopup.show = false">
+      <div class="modal max-w-500">
+        <div class="modal-header">
+          <h2>📝 Notes</h2>
+          <button @click="notesPopup.show = false" class="modal-close">✕</button>
+        </div>
+        <div class="modal-body" style="padding: 20px; max-height: 400px; overflow-y: auto;">
+          <p style="white-space: pre-wrap; line-height: 1.6; color: var(--text-main);">{{ notesPopup.text }}</p>
         </div>
       </div>
     </div>
@@ -290,6 +302,7 @@ const certOptions = [
 const selectedCategories = ref([])
 const selectedCertifications = ref([])
 const certPopup = ref({ show: false, list: [] })
+const notesPopup = ref({ show: false, text: '' })
 
 const form = ref({ 
   company_name: '', country: '', contact_name: '', phone: '', 
@@ -327,6 +340,11 @@ const filteredManufacturers = computed(() => {
 function showCertsPopup(m) { 
   certPopup.value.list = m.certifications.split(',')
   certPopup.value.show = true 
+}
+
+function showNotesPopup(notes) {
+  notesPopup.value.text = notes
+  notesPopup.value.show = true
 }
 
 async function saveManufacturer() {
