@@ -33,12 +33,12 @@
           <input v-model.number="form.sample_cost" type="number" step="0.01" />
         </div>
         <div class="input-field">
-          <label>Sample Lead Time (days)</label>
-          <input v-model.number="form.sample_lead_time" type="number" placeholder="e.g. 14" />
+          <label>Sample Lead Time (weeks)</label>
+          <input v-model="form.sample_lead_time" type="text" placeholder="e.g. 3-5" />
         </div>
         <div class="input-field">
-          <label>Bulk Lead Time (days)</label>
-          <input v-model.number="form.bulk_lead_time" type="number" placeholder="e.g. 45" />
+          <label>Bulk Lead Time (weeks)</label>
+          <input v-model="form.bulk_lead_time" type="text" placeholder="e.g. 6-8" />
         </div>
       </div>
 
@@ -135,8 +135,8 @@
             </td>
             
             <td>{{ q.sample_cost ? '$' + q.sample_cost.toFixed(2) : '—' }}</td>
-            <td>{{ q.sample_lead_time ? q.sample_lead_time + ' days' : '—' }}</td>
-            <td>{{ q.bulk_lead_time ? q.bulk_lead_time + ' days' : '—' }}</td>
+            <td>{{ formatWeeks(q.sample_lead_time) }}</td>
+            <td>{{ formatWeeks(q.bulk_lead_time) }}</td>
             <td class="notes-cell">{{ q.notes || '—' }}</td>
             <td class="text-right">
               <div class="table-actions">
@@ -208,6 +208,20 @@ const groupedQuotes = computed(() => {
 function showMsg(msg, type = 'success') {
   notification.value = { show: true, message: msg, type: type }
   if (type === 'success') setTimeout(() => notification.value.show = false, 3000)
+}
+
+function formatWeeks(value) {
+  if (value === null || value === undefined || value === '') return '—'
+  const raw = value.toString().trim()
+  if (raw === '') return '—'
+
+  // If it's purely numeric, show with weeks. Otherwise allow ranges like "3-5".
+  if (!Number.isNaN(Number(raw))) {
+    return `${Number(raw)} weeks`
+  }
+
+  // Could be "3-5" or any custom text.
+  return `${raw} weeks`
 }
 
 async function fetchData() {
