@@ -33,8 +33,12 @@
           <input v-model.number="form.sample_cost" type="number" step="0.01" />
         </div>
         <div class="input-field">
-          <label>Lead Time (days)</label>
-          <input v-model.number="form.lead_time_days" type="number" />
+          <label>Sample Lead Time (days)</label>
+          <input v-model.number="form.sample_lead_time" type="number" placeholder="e.g. 14" />
+        </div>
+        <div class="input-field">
+          <label>Bulk Lead Time (days)</label>
+          <input v-model.number="form.bulk_lead_time" type="number" placeholder="e.g. 45" />
         </div>
       </div>
 
@@ -85,7 +89,8 @@
             <th>MATERIAL / OPTION</th>
             <th>PRICING TIERS (MOQ ➔ Price)</th>
             <th>Sample Cost</th>
-            <th>Lead Time</th>
+            <th>Sample Time</th>
+            <th>Bulk Time</th>
             <th>Notes</th>
             <th class="text-right">Actions</th>
           </tr>
@@ -93,7 +98,7 @@
         
         <tbody v-for="group in groupedQuotes" :key="group.manufacturer.id" class="factory-group">
           <tr class="factory-group-header">
-            <td colspan="6">
+            <td colspan="7">
               <div class="factory-header-cell">
                 <div class="factory-avatar">{{ group.manufacturer.company_name?.charAt(0) }}</div>
                 <div>
@@ -130,7 +135,8 @@
             </td>
             
             <td>{{ q.sample_cost ? '$' + q.sample_cost.toFixed(2) : '—' }}</td>
-            <td>{{ q.lead_time_days ? q.lead_time_days + ' days' : '—' }}</td>
+            <td>{{ q.sample_lead_time ? q.sample_lead_time + ' days' : '—' }}</td>
+            <td>{{ q.bulk_lead_time ? q.bulk_lead_time + ' days' : '—' }}</td>
             <td class="notes-cell">{{ q.notes || '—' }}</td>
             <td class="text-right">
               <div class="table-actions">
@@ -173,10 +179,10 @@ const clientName = ref('')
 
 const notification = ref({ show: false, message: '', type: 'success' })
 
-// Formulario actualizado con el array dinámico de Tiers
+// Formulario actualizado
 const form = ref({
   manufacturer_id: '', material_comp: '', item_description: '', 
-  sample_cost: null, lead_time_days: null, specialty: '', notes: '',
+  sample_cost: null, sample_lead_time: null, bulk_lead_time: null, specialty: '', notes: '',
   pricing_tiers: [{ moq: '', price: '' }]
 })
 
@@ -241,7 +247,7 @@ function addVariant(manufacturerId) {
 function resetForm() {
   form.value = { 
     manufacturer_id: '', material_comp: '', item_description: '', 
-    sample_cost: null, lead_time_days: null, specialty: '', notes: '',
+    sample_cost: null, sample_lead_time: null, bulk_lead_time: null, specialty: '', notes: '',
     pricing_tiers: [{ moq: '', price: '' }]
   }
 }
@@ -260,7 +266,6 @@ function removeTier(index) {
 function editQuote(q) {
   editingId.value = q.id
   
-  // Procesamos la info para que los quotes viejos se vean bien en el editor
   let parsedTiers = []
   if (q.pricing_tiers && q.pricing_tiers.length > 0) {
     parsedTiers = [...q.pricing_tiers]
@@ -285,20 +290,18 @@ async function saveQuote() {
   saving.value = true
   
   try {
-    // Filtramos los tiers vacíos antes de guardar
     const validTiers = form.value.pricing_tiers.filter(t => t.moq || t.price)
 
     const payload = {
       manufacturer_id: form.value.manufacturer_id,
       item_description: form.value.material_comp || form.value.item_description || '',
-      // Se elimina la clave material_comp que daba el error en Supabase
       sample_cost: form.value.sample_cost,
-      lead_time_days: form.value.lead_time_days,
+      sample_lead_time: form.value.sample_lead_time,
+      bulk_lead_time: form.value.bulk_lead_time,
       specialty: form.value.specialty,
       notes: form.value.notes,
       project_id: projectId,
-      pricing_tiers: validTiers, // Se guarda el JSON
-      // Mantenemos esto por si alguna tabla vieja lo sigue leyendo
+      pricing_tiers: validTiers, 
       price_range: validTiers.length > 0 ? validTiers[0].price : '',
       moq_per_color: validTiers.length > 0 ? Number(validTiers[0].moq) || null : null
     }
