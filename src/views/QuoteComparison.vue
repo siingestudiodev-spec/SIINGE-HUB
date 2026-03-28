@@ -291,7 +291,7 @@ async function saveQuote() {
     const payload = {
       manufacturer_id: form.value.manufacturer_id,
       item_description: form.value.material_comp || form.value.item_description || '',
-      material_comp: form.value.material_comp,
+      // Se elimina la clave material_comp que daba el error en Supabase
       sample_cost: form.value.sample_cost,
       lead_time_days: form.value.lead_time_days,
       specialty: form.value.specialty,
