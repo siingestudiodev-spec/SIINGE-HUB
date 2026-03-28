@@ -135,8 +135,8 @@
             </td>
             
             <td>{{ q.sample_cost ? '$' + q.sample_cost.toFixed(2) : '—' }}</td>
-            <td>{{ formatWeeks(q.sample_lead_time) }}</td>
-            <td>{{ formatWeeks(q.bulk_lead_time) }}</td>
+            <td>{{ formatWeeks(q.sample_lead_time_display) }}</td>
+            <td>{{ formatWeeks(q.bulk_lead_time_display) }}</td>
             <td class="notes-cell">{{ q.notes || '—' }}</td>
             <td class="text-right">
               <div class="table-actions">
@@ -178,11 +178,12 @@ const projectName = ref('')
 const clientName = ref('')
 
 const notification = ref({ show: false, message: '', type: 'success' })
+const supportsLeadTimeText = ref(false)
 
 // Formulario actualizado
 const form = ref({
   manufacturer_id: '', material_comp: '', item_description: '', 
-  sample_cost: null, sample_lead_time: null, bulk_lead_time: null, specialty: '', notes: '',
+  sample_cost: null, sample_lead_time: '', bulk_lead_time: '', specialty: '', notes: '',
   pricing_tiers: [{ moq: '', price: '' }]
 })
 
@@ -251,7 +252,13 @@ async function fetchData() {
     .eq('project_id', projectId)
     .order('created_at', { ascending: true })
   
-  quotes.value = q || []
+  quotes.value = (q || []).map(item => ({
+    ...item,
+    sample_lead_time_display: item.sample_lead_time_text || (item.sample_lead_time != null ? item.sample_lead_time.toString() : ''),
+    bulk_lead_time_display: item.bulk_lead_time_text || (item.bulk_lead_time != null ? item.bulk_lead_time.toString() : '')
+  }))
+  supportsLeadTimeText.value = q && q.length > 0 && ('sample_lead_time_text' in q[0])
+
   const { data: m } = await supabase.from('manufacturers').select('id, company_name').order('company_name')
   manufacturers.value = m || []
   loading.value = false
@@ -333,6 +340,11 @@ async function saveQuote() {
       pricing_tiers: validTiers, 
       price_range: validTiers.length > 0 ? validTiers[0].price : '',
       moq_per_color: validTiers.length > 0 ? Number(validTiers[0].moq) || null : null
+    }
+
+    if (supportsLeadTimeText.value) {
+      payload.sample_lead_time_text = form.value.sample_lead_time
+      payload.bulk_lead_time_text = form.value.bulk_lead_time
     }
 
     if (editingId.value) {
