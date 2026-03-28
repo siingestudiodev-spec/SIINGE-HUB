@@ -210,17 +210,30 @@ function showMsg(msg, type = 'success') {
   if (type === 'success') setTimeout(() => notification.value.show = false, 3000)
 }
 
+function parseLeadTime(value) {
+  if (value === null || value === undefined) return null
+  const raw = value.toString().trim()
+  if (raw === '') return null
+
+  // 3-5 -> use minimum number to stay compatible con integer DB
+  if (raw.includes('-')) {
+    const parts = raw.split('-').map(p => Number(p.trim())).filter(n => !Number.isNaN(n))
+    if (parts.length > 0) return Math.min(...parts)
+    return null
+  }
+
+  const numeric = Number(raw)
+  if (!Number.isNaN(numeric)) return Math.floor(numeric)
+  return null
+}
+
 function formatWeeks(value) {
   if (value === null || value === undefined || value === '') return '—'
   const raw = value.toString().trim()
   if (raw === '') return '—'
 
-  // If it's purely numeric, show with weeks. Otherwise allow ranges like "3-5".
-  if (!Number.isNaN(Number(raw))) {
-    return `${Number(raw)} weeks`
-  }
-
-  // Could be "3-5" or any custom text.
+  if (raw.includes('-')) return `${raw} weeks`
+  if (!Number.isNaN(Number(raw))) return `${Number(raw)} weeks`
   return `${raw} weeks`
 }
 
@@ -261,7 +274,7 @@ function addVariant(manufacturerId) {
 function resetForm() {
   form.value = { 
     manufacturer_id: '', material_comp: '', item_description: '', 
-    sample_cost: null, sample_lead_time: null, bulk_lead_time: null, specialty: '', notes: '',
+    sample_cost: null, sample_lead_time: '', bulk_lead_time: '', specialty: '', notes: '',
     pricing_tiers: [{ moq: '', price: '' }]
   }
 }
@@ -292,6 +305,8 @@ function editQuote(q) {
   form.value = {
     ...q,
     material_comp: q.material_comp || q.item_description || '',
+    sample_lead_time: q.sample_lead_time != null ? q.sample_lead_time.toString() : '',
+    bulk_lead_time: q.bulk_lead_time != null ? q.bulk_lead_time.toString() : '',
     pricing_tiers: parsedTiers
   }
   delete form.value.manufacturers 
@@ -310,8 +325,8 @@ async function saveQuote() {
       manufacturer_id: form.value.manufacturer_id,
       item_description: form.value.material_comp || form.value.item_description || '',
       sample_cost: form.value.sample_cost,
-      sample_lead_time: form.value.sample_lead_time,
-      bulk_lead_time: form.value.bulk_lead_time,
+      sample_lead_time: parseLeadTime(form.value.sample_lead_time),
+      bulk_lead_time: parseLeadTime(form.value.bulk_lead_time),
       specialty: form.value.specialty,
       notes: form.value.notes,
       project_id: projectId,
