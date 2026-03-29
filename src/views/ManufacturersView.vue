@@ -141,8 +141,8 @@
                  :class="{ 'overdue': isOverdue(log.sent_at) }">
               <span class="log-icon">🕒</span> {{ log.template_name }}: {{ new Date(log.sent_at).toLocaleDateString('en-US', { day: '2-digit', month: 'short' }) }}
               
-              <span v-if="log.read_at" class="check-icon is-read" :title="'Read at: ' + new Date(log.read_at).toLocaleString()">✔️✔️</span>
-              <span v-else class="check-icon is-sent" title="Sent (not read yet)">✔️</span>
+              <span v-if="log.read_at" class="status-badge is-read" :title="'Read at: ' + new Date(log.read_at).toLocaleString()">Read</span>
+              <span v-else class="status-badge is-sent" title="Sent (not read yet)">Sent</span>
               
               <span v-if="isOverdue(log.sent_at) && !log.read_at" class="warning-icon" title="No response in more than 7 days">⚠️</span>
             </div>
@@ -426,7 +426,7 @@ function resetForm() {
 
 async function fetchManufacturers() {
   loading.value = true
-  // Unión con la nueva tabla de logs
+  // Unión con la nueva tabla de logs para traer el historial
   const { data } = await supabase
     .from('manufacturers')
     .select('*, manufacturer_email_logs(template_name, sent_at, read_at)')
@@ -901,25 +901,38 @@ input:focus, textarea:focus, select:focus {
   width: max-content;
 }
 
-/* ESTILOS PARA LOS CHECKS DE RASTREO */
+/* ESTILOS DE BADGES DE ESTADO (SENT/READ) */
 .overdue { 
   background-color: var(--danger-bg); 
   color: var(--danger-text); 
   border: 1px solid rgba(251, 113, 133, 0.3); 
   font-weight: 700;
 }
-.check-icon { 
-  font-size: 0.8rem; 
-  margin-left: 0.4rem; 
-  font-weight: bold; 
+.status-badge {
+  font-size: 0.7rem;
+  padding: 0.15rem 0.4rem;
+  border-radius: 4px;
+  font-weight: 700;
+  margin-left: 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  cursor: help; /* Muestra el cursor de interrogación para invitar al hover */
 }
+.is-sent { 
+  background: rgba(0,0,0,0.1); 
+  color: var(--text-muted); 
+  border: 1px solid var(--border-main);
+}
+.is-read { 
+  background: rgba(59, 130, 246, 0.15); 
+  color: #3b82f6; 
+  border: 1px solid rgba(59, 130, 246, 0.3);
+}
+
 .check-icon-green {
   font-size: 0.8rem;
   margin-right: 0.4rem;
 }
-.is-sent { color: var(--text-muted); opacity: 0.6; }
-.is-read { color: #3b82f6; }
-
 
 /* Bloque 4: Acciones */
 .card-actions-vertical { 
