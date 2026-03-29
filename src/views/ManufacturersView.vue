@@ -80,7 +80,6 @@
     <div v-else-if="filteredManufacturers.length === 0" class="empty">No manufacturers found.</div>
     
     <div v-else class="list-container">
-      
       <div v-for="m in filteredManufacturers" :key="m.id" class="horizontal-card">
         
         <div class="card-identity">
@@ -136,12 +135,16 @@
             <span class="truncate-text" :title="m.notes">{{ m.notes }}</span>
           </div>
             
-          <div v-if="m.email_logs && m.email_logs.length > 0" class="email-history">
-            <div v-for="(log, index) in m.email_logs.slice(-1)" :key="index" 
+          <div v-if="m.manufacturer_email_logs && m.manufacturer_email_logs.length > 0" class="email-history">
+            <div v-for="(log, index) in m.manufacturer_email_logs.slice(-1)" :key="index" 
                  class="reach-date"
-                 :class="{ 'overdue': isOverdue(log.sentAt) }">
-              <span class="log-icon">🕒</span> {{ log.templateName }}: {{ new Date(log.sentAt).toLocaleDateString('en-US', { day: '2-digit', month: 'short' }) }}
-              <span v-if="isOverdue(log.sentAt)" class="warning-icon" title="More than 7 days ago">⚠️</span>
+                 :class="{ 'overdue': isOverdue(log.sent_at) }">
+              <span class="log-icon">🕒</span> {{ log.template_name }}: {{ new Date(log.sent_at).toLocaleDateString('en-US', { day: '2-digit', month: 'short' }) }}
+              
+              <span v-if="log.read_at" class="check-icon is-read" :title="'Read at: ' + new Date(log.read_at).toLocaleString()">✔️✔️</span>
+              <span v-else class="check-icon is-sent" title="Sent (not read yet)">✔️</span>
+              
+              <span v-if="isOverdue(log.sent_at) && !log.read_at" class="warning-icon" title="No response in more than 7 days">⚠️</span>
             </div>
           </div>
         </div>
@@ -167,7 +170,7 @@
         </div>
         <div class="cert-list-popup">
           <div v-for="c in certPopup.list" :key="c" class="cert-item">
-            <span class="check-icon">✅</span> {{ c.trim() }}
+            <span class="check-icon-green">✅</span> {{ c.trim() }}
           </div>
         </div>
       </div>
@@ -260,6 +263,9 @@ import { ref, computed, onMounted } from 'vue'
 import { supabase } from '../lib/supabase'
 import emailjs from '@emailjs/browser'
 
+// TU URL REAL DE SUPABASE
+const SUPABASE_PROJECT_URL = 'https://dshnhzgnfgtwqobqazxu.supabase.co'
+
 const EMAILJS_SERVICE_ID  = 'service_vxy88pq'
 const EMAILJS_TEMPLATE_ID = 'template_44apzvs'
 const EMAILJS_PUBLIC_KEY  = 'CFmOQW7RjLSBDwIOV'
@@ -330,13 +336,12 @@ const selectedCertifications = ref([])
 const certPopup = ref({ show: false, list: [] })
 const notesPopup = ref({ show: false, text: '' })
 
-// NUEVO: ESTADO DEL MODAL LOG CONTACT
 const logContactModal = ref({
   show: false,
   manufacturerId: null,
   companyName: '',
   note: '',
-  date: new Date().toISOString().split('T')[0] // Se inicializa con la fecha actual
+  date: new Date().toISOString().split('T')[0]
 })
 
 const form = ref({ 
@@ -421,7 +426,12 @@ function resetForm() {
 
 async function fetchManufacturers() {
   loading.value = true
-  const { data } = await supabase.from('manufacturers').select('*').order('company_name')
+  // Unión con la nueva tabla de logs
+  const { data } = await supabase
+    .from('manufacturers')
+    .select('*, manufacturer_email_logs(template_name, sent_at, read_at)')
+    .order('company_name')
+    
   manufacturers.value = data || []
   loading.value = false
 }
@@ -499,40 +509,60 @@ function applyTemplate() {
   emailModal.value.body = t.body.replace(/{{company_name}}/g, emailModal.value.companyName)
 }
 
-// NUEVO: FUNCIONES DEL MODAL LOG CONTACT
 function openLogContactModal(m) {
   logContactModal.value = {
     show: true,
     manufacturerId: m.id,
     companyName: m.company_name,
     note: '',
-    date: new Date().toISOString().split('T')[0] // Formato YYYY-MM-DD para el input type="date"
+    date: new Date().toISOString().split('T')[0]
   }
 }
 
 async function saveLogContact() {
   if (!logContactModal.value.note.trim()) return
   
-  const m = manufacturers.value.find(man => man.id === logContactModal.value.manufacturerId)
-  
-  // Convertimos la fecha seleccionada en un formato ISO para que se guarde correctamente
   const dateObj = new Date(logContactModal.value.date + 'T12:00:00') 
   const sentAt = dateObj.toISOString()
   
-  const updatedLogs = [...(m.email_logs || []), { templateName: logContactModal.value.note.trim(), sentAt }]
-  
-  await supabase.from('manufacturers').update({ 
-    email_logs: updatedLogs, 
-    last_email_sent_at: sentAt 
-  }).eq('id', m.id)
+  // Guardar en la nueva tabla separada
+  await supabase.from('manufacturer_email_logs').insert([{
+    manufacturer_id: logContactModal.value.manufacturerId,
+    template_name: logContactModal.value.note.trim(),
+    sent_at: sentAt
+  }])
   
   logContactModal.value.show = false
   fetchManufacturers()
 }
 
+// ===============================================
+// ENVÍO CON RASTREO (PÍXEL)
+// ===============================================
 async function sendEmail() {
   emailModal.value.sending = true
   try {
+    const templateName = emailModal.value.isInitialReach ? 'Initial Reach' : (emailModal.value.selectedTemplate?.name || 'Custom Email')
+
+    // 1. Loguear en Supabase PRIMERO para obtener un ID único
+    const { data: logEntry, error: logError } = await supabase
+      .from('manufacturer_email_logs')
+      .insert([{
+        manufacturer_id: emailModal.value.manufacturerId,
+        template_name: templateName,
+      }])
+      .select()
+      .single()
+
+    if (logError) throw logError
+    const trackingId = logEntry.id
+
+    // 2. Inyectar el Píxel de rastreo en la firma HTML
+    const trackingUrl = `${SUPABASE_PROJECT_URL}/functions/v1/track-email?id=${trackingId}`
+    const pixelTag = `<img src="${trackingUrl}" width="1" height="1" style="display:none !important;" />`
+    const trackedSignature = htmlSignature.replace('</tbody>', `${pixelTag}</tbody>`)
+
+    // 3. Enviar a través de EmailJS con la firma rastreada
     await emailjs.send(
       EMAILJS_SERVICE_ID, 
       EMAILJS_TEMPLATE_ID, 
@@ -540,23 +570,18 @@ async function sendEmail() {
         to_email: emailModal.value.to, 
         subject: emailModal.value.subject, 
         message: emailModal.value.body,
-        signature: htmlSignature
+        signature: trackedSignature
       }, 
       EMAILJS_PUBLIC_KEY
     )
     
-    const sentAt = new Date().toISOString()
-    const templateName = emailModal.value.isInitialReach ? 'Initial Reach' : (emailModal.value.selectedTemplate?.name || 'Custom Email')
-    
-    const m = manufacturers.value.find(man => man.id === emailModal.value.manufacturerId)
-    const updatedLogs = [...(m.email_logs || []), { templateName: templateName, sentAt }]
-    
-    await supabase.from('manufacturers').update({ 
-      initial_reach_sent: true, 
-      initial_reach_sent_at: sentAt, 
-      email_logs: updatedLogs, 
-      last_email_sent_at: sentAt 
-    }).eq('id', m.id)
+    // 4. Actualizar manufacturers para poner 'initial_reach_sent'
+    if (emailModal.value.isInitialReach) {
+        await supabase.from('manufacturers').update({ 
+          initial_reach_sent: true, 
+          initial_reach_sent_at: new Date().toISOString(), 
+        }).eq('id', emailModal.value.manufacturerId)
+    }
     
     fetchManufacturers()
     emailModal.value.show = false
@@ -567,6 +592,7 @@ async function sendEmail() {
     emailModal.value.sending = false 
   }
 }
+// ===============================================
 
 async function deleteManufacturer(id) {
   if (confirm('Are you sure you want to delete this manufacturer?')) { 
@@ -874,12 +900,26 @@ input:focus, textarea:focus, select:focus {
   gap: 0.4rem; 
   width: max-content;
 }
+
+/* ESTILOS PARA LOS CHECKS DE RASTREO */
 .overdue { 
   background-color: var(--danger-bg); 
   color: var(--danger-text); 
   border: 1px solid rgba(251, 113, 133, 0.3); 
   font-weight: 700;
 }
+.check-icon { 
+  font-size: 0.8rem; 
+  margin-left: 0.4rem; 
+  font-weight: bold; 
+}
+.check-icon-green {
+  font-size: 0.8rem;
+  margin-right: 0.4rem;
+}
+.is-sent { color: var(--text-muted); opacity: 0.6; }
+.is-read { color: #3b82f6; }
+
 
 /* Bloque 4: Acciones */
 .card-actions-vertical { 
@@ -936,7 +976,6 @@ input:focus, textarea:focus, select:focus {
 .signature-notice { background: rgba(234, 179, 8, 0.1); color: var(--warning-text); padding: 0.5rem 0.8rem; border-radius: 8px; font-size: 0.85rem; border: 1px dashed var(--warning-text); }
 .cert-item { background: var(--bg-app); padding: 0.8rem 1rem; border-radius: 8px; margin-bottom: 0.5rem; color: var(--text-main); display: flex; gap: 0.6rem; }
 
-/* NUEVO: ESTILOS PARA LOS CAMPOS DEL MODAL */
 .modal-field { margin-bottom: 1.2rem; }
 .modal-field label { 
   display: block; 
@@ -955,7 +994,7 @@ input:focus, textarea:focus, select:focus {
 .btn-clear { background: var(--border-light); color: var(--text-muted); border: none; padding: 0.7rem 1rem; border-radius: 8px; cursor: pointer; }
 .loading, .empty { text-align: center; padding: 3rem; color: var(--text-muted); }
 
-/* RESPONSIVE: En pantallas más pequeñas, que se vuelva tarjeta normal */
+/* RESPONSIVE */
 @media (max-width: 1000px) {
   .horizontal-card {
     flex-direction: column;
