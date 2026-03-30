@@ -135,17 +135,20 @@
             <span class="truncate-text" :title="m.notes">{{ m.notes }}</span>
           </div>
             
-          <div v-if="m.manufacturer_email_logs && m.manufacturer_email_logs.length > 0" class="email-history">
-            <div v-for="(log, index) in m.manufacturer_email_logs" :key="log.id || index" 
-                 class="reach-date"
-                 :class="{ 'overdue': isOverdue(log.sent_at) }">
-              <span class="log-icon">🕒</span> {{ log.template_name }}: {{ new Date(log.sent_at).toLocaleDateString('en-US', { day: '2-digit', month: 'short' }) }}
+          <div v-if="m.manufacturer_email_logs && m.manufacturer_email_logs.length > 0" class="email-history-preview mt-2">
+            
+            <div class="reach-date" :class="{ 'overdue': isOverdue(m.manufacturer_email_logs[0].sent_at) }">
+              <span class="log-icon">🕒</span> {{ m.manufacturer_email_logs[0].template_name }}: {{ new Date(m.manufacturer_email_logs[0].sent_at).toLocaleDateString('en-US', { day: '2-digit', month: 'short' }) }}
               
-              <span v-if="log.read_at" class="status-badge is-read" :title="'Read at: ' + new Date(log.read_at).toLocaleString()">Read</span>
+              <span v-if="m.manufacturer_email_logs[0].read_at" class="status-badge is-read" :title="'Read at: ' + new Date(m.manufacturer_email_logs[0].read_at).toLocaleString()">Read</span>
               <span v-else class="status-badge is-sent" title="Sent (not read yet)">Sent</span>
               
-              <span v-if="isOverdue(log.sent_at) && !log.read_at" class="warning-icon" title="No response in more than 7 days">⚠️</span>
+              <span v-if="isOverdue(m.manufacturer_email_logs[0].sent_at) && !m.manufacturer_email_logs[0].read_at" class="warning-icon" title="No response in more than 7 days">⚠️</span>
             </div>
+
+            <button v-if="m.manufacturer_email_logs.length > 1" @click="showEmailHistoryPopup(m)" class="btn-view-more mt-1">
+              View All {{ m.manufacturer_email_logs.length }} Logs
+            </button>
           </div>
         </div>
 
@@ -184,6 +187,26 @@
         </div>
         <div class="modal-body" style="padding: 20px; max-height: 400px; overflow-y: auto;">
           <p style="white-space: pre-wrap; line-height: 1.6; color: var(--text-main);">{{ notesPopup.text }}</p>
+        </div>
+      </div>
+    </div>
+
+    <div v-if="emailHistoryPopup.show" class="modal-overlay" @click.self="emailHistoryPopup.show = false">
+      <div class="modal max-w-500">
+        <div class="modal-header">
+          <h2>🕒 Contact History</h2>
+          <button @click="emailHistoryPopup.show = false" class="modal-close">✕</button>
+        </div>
+        <div class="modal-body" style="padding: 10px 20px 20px; max-height: 400px; overflow-y: auto;">
+          <p class="text-sm text-gray-400 mb-3">All records for <strong>{{ emailHistoryPopup.companyName }}</strong>:</p>
+          <div v-for="log in emailHistoryPopup.list" :key="log.id || log.sent_at" class="reach-date full-width mb-2" :class="{ 'overdue': isOverdue(log.sent_at) }">
+            <span class="log-icon">🕒</span> {{ log.template_name }}: {{ new Date(log.sent_at).toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' }) }}
+            
+            <span v-if="log.read_at" class="status-badge is-read" :title="'Read at: ' + new Date(log.read_at).toLocaleString()">Read</span>
+            <span v-else class="status-badge is-sent" title="Sent (not read yet)">Sent</span>
+            
+            <span v-if="isOverdue(log.sent_at) && !log.read_at" class="warning-icon" title="No response in more than 7 days">⚠️</span>
+          </div>
         </div>
       </div>
     </div>
@@ -333,6 +356,8 @@ const selectedCertifications = ref([])
 const certPopup = ref({ show: false, list: [] })
 const notesPopup = ref({ show: false, text: '' })
 
+const emailHistoryPopup = ref({ show: false, list: [], companyName: '' })
+
 const logContactModal = ref({
   show: false,
   manufacturerId: null,
@@ -384,6 +409,12 @@ function showNotesPopup(notes) {
   notesPopup.value.show = true
 }
 
+function showEmailHistoryPopup(m) {
+  emailHistoryPopup.value.list = m.manufacturer_email_logs
+  emailHistoryPopup.value.companyName = m.company_name
+  emailHistoryPopup.value.show = true
+}
+
 async function saveManufacturer() {
   if (!form.value.company_name) return alert('Name required')
   form.value.product_categories = selectedCategories.value.join(', ')
@@ -427,7 +458,7 @@ async function fetchManufacturers() {
     .from('manufacturers')
     .select('*, manufacturer_email_logs(id, template_name, sent_at, read_at)')
     .order('company_name')
-    .order('sent_at', { foreignTable: 'manufacturer_email_logs', ascending: false }) // Ordenamos los logs por fecha
+    .order('sent_at', { foreignTable: 'manufacturer_email_logs', ascending: false }) // El índice [0] siempre será el más reciente
     
   manufacturers.value = data || []
   loading.value = false
@@ -688,6 +719,12 @@ input:focus, textarea:focus, select:focus {
 /* SECTIONS */
 .mt-4 { margin-top: 1.5rem; }
 .mt-3 { margin-top: 1rem; }
+.mt-2 { margin-top: 0.5rem; }
+.mt-1 { margin-top: 0.25rem; }
+.mb-2 { margin-bottom: 0.5rem; }
+.mb-3 { margin-bottom: 1rem; }
+.text-sm { font-size: 0.85rem; }
+
 .section-label { 
   display: block; 
   font-size: 0.8rem; 
@@ -871,16 +908,7 @@ input:focus, textarea:focus, select:focus {
   font-size: 0.8rem;
 }
 
-/* HISTORIAL DE CORREOS */
-.email-history {
-  display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
-  margin-top: 0.5rem;
-  max-height: 120px; /* Límite para que no se deforme la tarjeta */
-  overflow-y: auto;
-  padding-right: 5px;
-}
+/* HISTORIAL DE CORREOS Y BADGES */
 .reach-date { 
   font-size: 0.8rem; 
   color: var(--text-muted); 
@@ -892,30 +920,39 @@ input:focus, textarea:focus, select:focus {
   gap: 0.4rem; 
   border: 1px solid rgba(255,255,255,0.05);
 }
+.full-width { width: 100%; justify-content: flex-start; }
 
-/* BADGES DE ESTADO (SENT/READ) */
 .status-badge {
   font-size: 0.65rem;
   padding: 0.1rem 0.4rem;
   border-radius: 4px;
   font-weight: 700;
-  margin-left: auto; /* Empuja el badge al final de la fila */
+  margin-left: auto;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   cursor: help;
 }
-.is-sent { 
-  background: rgba(0,0,0,0.1); 
-  color: var(--text-muted); 
-  border: 1px solid var(--border-main);
-}
-.is-read { 
-  background: rgba(59, 130, 246, 0.15); 
-  color: #3b82f6; 
-  border: 1px solid rgba(59, 130, 246, 0.3);
-}
-
+.is-sent { background: rgba(0,0,0,0.1); color: var(--text-muted); border: 1px solid var(--border-main);}
+.is-read { background: rgba(59, 130, 246, 0.15); color: #3b82f6; border: 1px solid rgba(59, 130, 246, 0.3);}
 .overdue { background-color: var(--danger-bg); color: var(--danger-text); border: 1px solid rgba(251, 113, 133, 0.3);}
+.check-icon-green { font-size: 0.8rem; margin-right: 0.4rem;}
+
+/* Botón de ver más logs */
+.btn-view-more {
+  background: transparent;
+  border: none;
+  color: var(--primary);
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 0;
+  text-decoration: underline;
+  text-decoration-style: dashed;
+  text-underline-offset: 3px;
+  transition: color 0.2s;
+}
+.btn-view-more:hover { color: #818cf8; }
+
 
 /* Bloque 4: Acciones */
 .card-actions-vertical { 
