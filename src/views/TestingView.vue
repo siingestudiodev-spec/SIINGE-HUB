@@ -185,35 +185,61 @@ const generateDocument = async () => {
     const pages = pdfDoc.getPages()
     const lastPage = pages[pages.length - 1] 
     
-    // 3. AGGRESSIVE SMART-DETECTION
+    // 3. AUTO-DETECTION AND ASPECT RATIO PRESERVATION
     const sigFieldName = activeDoc.value === 'nda' ? 'signature_nda' : 'signature_mma'
     
+    // Valores por defecto por si el campo no existe
+    let drawX = 150
+    let drawY = 180
+    let drawW = 180
+    let drawH = 70
+    
     try {
-      // Pedimos el campo de forma genérica, sin importar si es texto, firma o botón
-      const sigField = form.getField(sigFieldName)
+      let sigField = null
+      
+      try {
+        sigField = form.getSignature(sigFieldName)
+      } catch (err) {
+        sigField = form.getTextField(sigFieldName)
+      }
+      
       const widgets = sigField.acroField.getWidgets()
       
       if (widgets.length > 0) {
         const rect = widgets[0].getRectangle()
-        console.log(`¡Encontrado! Coordenadas para ${sigFieldName}:`, rect)
         
-        lastPage.drawImage(pngImg, {
-          x: rect.x,
-          y: rect.y,
-          width: rect.width,
-          height: rect.height,
-        })
+        // Calcular la proporción original de la imagen (Aspect Ratio)
+        const imgRatio = pngImg.width / pngImg.height
+        const boxRatio = rect.width / rect.height
         
+        if (imgRatio > boxRatio) {
+          // La imagen es más ancha que la caja
+          drawW = rect.width
+          drawH = rect.width / imgRatio
+        } else {
+          // La imagen es más alta que la caja
+          drawH = rect.height
+          drawW = rect.height * imgRatio
+        }
+        
+        // Centrar la imagen en las coordenadas del cuadro original de Acrobat
+        drawX = rect.x + (rect.width - drawW) / 2
+        drawY = rect.y + (rect.height - drawH) / 2
+        
+        // Eliminar el cuadro de Acrobat para evitar duplicados o fondos extraños
         form.removeField(sigFieldName)
-      } else {
-        throw new Error("El campo existe pero no tiene dimensiones visuales.")
       }
     } catch (e) {
-      console.warn("Fallo al detectar el campo de firma original de Acrobat. Usando coordenadas manuales.", e)
-      // Fallback manual por si acaso.
-      // Eje Y empieza desde ABAJO de la página hacia arriba.
-      lastPage.drawImage(pngImg, { x: 150, y: 180, width: 180, height: 70 }) 
+      console.warn("Signature field not found. Make sure the name matches in Acrobat.", e)
     }
+
+    // Dibujar la firma UNA SOLA VEZ con la escala y posición calculada
+    lastPage.drawImage(pngImg, {
+      x: drawX,
+      y: drawY,
+      width: drawW,
+      height: drawH,
+    })
 
     // 4. Flatten and save
     form.flatten()
