@@ -4,7 +4,7 @@
       <div class="header">
         <div class="status-pill">SMART-FILL + AUTO-COORDINATES</div>
         <h1>Digital Signature</h1>
-        <p class="subtitle">Fill in the details and download your signed document.</p>
+        <p class="subtitle">Please review the document, fill in your details, and sign.</p>
       </div>
 
       <div class="tab-group">
@@ -16,6 +16,18 @@
           @click="activeDoc = 'mma'" 
           :class="{ active: activeDoc === 'mma' }"
         >MMA (Master Manufacturing Agreement)</button>
+      </div>
+
+      <div class="pdf-viewer-container">
+        <div class="viewer-header">
+          <span>Document Preview</span>
+          <a :href="activeDoc === 'nda' ? '/template_nda.pdf' : '/template_mma.pdf'" target="_blank" class="link-open">Open in new tab ↗</a>
+        </div>
+        <iframe 
+          :src="activeDoc === 'nda' ? '/template_nda.pdf' : '/template_mma.pdf'" 
+          class="pdf-frame"
+          title="Document Preview"
+        ></iframe>
       </div>
 
       <div class="form-section">
@@ -116,13 +128,11 @@ let drawing = false
 onMounted(() => {
   ctx = signaturePad.value.getContext('2d')
   
-  // Trazos mucho más gruesos y definidos para el PDF
   ctx.lineWidth = 15 
   ctx.lineCap = 'round'
   ctx.lineJoin = 'round'
   ctx.strokeStyle = '#000000'
   
-  // Ligero blur oscuro para evitar que la imagen se vea transparente o pixelada
   ctx.shadowBlur = 1
   ctx.shadowColor = '#000000'
 
@@ -162,7 +172,6 @@ const generateDocument = async () => {
   success.value = false
   
   try {
-    // Forzamos el formato MM/DD/YYYY siempre
     const d = new Date()
     const month = String(d.getMonth() + 1).padStart(2, '0')
     const day = String(d.getDate()).padStart(2, '0')
@@ -175,7 +184,6 @@ const generateDocument = async () => {
     const pdfDoc = await PDFDocument.load(existingPdfBytes)
     const form = pdfDoc.getForm()
 
-    // 1. Fill text fields
     if (activeDoc.value === 'mma') {
       fillField(form, 'fecha_firma', formattedDate)
       fillField(form, 'company_name_mma', formData.companyName)
@@ -193,13 +201,11 @@ const generateDocument = async () => {
       fillField(form, 'Date_2', formattedDate)
     }
 
-    // 2. Prepare signature image
     const signatureImage = signaturePad.value.toDataURL('image/png')
     const pngImg = await pdfDoc.embedPng(signatureImage)
     const pages = pdfDoc.getPages()
     const lastPage = pages[pages.length - 1] 
     
-    // 3. AUTO-DETECTION AND ASPECT RATIO PRESERVATION
     const sigFieldName = activeDoc.value === 'nda' ? 'signature_nda' : 'signature_mma'
     
     let drawX = 150
@@ -248,11 +254,9 @@ const generateDocument = async () => {
       height: drawH,
     })
 
-    // 4. Flatten and save
     form.flatten()
     const pdfBytes = await pdfDoc.save()
 
-    // 5. Download
     const blob = new Blob([pdfBytes], { type: 'application/pdf' })
     const link = document.createElement('a')
     link.href = URL.createObjectURL(blob)
@@ -283,6 +287,13 @@ h1 { font-size: 1.6rem; margin: 0; font-weight: 800; color: #f8fafc; }
 .tab-group { display: flex; gap: 8px; margin-bottom: 20px; background: #0f172a; padding: 6px; border-radius: 14px; }
 .tab-group button { flex: 1; padding: 10px; border-radius: 10px; border: none; background: transparent; color: #64748b; cursor: pointer; font-weight: 700; transition: 0.3s; font-size: 0.9rem; }
 .tab-group button.active { background: #38bdf8; color: #0f172a; }
+
+/* NUEVOS ESTILOS DEL VISOR PDF */
+.pdf-viewer-container { background: #0f172a; border-radius: 16px; border: 1px solid #334155; overflow: hidden; margin-bottom: 20px; display: flex; flex-direction: column; }
+.viewer-header { background: #1e293b; padding: 8px 15px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #334155; font-size: 0.75rem; font-weight: 600; color: #94a3b8; }
+.link-open { color: #38bdf8; text-decoration: none; transition: 0.2s; }
+.link-open:hover { color: #7dd3fc; }
+.pdf-frame { width: 100%; height: 250px; border: none; background: white; }
 
 .form-section { text-align: left; margin-bottom: 20px; background: #0f172a; padding: 20px; border-radius: 16px; border: 1px solid #334155; }
 .row { display: flex; gap: 15px; }
