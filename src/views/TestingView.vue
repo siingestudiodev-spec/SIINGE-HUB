@@ -115,7 +115,7 @@ let drawing = false
 
 onMounted(() => {
   ctx = signaturePad.value.getContext('2d')
-  ctx.lineWidth = 2.5
+  ctx.lineWidth = 7.5 // <--- Aquí triplicamos el grosor del trazo
   ctx.lineCap = 'round'
   ctx.strokeStyle = '#000000'
   const rect = signaturePad.value.getBoundingClientRect()
