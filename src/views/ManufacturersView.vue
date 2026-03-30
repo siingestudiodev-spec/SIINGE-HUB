@@ -136,7 +136,7 @@
           </div>
             
           <div v-if="m.manufacturer_email_logs && m.manufacturer_email_logs.length > 0" class="email-history">
-            <div v-for="(log, index) in m.manufacturer_email_logs.slice(-1)" :key="index" 
+            <div v-for="(log, index) in m.manufacturer_email_logs" :key="log.id || index" 
                  class="reach-date"
                  :class="{ 'overdue': isOverdue(log.sent_at) }">
               <span class="log-icon">🕒</span> {{ log.template_name }}: {{ new Date(log.sent_at).toLocaleDateString('en-US', { day: '2-digit', month: 'short' }) }}
@@ -263,14 +263,11 @@ import { ref, computed, onMounted } from 'vue'
 import { supabase } from '../lib/supabase'
 import emailjs from '@emailjs/browser'
 
-// TU URL REAL DE SUPABASE
 const SUPABASE_PROJECT_URL = 'https://dshnhzgnfgtwqobqazxu.supabase.co'
-
 const EMAILJS_SERVICE_ID  = 'service_vxy88pq'
 const EMAILJS_TEMPLATE_ID = 'template_44apzvs'
 const EMAILJS_PUBLIC_KEY  = 'CFmOQW7RjLSBDwIOV'
 
-// ---- CÓDIGO HTML DE TU FIRMA INTACTO Y FORMATEADO ----
 const htmlSignature = `<br><br>
 <table cellpadding="0" cellspacing="0" style="border-collapse: collapse; line-height: 1.15; width: 100%;" id="isPasted" width="100%">
   <tbody valign="middle">
@@ -426,11 +423,11 @@ function resetForm() {
 
 async function fetchManufacturers() {
   loading.value = true
-  // Unión con la nueva tabla de logs para traer el historial
   const { data } = await supabase
     .from('manufacturers')
-    .select('*, manufacturer_email_logs(template_name, sent_at, read_at)')
+    .select('*, manufacturer_email_logs(id, template_name, sent_at, read_at)')
     .order('company_name')
+    .order('sent_at', { foreignTable: 'manufacturer_email_logs', ascending: false }) // Ordenamos los logs por fecha
     
   manufacturers.value = data || []
   loading.value = false
@@ -521,30 +518,21 @@ function openLogContactModal(m) {
 
 async function saveLogContact() {
   if (!logContactModal.value.note.trim()) return
-  
   const dateObj = new Date(logContactModal.value.date + 'T12:00:00') 
   const sentAt = dateObj.toISOString()
-  
-  // Guardar en la nueva tabla separada
   await supabase.from('manufacturer_email_logs').insert([{
     manufacturer_id: logContactModal.value.manufacturerId,
     template_name: logContactModal.value.note.trim(),
     sent_at: sentAt
   }])
-  
   logContactModal.value.show = false
   fetchManufacturers()
 }
 
-// ===============================================
-// ENVÍO CON RASTREO (PÍXEL)
-// ===============================================
 async function sendEmail() {
   emailModal.value.sending = true
   try {
     const templateName = emailModal.value.isInitialReach ? 'Initial Reach' : (emailModal.value.selectedTemplate?.name || 'Custom Email')
-
-    // 1. Loguear en Supabase PRIMERO para obtener un ID único
     const { data: logEntry, error: logError } = await supabase
       .from('manufacturer_email_logs')
       .insert([{
@@ -556,13 +544,10 @@ async function sendEmail() {
 
     if (logError) throw logError
     const trackingId = logEntry.id
-
-    // 2. Inyectar el Píxel de rastreo en la firma HTML
     const trackingUrl = `${SUPABASE_PROJECT_URL}/functions/v1/track-email?id=${trackingId}`
     const pixelTag = `<img src="${trackingUrl}" width="1" height="1" style="display:none !important;" />`
     const trackedSignature = htmlSignature.replace('</tbody>', `${pixelTag}</tbody>`)
 
-    // 3. Enviar a través de EmailJS con la firma rastreada
     await emailjs.send(
       EMAILJS_SERVICE_ID, 
       EMAILJS_TEMPLATE_ID, 
@@ -575,7 +560,6 @@ async function sendEmail() {
       EMAILJS_PUBLIC_KEY
     )
     
-    // 4. Actualizar manufacturers para poner 'initial_reach_sent'
     if (emailModal.value.isInitialReach) {
         await supabase.from('manufacturers').update({ 
           initial_reach_sent: true, 
@@ -592,7 +576,6 @@ async function sendEmail() {
     emailModal.value.sending = false 
   }
 }
-// ===============================================
 
 async function deleteManufacturer(id) {
   if (confirm('Are you sure you want to delete this manufacturer?')) { 
@@ -669,7 +652,7 @@ input:focus, textarea:focus, select:focus {
   outline: none; 
 }
 
-/* LEGAL STATUS BADGES & CHECKBOXES */
+/* LEGAL STATUS BADGES */
 .legal-grid { 
   display: flex; 
   gap: 1.5rem; 
@@ -702,7 +685,7 @@ input:focus, textarea:focus, select:focus {
 .legal-badge.nda { background: #8b5cf6; }
 .legal-badge.mma { background: #ec4899; }
 
-/* SECTIONS (Categories & Certs) */
+/* SECTIONS */
 .mt-4 { margin-top: 1.5rem; }
 .mt-3 { margin-top: 1rem; }
 .section-label { 
@@ -764,7 +747,7 @@ input:focus, textarea:focus, select:focus {
 }
 .results-count { font-size: 0.85rem; color: var(--text-muted); margin-left: auto; }
 
-/* LISTA HORIZONTAL */
+/* LISTA */
 .list-container { 
   display: flex; 
   flex-direction: column; 
@@ -788,7 +771,7 @@ input:focus, textarea:focus, select:focus {
   box-shadow: 0 8px 15px rgba(0,0,0,0.15);
 }
 
-/* Bloque 1: Identidad */
+/* Bloques */
 .card-identity { 
   display: flex; 
   align-items: flex-start; 
@@ -810,7 +793,6 @@ input:focus, textarea:focus, select:focus {
 .card-title-block h3 { margin: 0; font-size: 1.1rem; font-weight: 700; color: var(--text-main); line-height: 1.2;}
 .country-badge { background: var(--bg-app); color: var(--text-muted); padding: 0.2rem 0.6rem; border-radius: 20px; font-size: 0.75rem; border: 1px solid var(--border-main);}
 
-/* Bloque 2: Info Main */
 .card-info-block { 
   flex: 2; 
   padding: 1.5rem;
@@ -854,7 +836,6 @@ input:focus, textarea:focus, select:focus {
   white-space: nowrap; 
 }
 
-/* Bloque 3: Detalles Extras */
 .card-details-block {
   flex: 1.5;
   padding: 1.5rem;
@@ -889,34 +870,39 @@ input:focus, textarea:focus, select:focus {
   overflow: hidden;
   font-size: 0.8rem;
 }
+
+/* HISTORIAL DE CORREOS */
+.email-history {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin-top: 0.5rem;
+  max-height: 120px; /* Límite para que no se deforme la tarjeta */
+  overflow-y: auto;
+  padding-right: 5px;
+}
 .reach-date { 
   font-size: 0.8rem; 
   color: var(--text-muted); 
-  background: var(--bg-app); 
-  padding: 0.3rem 0.6rem; 
-  border-radius: 6px; 
+  background: rgba(255,255,255,0.02); 
+  padding: 0.4rem 0.6rem; 
+  border-radius: 8px; 
   display: flex; 
   align-items: center; 
   gap: 0.4rem; 
-  width: max-content;
+  border: 1px solid rgba(255,255,255,0.05);
 }
 
-/* ESTILOS DE BADGES DE ESTADO (SENT/READ) */
-.overdue { 
-  background-color: var(--danger-bg); 
-  color: var(--danger-text); 
-  border: 1px solid rgba(251, 113, 133, 0.3); 
-  font-weight: 700;
-}
+/* BADGES DE ESTADO (SENT/READ) */
 .status-badge {
-  font-size: 0.7rem;
-  padding: 0.15rem 0.4rem;
+  font-size: 0.65rem;
+  padding: 0.1rem 0.4rem;
   border-radius: 4px;
   font-weight: 700;
-  margin-left: 0.5rem;
+  margin-left: auto; /* Empuja el badge al final de la fila */
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  cursor: help; /* Muestra el cursor de interrogación para invitar al hover */
+  cursor: help;
 }
 .is-sent { 
   background: rgba(0,0,0,0.1); 
@@ -929,10 +915,7 @@ input:focus, textarea:focus, select:focus {
   border: 1px solid rgba(59, 130, 246, 0.3);
 }
 
-.check-icon-green {
-  font-size: 0.8rem;
-  margin-right: 0.4rem;
-}
+.overdue { background-color: var(--danger-bg); color: var(--danger-text); border: 1px solid rgba(251, 113, 133, 0.3);}
 
 /* Bloque 4: Acciones */
 .card-actions-vertical { 
@@ -945,60 +928,21 @@ input:focus, textarea:focus, select:focus {
   min-width: 140px;
   justify-content: center;
 }
-.action-top-row {
-  display: flex;
-  justify-content: space-between;
-  gap: 0.3rem;
-}
-.btn-action-icon {
-  background: var(--bg-app);
-  border: 1px solid var(--border-main);
-  border-radius: 6px;
-  padding: 0.4rem;
-  cursor: pointer;
-  flex: 1;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  transition: 0.2s;
-}
-.btn-action-icon.btn-edit:hover { background: var(--border-light); }
-.btn-action-icon.btn-delete:hover { background: var(--danger-bg); border-color: rgba(251, 113, 133, 0.3);}
-.btn-action-full {
-  width: 100%;
-  padding: 0.6rem;
-  border-radius: 8px;
-  font-size: 0.75rem;
-  font-weight: 800;
-  border: none;
-  cursor: pointer;
-  text-transform: uppercase;
-  transition: filter 0.2s;
-}
-.btn-action-full:hover { filter: brightness(1.1); }
+.action-top-row { display: flex; justify-content: space-between; gap: 0.3rem;}
+.btn-action-icon { background: var(--bg-app); border: 1px solid var(--border-main); border-radius: 6px; padding: 0.4rem; cursor: pointer; flex: 1; display: flex; justify-content: center; align-items: center; transition: 0.2s; }
+.btn-action-full { width: 100%; padding: 0.6rem; border-radius: 8px; font-size: 0.75rem; font-weight: 800; border: none; cursor: pointer; text-transform: uppercase; transition: filter 0.2s; }
 .btn-initial-reach { background: var(--primary); color: white; }
 .btn-email { background: var(--success-bg); color: var(--success-text); }
 
-
-/* MODALS */
+/* MODALES */
 .modal-overlay { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.8); z-index: 1000; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(4px); }
 .modal { background: var(--bg-card); border-radius: 20px; width: 90%; max-width: 600px; padding: 2rem; border: 1px solid var(--border-main); }
 .modal-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-light); padding-bottom: 1rem; margin-bottom: 1.5rem; }
-.modal-header h2 { color: var(--text-main); margin: 0; font-size: 1.25rem;}
 .modal-close { background: var(--bg-app); border: 1px solid var(--border-main); color: var(--text-muted); width: 32px; height: 32px; border-radius: 8px; cursor: pointer; display: flex; justify-content: center; align-items: center; font-weight: bold;}
 .signature-notice { background: rgba(234, 179, 8, 0.1); color: var(--warning-text); padding: 0.5rem 0.8rem; border-radius: 8px; font-size: 0.85rem; border: 1px dashed var(--warning-text); }
 .cert-item { background: var(--bg-app); padding: 0.8rem 1rem; border-radius: 8px; margin-bottom: 0.5rem; color: var(--text-main); display: flex; gap: 0.6rem; }
-
 .modal-field { margin-bottom: 1.2rem; }
-.modal-field label { 
-  display: block; 
-  font-size: 0.8rem; 
-  font-weight: 700; 
-  color: var(--text-muted); 
-  margin-bottom: 0.4rem; 
-  text-transform: uppercase; 
-  letter-spacing: 0.05em;
-}
+.modal-field label { display: block; font-size: 0.8rem; font-weight: 700; color: var(--text-muted); margin-bottom: 0.4rem; text-transform: uppercase; letter-spacing: 0.05em;}
 
 /* GLOBAL BUTTONS */
 .btn-primary { background: var(--primary); color: white; border: none; padding: 0.7rem 1.5rem; border-radius: 10px; cursor: pointer; font-weight: 700; }
@@ -1009,10 +953,7 @@ input:focus, textarea:focus, select:focus {
 
 /* RESPONSIVE */
 @media (max-width: 1000px) {
-  .horizontal-card {
-    flex-direction: column;
-    align-items: stretch;
-  }
+  .horizontal-card { flex-direction: column; align-items: stretch; }
   .card-identity { border-right: none; border-bottom: 1px solid var(--border-light); padding-bottom: 1rem;}
   .card-details-block { border-left: none; border-top: 1px dashed var(--border-light); padding-top: 1rem;}
   .card-actions-vertical { border-left: none; border-top: 1px solid var(--border-main); flex-direction: row; flex-wrap: wrap; }
