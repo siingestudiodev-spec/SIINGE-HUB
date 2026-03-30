@@ -7,41 +7,58 @@ const corsHeaders = {
 }
 
 serve(async (req) => {
-  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
+  // Manejo de CORS para llamadas desde el navegador
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders })
+  }
 
   try {
     const { manufacturerId, fileName, fileBase64 } = await req.json()
-    const folderId = "1J7drSFMhFn88SiFahs9YXj8B9zCUWmpW" // Tu carpeta de Drive
-
-    // 1. Obtener el JWT de Google usando el secreto que guardamos
-    const credentials = JSON.parse(Deno.env.get('GOOGLE_SERVICE_ACCOUNT_JSON') || '{}')
     
-    // NOTA: Para producción real usarías una librería de Google Auth. 
-    // Por ahora, validamos el flujo de guardado en base de datos.
-    console.log(`Subiendo ${fileName} a la carpeta ${folderId}...`)
+    // Configuración con tus datos reales
+    const FOLDER_ID = "1J7drSFMhFn88SiFahs9YXj8B9zCUWmpW"
+    
+    console.log(`>>> Iniciando proceso para fabricante: ${manufacturerId}`)
 
-    const supabase = createClient(
+    // 1. Inicializar Supabase con Service Role (para saltar RLS)
+    const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
-    // Simulamos el ID de Drive para la prueba
-    const fileIdInDrive = "FILE_" + Math.random().toString(36).substr(2, 9)
-    const finalUrl = `https://drive.google.com/file/d/${fileIdInDrive}/view`
+    // 2. Generar un ID de simulación para el archivo (Mientras terminas OAuth de Google)
+    const mockFileId = `SIGNED_${Date.now()}`
+    const driveLink = `https://drive.google.com/drive/folders/${FOLDER_ID}`
 
-    // 2. Actualizamos la base de datos con el link
-    const { error: dbError } = await supabase
+    // 3. ACTUALIZAR LA BASE DE DATOS
+    // Esto es lo más importante: que el link quede guardado en el fabricante
+    const { data, error: dbError } = await supabaseAdmin
       .from('manufacturers')
-      .update({ nda_drive_link: finalUrl })
+      .update({ 
+        nda_drive_link: driveLink,
+        // Opcional: puedes guardar la fecha de firma si tienes la columna
+      })
       .eq('id', manufacturerId)
+      .select()
 
-    if (dbError) throw dbError
+    if (dbError) {
+      console.error("Error actualizando DB:", dbError)
+      throw new Error(`Error en Base de Datos: ${dbError.message}`)
+    }
+
+    console.log(`>>> DB Actualizada con éxito para: ${manufacturerId}`)
 
     return new Response(
-      JSON.stringify({ success: true, url: finalUrl }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      JSON.stringify({ 
+        success: true, 
+        message: "Firma procesada y registrada", 
+        url: driveLink 
+      }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
     )
+
   } catch (error) {
+    console.error("Error crítico en la función:", error.message)
     return new Response(
       JSON.stringify({ error: error.message }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
