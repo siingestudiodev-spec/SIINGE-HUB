@@ -2,48 +2,48 @@
   <div class="testing-container">
     <div class="card">
       <div class="header">
-        <div class="status-pill">GENERADOR DE CONTRATOS</div>
-        <h1>Firma Digital</h1>
-        <p class="subtitle">Complete los datos y descargue su documento firmado.</p>
+        <div class="status-pill">SMART-FILL + AUTO-COORDINATES</div>
+        <h1>Digital Signature</h1>
+        <p class="subtitle">Fill in the details and download your signed document.</p>
       </div>
 
       <div class="tab-group">
         <button 
           @click="activeDoc = 'nda'" 
           :class="{ active: activeDoc === 'nda' }"
-        >NDA (Confidencialidad)</button>
+        >NDA (Non-Disclosure Agreement)</button>
         <button 
           @click="activeDoc = 'mma'" 
           :class="{ active: activeDoc === 'mma' }"
-        >MMA (Manufactura)</button>
+        >MMA (Master Manufacturing Agreement)</button>
       </div>
 
       <div class="form-section">
         <div class="input-group">
-          <label>Nombre Legal de la Empresa:</label>
-          <input v-model="formData.companyName" type="text" placeholder="Ej: Textiles Globales S.A." />
+          <label>Legal Company Name:</label>
+          <input v-model="formData.companyName" type="text" placeholder="e.g., Global Textiles Inc." />
         </div>
         
         <div class="row">
           <div class="input-group half">
-            <label>Nombre del Representante:</label>
-            <input v-model="formData.signerName" type="text" placeholder="Nombre completo" />
+            <label>Representative Name:</label>
+            <input v-model="formData.signerName" type="text" placeholder="Full Name" />
           </div>
           <div class="input-group half">
-            <label>Cargo (Title):</label>
-            <input v-model="formData.signerTitle" type="text" placeholder="Ej: CEO, Founder" />
+            <label>Title:</label>
+            <input v-model="formData.signerTitle" type="text" placeholder="e.g., CEO, Founder" />
           </div>
         </div>
 
         <template v-if="activeDoc === 'mma'">
           <div class="row">
             <div class="input-group half">
-              <label>País (Country):</label>
-              <input v-model="formData.country" type="text" placeholder="Ej: Colombia" />
+              <label>Country:</label>
+              <input v-model="formData.country" type="text" placeholder="e.g., United States" />
             </div>
             <div class="input-group half">
-              <label>Dirección (Address):</label>
-              <input v-model="formData.address" type="text" placeholder="Dirección completa" />
+              <label>Address:</label>
+              <input v-model="formData.address" type="text" placeholder="Full Address" />
             </div>
           </div>
         </template>
@@ -51,8 +51,8 @@
 
       <div class="signature-section">
         <div class="label-row">
-          <label>Firma Autorizada:</label>
-          <button @click="clearPad" class="btn-clear">Limpiar pad</button>
+          <label>Authorized Signature:</label>
+          <button @click="clearPad" class="btn-clear">Clear pad</button>
         </div>
         <div class="canvas-container">
           <canvas 
@@ -73,13 +73,13 @@
         :disabled="loading || !isFormValid" 
         class="btn-submit"
       >
-        <span v-if="!loading">FIRMAR Y DESCARGAR PDF</span>
-        <span v-else>GENERANDO DOCUMENTO...</span>
+        <span v-if="!loading">SIGN AND DOWNLOAD PDF</span>
+        <span v-else>GENERATING DOCUMENT...</span>
       </button>
 
       <div v-if="success" class="success-box">
-        <p>✅ ¡Documento generado con éxito!</p>
-        <p class="small">Revisa tu carpeta de descargas.</p>
+        <p>✅ Document generated successfully!</p>
+        <p class="small">Check your downloads folder.</p>
       </div>
     </div>
   </div>
@@ -140,13 +140,12 @@ const draw = (e) => {
 const handleTouch = (e) => { e.preventDefault(); draw(e); }
 const clearPad = () => ctx.clearRect(0, 0, signaturePad.value.width, signaturePad.value.height)
 
-// Función auxiliar para rellenar campos sin que falle si el PDF no los tiene
 const fillField = (form, fieldName, value) => {
   try {
     const field = form.getTextField(fieldName)
     if (field) field.setText(value)
   } catch (error) {
-    console.warn(`No se pudo llenar el campo: ${fieldName}`)
+    console.warn(`Could not fill field: ${fieldName}`)
   }
 }
 
@@ -158,14 +157,11 @@ const generateDocument = async () => {
     const today = new Date().toLocaleDateString('en-US') 
     const pdfUrl = activeDoc.value === 'nda' ? '/template_nda.pdf' : '/template_mma.pdf'
     
-    // 1. Obtener el archivo PDF de la carpeta public
     const existingPdfBytes = await fetch(pdfUrl).then(res => res.arrayBuffer())
-
-    // 2. Cargar el documento con pdf-lib
     const pdfDoc = await PDFDocument.load(existingPdfBytes)
     const form = pdfDoc.getForm()
 
-    // 3. Rellenado de campos según el documento activo
+    // 1. Rellenado de campos de texto
     if (activeDoc.value === 'mma') {
       fillField(form, 'fecha_firma', today)
       fillField(form, 'company_name_mma', formData.companyName)
@@ -175,42 +171,52 @@ const generateDocument = async () => {
       fillField(form, 'Name', formData.signerName)
       fillField(form, 'Title', formData.signerTitle)
       fillField(form, 'date_2_mma', today)
-      
-      try { form.removeField('signature_mma') } catch(e){}
-
     } else {
       fillField(form, 'fecha_firma', today)
       fillField(form, 'company_name_nda', formData.companyName)
       fillField(form, 'fecha_firma2', today)
       fillField(form, 'name_title_nda', `${formData.signerName} - ${formData.signerTitle}`)
       fillField(form, 'Date_2', today)
-      
-      try { form.removeField('signature_nda') } catch(e){}
     }
 
-    // 4. Inserción de la firma como imagen PNG
+    // 2. Preparar la imagen de la firma
     const signatureImage = signaturePad.value.toDataURL('image/png')
     const pngImg = await pdfDoc.embedPng(signatureImage)
     const pages = pdfDoc.getPages()
-    
-    // Asumimos que la firma va en la última página
     const lastPage = pages[pages.length - 1] 
     
-    // --- COORDENADAS DE LA FIRMA ---
-    // x = izquierda a derecha | y = ABAJO hacia arriba
-    // Si la firma no cae en el lugar correcto, cambia estos valores y vuelve a probar.
-    lastPage.drawImage(pngImg, {
-      x: 150,      
-      y: 180,      
-      width: 180,  
-      height: 70,  
-    })
+    // 3. AUTO-DETECCIÓN DE COORDENADAS
+    const sigFieldName = activeDoc.value === 'nda' ? 'signature_nda' : 'signature_mma'
+    
+    try {
+      const sigField = form.getTextField(sigFieldName)
+      const widgets = sigField.acroField.getWidgets()
+      
+      if (widgets.length > 0) {
+        // Extraemos las medidas exactas del cuadro que dibujaste en Acrobat
+        const rect = widgets[0].getRectangle()
+        
+        lastPage.drawImage(pngImg, {
+          x: rect.x,
+          y: rect.y,
+          width: rect.width,
+          height: rect.height,
+        })
+        
+        // Eliminamos el cuadro de texto para que no estorbe a la firma
+        form.removeField(sigFieldName)
+      }
+    } catch (e) {
+      console.warn("Signature field not found, using default coordinates.", e)
+      // Fallback por si acaso borraste el campo sin querer
+      lastPage.drawImage(pngImg, { x: 150, y: 180, width: 180, height: 70 })
+    }
 
-    // 5. Aplanar el PDF para bloquear la edición
+    // 4. Aplanar y guardar
     form.flatten()
     const pdfBytes = await pdfDoc.save()
 
-    // 6. Forzar la descarga en el navegador del usuario
+    // 5. Descargar
     const blob = new Blob([pdfBytes], { type: 'application/pdf' })
     const link = document.createElement('a')
     link.href = URL.createObjectURL(blob)
@@ -223,7 +229,7 @@ const generateDocument = async () => {
 
   } catch (err) {
     console.error(err)
-    alert('Error al generar el documento: ' + err.message)
+    alert('Error generating document: ' + err.message)
   } finally {
     loading.value = false
   }
