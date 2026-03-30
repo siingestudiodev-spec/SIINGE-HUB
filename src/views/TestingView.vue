@@ -115,9 +115,17 @@ let drawing = false
 
 onMounted(() => {
   ctx = signaturePad.value.getContext('2d')
-  ctx.lineWidth = 7.5 // <--- Aquí triplicamos el grosor del trazo
+  
+  // Trazos mucho más gruesos y definidos para el PDF
+  ctx.lineWidth = 15 
   ctx.lineCap = 'round'
+  ctx.lineJoin = 'round'
   ctx.strokeStyle = '#000000'
+  
+  // Ligero blur oscuro para evitar que la imagen se vea transparente o pixelada
+  ctx.shadowBlur = 1
+  ctx.shadowColor = '#000000'
+
   const rect = signaturePad.value.getBoundingClientRect()
   signaturePad.value.width = rect.width
   signaturePad.value.height = rect.height
@@ -154,7 +162,13 @@ const generateDocument = async () => {
   success.value = false
   
   try {
-    const today = new Date().toLocaleDateString('en-US') 
+    // Forzamos el formato MM/DD/YYYY siempre
+    const d = new Date()
+    const month = String(d.getMonth() + 1).padStart(2, '0')
+    const day = String(d.getDate()).padStart(2, '0')
+    const year = d.getFullYear()
+    const formattedDate = `${month}/${day}/${year}`
+    
     const pdfUrl = activeDoc.value === 'nda' ? '/template_nda.pdf' : '/template_mma.pdf'
     
     const existingPdfBytes = await fetch(pdfUrl).then(res => res.arrayBuffer())
@@ -163,20 +177,20 @@ const generateDocument = async () => {
 
     // 1. Fill text fields
     if (activeDoc.value === 'mma') {
-      fillField(form, 'fecha_firma', today)
+      fillField(form, 'fecha_firma', formattedDate)
       fillField(form, 'company_name_mma', formData.companyName)
       fillField(form, 'country_mma', formData.country)
       fillField(form, 'address_mma', formData.address)
-      fillField(form, 'fecha_firma2', today)
+      fillField(form, 'fecha_firma2', formattedDate)
       fillField(form, 'Name', formData.signerName)
       fillField(form, 'Title', formData.signerTitle)
-      fillField(form, 'date_2_mma', today)
+      fillField(form, 'date_2_mma', formattedDate)
     } else {
-      fillField(form, 'fecha_firma', today)
+      fillField(form, 'fecha_firma', formattedDate)
       fillField(form, 'company_name_nda', formData.companyName)
-      fillField(form, 'fecha_firma2', today)
+      fillField(form, 'fecha_firma2', formattedDate)
       fillField(form, 'name_title_nda', `${formData.signerName} - ${formData.signerTitle}`)
-      fillField(form, 'Date_2', today)
+      fillField(form, 'Date_2', formattedDate)
     }
 
     // 2. Prepare signature image
@@ -188,7 +202,6 @@ const generateDocument = async () => {
     // 3. AUTO-DETECTION AND ASPECT RATIO PRESERVATION
     const sigFieldName = activeDoc.value === 'nda' ? 'signature_nda' : 'signature_mma'
     
-    // Valores por defecto por si el campo no existe
     let drawX = 150
     let drawY = 180
     let drawW = 180
@@ -208,32 +221,26 @@ const generateDocument = async () => {
       if (widgets.length > 0) {
         const rect = widgets[0].getRectangle()
         
-        // Calcular la proporción original de la imagen (Aspect Ratio)
         const imgRatio = pngImg.width / pngImg.height
         const boxRatio = rect.width / rect.height
         
         if (imgRatio > boxRatio) {
-          // La imagen es más ancha que la caja
           drawW = rect.width
           drawH = rect.width / imgRatio
         } else {
-          // La imagen es más alta que la caja
           drawH = rect.height
           drawW = rect.height * imgRatio
         }
         
-        // Centrar la imagen en las coordenadas del cuadro original de Acrobat
         drawX = rect.x + (rect.width - drawW) / 2
         drawY = rect.y + (rect.height - drawH) / 2
         
-        // Eliminar el cuadro de Acrobat para evitar duplicados o fondos extraños
         form.removeField(sigFieldName)
       }
     } catch (e) {
       console.warn("Signature field not found. Make sure the name matches in Acrobat.", e)
     }
 
-    // Dibujar la firma UNA SOLA VEZ con la escala y posición calculada
     lastPage.drawImage(pngImg, {
       x: drawX,
       y: drawY,
