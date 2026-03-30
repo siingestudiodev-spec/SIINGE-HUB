@@ -161,7 +161,7 @@ const generateDocument = async () => {
     const pdfDoc = await PDFDocument.load(existingPdfBytes)
     const form = pdfDoc.getForm()
 
-    // 1. Rellenado de campos de texto
+    // 1. Fill text fields
     if (activeDoc.value === 'mma') {
       fillField(form, 'fecha_firma', today)
       fillField(form, 'company_name_mma', formData.companyName)
@@ -179,22 +179,23 @@ const generateDocument = async () => {
       fillField(form, 'Date_2', today)
     }
 
-    // 2. Preparar la imagen de la firma
+    // 2. Prepare signature image
     const signatureImage = signaturePad.value.toDataURL('image/png')
     const pngImg = await pdfDoc.embedPng(signatureImage)
     const pages = pdfDoc.getPages()
     const lastPage = pages[pages.length - 1] 
     
-    // 3. AUTO-DETECCIÓN DE COORDENADAS
+    // 3. AGGRESSIVE SMART-DETECTION
     const sigFieldName = activeDoc.value === 'nda' ? 'signature_nda' : 'signature_mma'
     
     try {
-      const sigField = form.getTextField(sigFieldName)
+      // Pedimos el campo de forma genérica, sin importar si es texto, firma o botón
+      const sigField = form.getField(sigFieldName)
       const widgets = sigField.acroField.getWidgets()
       
       if (widgets.length > 0) {
-        // Extraemos las medidas exactas del cuadro que dibujaste en Acrobat
         const rect = widgets[0].getRectangle()
+        console.log(`¡Encontrado! Coordenadas para ${sigFieldName}:`, rect)
         
         lastPage.drawImage(pngImg, {
           x: rect.x,
@@ -203,20 +204,22 @@ const generateDocument = async () => {
           height: rect.height,
         })
         
-        // Eliminamos el cuadro de texto para que no estorbe a la firma
         form.removeField(sigFieldName)
+      } else {
+        throw new Error("El campo existe pero no tiene dimensiones visuales.")
       }
     } catch (e) {
-      console.warn("Signature field not found, using default coordinates.", e)
-      // Fallback por si acaso borraste el campo sin querer
-      lastPage.drawImage(pngImg, { x: 150, y: 180, width: 180, height: 70 })
+      console.warn("Fallo al detectar el campo de firma original de Acrobat. Usando coordenadas manuales.", e)
+      // Fallback manual por si acaso.
+      // Eje Y empieza desde ABAJO de la página hacia arriba.
+      lastPage.drawImage(pngImg, { x: 150, y: 180, width: 180, height: 70 }) 
     }
 
-    // 4. Aplanar y guardar
+    // 4. Flatten and save
     form.flatten()
     const pdfBytes = await pdfDoc.save()
 
-    // 5. Descargar
+    // 5. Download
     const blob = new Blob([pdfBytes], { type: 'application/pdf' })
     const link = document.createElement('a')
     link.href = URL.createObjectURL(blob)
