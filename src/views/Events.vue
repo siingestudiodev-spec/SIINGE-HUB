@@ -3,7 +3,7 @@
     <div class="header">
       <div>
         <h1>📅 Events 2026</h1>
-        <p class="subtitle">Trade shows & industry events</p>
+        <p class="subtitle">Trade shows & industry events by Continent</p>
       </div>
       <div class="header-actions">
         <label class="btn-secondary import-label">
@@ -49,32 +49,38 @@
     <div v-if="loading" class="loading">Loading events...</div>
     <div v-else-if="filteredEvents.length === 0" class="empty">No events match your filters.</div>
     
-    <div v-else class="cards-grid">
-      <div v-for="e in filteredEvents" :key="e.id" class="event-card" :class="{ expired: isPast(e.start_date, e.duration_days) }">
-        <div class="card-top">
-          <div>
-            <strong class="event-name">{{ e.event_name }}</strong>
-            <div class="event-location">📍 {{ [e.city, e.country].filter(Boolean).join(', ') || '—' }}</div>
+    <div v-else class="continents-container">
+      <div v-for="(eventsList, continent) in groupedEvents" :key="continent" class="continent-section">
+        <h2 class="continent-title">🌍 {{ continent }} Events</h2>
+        
+        <div class="cards-grid">
+          <div v-for="e in eventsList" :key="e.id" class="event-card" :class="{ expired: isPast(e.start_date, e.duration_days) }">
+            <div class="card-top">
+              <div>
+                <strong class="event-name">{{ e.event_name }}</strong>
+                <div class="event-location">📍 {{ [e.city, e.country].filter(Boolean).join(', ') || '—' }}</div>
+              </div>
+              <div class="card-actions">
+                <button @click="editEvent(e)" class="btn-edit" title="Edit">✏️</button>
+                <button @click="deleteEvent(e.id)" class="btn-delete" title="Delete">✕</button>
+              </div>
+            </div>
+
+            <div class="event-dates">
+              <span class="date-badge">🗓 {{ formatDate(e.start_date) }}</span>
+              <span class="duration-badge">{{ e.duration_days }} day{{ e.duration_days > 1 ? 's' : '' }}</span>
+            </div>
+
+            <div v-if="isPast(e.start_date, e.duration_days)" class="expired-label">⛔ Event has passed</div>
+            <div v-else class="days-left">⏳ {{ daysUntil(e.start_date) }} days away</div>
+
+            <div v-if="e.registration_url" class="card-link">
+              <a :href="e.registration_url" target="_blank" class="btn-register">🔗 Register / Info</a>
+            </div>
+
+            <div v-if="e.notes" class="card-notes">{{ e.notes }}</div>
           </div>
-          <div class="card-actions">
-            <button @click="editEvent(e)" class="btn-edit" title="Edit">✏️</button>
-            <button @click="deleteEvent(e.id)" class="btn-delete" title="Delete">✕</button>
-          </div>
         </div>
-
-        <div class="event-dates">
-          <span class="date-badge">🗓 {{ formatDate(e.start_date) }}</span>
-          <span class="duration-badge">{{ e.duration_days }} day{{ e.duration_days > 1 ? 's' : '' }}</span>
-        </div>
-
-        <div v-if="isPast(e.start_date, e.duration_days)" class="expired-label">⛔ Event has passed</div>
-        <div v-else class="days-left">⏳ {{ daysUntil(e.start_date) }} days away</div>
-
-        <div v-if="e.registration_url" class="card-link">
-          <a :href="e.registration_url" target="_blank" class="btn-register">🔗 Register / Info</a>
-        </div>
-
-        <div v-if="e.notes" class="card-notes">{{ e.notes }}</div>
       </div>
     </div>
   </div>
@@ -83,7 +89,7 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import { supabase } from '../lib/supabase'
-import * as XLSX from 'xlsx' // RECUERDA: npm install xlsx
+import * as XLSX from 'xlsx'
 
 const events = ref([])
 const loading = ref(true)
@@ -110,7 +116,51 @@ const emptyForm = () => ({
 
 const form = ref(emptyForm())
 
-// --- LÓGICA DE IMPORTACIÓN MEJORADA ---
+// --- DICCIONARIO DE CONTINENTES ---
+function getContinent(country) {
+  if (!country) return 'Other'
+  
+  const europe = ['Portugal', 'Spain', 'France', 'Italy', 'Germany', 'United Kingdom', 'UK', 'Netherlands', 'Belgium', 'Switzerland', 'Poland', 'Sweden', 'Denmark', 'Norway', 'Finland', 'Austria', 'Greece']
+  const asia = ['China', 'Vietnam', 'Turkey', 'India', 'Japan', 'South Korea', 'Taiwan', 'Bangladesh', 'Pakistan', 'Indonesia', 'Thailand', 'Malaysia', 'Singapore']
+  const america = ['United States', 'USA', 'Mexico', 'Colombia', 'Brazil', 'Argentina', 'Canada', 'Peru', 'Chile', 'Ecuador', 'Panama']
+  const africa = ['Egypt', 'South Africa', 'Morocco', 'Nigeria', 'Kenya', 'Ethiopia']
+  const oceania = ['Australia', 'New Zealand']
+
+  if (europe.includes(country)) return 'Europe'
+  if (asia.includes(country)) return 'Asia'
+  if (america.includes(country)) return 'America'
+  if (africa.includes(country)) return 'Africa'
+  if (oceania.includes(country)) return 'Oceania'
+  
+  return 'Other' // Si el país no está en la lista o no tiene país asignado
+}
+
+// --- AGRUPACIÓN POR CONTINENTES ---
+const groupedEvents = computed(() => {
+  // Primero aplicamos los filtros normales
+  const filtered = filteredEvents.value
+
+  // Preparamos la estructura
+  const groups = {
+    'America': [],
+    'Europe': [],
+    'Asia': [],
+    'Africa': [],
+    'Oceania': [],
+    'Other': []
+  }
+
+  // Llenamos los grupos
+  filtered.forEach(e => {
+    const continent = getContinent(e.country)
+    groups[continent].push(e)
+  })
+
+  // Retornamos solo los continentes que tengan eventos
+  return Object.fromEntries(Object.entries(groups).filter(([_, evts]) => evts.length > 0))
+})
+
+// --- LÓGICA DE IMPORTACIÓN ---
 const handleImport = (ev) => {
   const file = ev.target.files[0]
   if (!file) return
@@ -126,14 +176,11 @@ const handleImport = (ev) => {
 
       let count = 0
       for (const row of rawJson) {
-        // 1. Limpieza de nombres de columnas (quitar espacios)
         const cleanRow = {}
         Object.keys(row).forEach(k => cleanRow[k.trim()] = row[k])
 
-        // 2. Saltamos filas sin nombre o separadoras
         if (!cleanRow['Task Name'] || cleanRow['Task Name'].trim() === "") continue
 
-        // 3. FUNCIÓN PARA LIMPIAR FECHAS DE CLICKUP ("19th", "21st")
         const parseClickUpDate = (dateStr) => {
           if (!dateStr) return null
           const cleanDate = String(dateStr).replace(/(\d+)(st|nd|rd|th)/, "$1")
@@ -144,12 +191,8 @@ const handleImport = (ev) => {
         const startDate = parseClickUpDate(cleanRow['Start Date'])
         const dueDate = parseClickUpDate(cleanRow['Due Date'])
 
-        if (!startDate) {
-          console.warn("Fecha inválida saltada:", cleanRow['Task Name'])
-          continue
-        }
+        if (!startDate) continue
 
-        // 4. Calcular duración asegurando mínimo 1 día
         const startObj = new Date(startDate)
         const endObj = dueDate ? new Date(dueDate) : startObj
         let duration = Math.ceil(Math.abs(endObj - startObj) / (1000 * 60 * 60 * 24))
@@ -176,7 +219,7 @@ const handleImport = (ev) => {
       alert("Hubo un error al procesar el Excel. Revisa la consola.")
     } finally {
       importing.value = false
-      ev.target.value = '' // Reseteamos el input
+      ev.target.value = ''
     }
   }
   reader.readAsArrayBuffer(file)
@@ -293,6 +336,10 @@ h1 { font-size: 2rem; font-weight: 700; color: var(--text-main); }
 .form-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.75rem; margin-bottom: 0.75rem; }
 input, textarea, select { width: 100%; padding: 0.7rem 1rem; background: var(--bg-app); border: 1px solid var(--border-main); border-radius: 10px; font-size: 0.92rem; color: var(--text-main); font-family: 'Inter', sans-serif; }
 textarea { resize: vertical; margin-top: 0.75rem; }
+
+/* CONTINENTS SECION */
+.continent-section { margin-bottom: 3.5rem; }
+.continent-title { font-size: 1.5rem; font-weight: 800; color: var(--text-main); margin-bottom: 1.5rem; padding-bottom: 0.5rem; border-bottom: 2px solid var(--border-light); }
 
 /* CARDS */
 .cards-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1.25rem; }
