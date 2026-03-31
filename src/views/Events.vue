@@ -13,9 +13,6 @@
           <button @click="currentView = 'kanban'" :class="{ active: currentView === 'kanban' }">
             📋 Kanban
           </button>
-          <button @click="currentView = 'calendar'" :class="{ active: currentView === 'calendar' }">
-            🗓️ Calendar
-          </button>
         </div>
 
         <label class="btn-secondary import-label">
@@ -140,48 +137,6 @@
       </div>
     </div>
 
-    <div v-else-if="currentView === 'calendar'" class="calendar-card-wrapper">
-      <div class="calendar-controls-wrapper">
-        <div class="calendar-controls">
-          <button @click="changeMonth(-1)" class="btn-icon">◀</button>
-          <h2 class="month-title">{{ currentMonthName }} {{ currentYear }}</h2>
-          <button @click="changeMonth(1)" class="btn-icon">▶</button>
-          <button @click="goToToday" class="btn-secondary ml-3">Today</button>
-        </div>
-      </div>
-
-      <div class="calendar-card">
-        <div class="calendar-grid">
-          <div class="weekday" v-for="day in weekDays" :key="day">{{ day }}</div>
-          
-          <div 
-            v-for="(cell, index) in calendarCells" 
-            :key="index" 
-            class="day-cell"
-            :class="{ 'is-empty': !cell.date, 'is-today': isToday(cell.date) }"
-          >
-            <div v-if="cell.date" class="day-number-container">
-              <span class="day-number">{{ cell.dayNumber }}</span>
-            </div>
-            
-            <div class="events-list" v-if="cell.date">
-              <div 
-                v-for="e in getEventsForDate(cell.date)" 
-                :key="e.id" 
-                class="task-badge"
-                :class="getEventCalendarClass(e)"
-                :title="e.event_name + ' - ' + (e.country || 'Global')"
-                @click="openNoteModal(e)"
-              >
-                <strong>{{ e.event_name || 'Unnamed Event' }}</strong>
-                <span>📌 {{ e.country || 'Global' }}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
     <div v-if="showNoteModal" class="modal-overlay" @click.self="closeNoteModal">
       <div class="modal-content card-notes-modal">
         <div class="modal-header">
@@ -229,57 +184,6 @@ function openNoteModal(event) {
 function closeNoteModal() {
   showNoteModal.value = false
   selectedNoteEvent.value = null
-}
-
-// --- CALENDAR LOGIC ---
-const currentDate = ref(new Date())
-const weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
-
-const currentMonthName = computed(() => {
-  return currentDate.value.toLocaleString('en-US', { month: 'long' })
-})
-const currentYear = computed(() => currentDate.value.getFullYear())
-
-const calendarCells = computed(() => {
-  const year = currentDate.value.getFullYear()
-  const month = currentDate.value.getMonth()
-  const firstDayOfMonth = new Date(year, month, 1).getDay()
-  const daysInMonth = new Date(year, month + 1, 0).getDate()
-  const cells = []
-  
-  for (let i = 0; i < firstDayOfMonth; i++) {
-    cells.push({ date: null, dayNumber: '' })
-  }
-  for (let i = 1; i <= daysInMonth; i++) {
-    const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`
-    cells.push({ date: dateStr, dayNumber: i })
-  }
-  return cells
-})
-
-function getEventsForDate(dateStr) {
-  return filteredEvents.value.filter(e => e.start_date === dateStr)
-}
-
-function getEventCalendarClass(e) {
-  if (isPast(e.start_date, e.duration_days)) return 'event-passed'
-  return 'event-upcoming'
-}
-
-function changeMonth(offset) {
-  const newDate = new Date(currentDate.value)
-  newDate.setMonth(newDate.getMonth() + offset)
-  currentDate.value = newDate
-}
-
-function goToToday() {
-  currentDate.value = new Date()
-}
-
-function isToday(dateStr) {
-  if (!dateStr) return false
-  const todayStr = new Date().toLocaleDateString('en-CA') 
-  return dateStr === todayStr
 }
 
 // --- DRAG-TO-SCROLL (KANBAN) ---
@@ -589,43 +493,6 @@ textarea { resize: vertical; margin-top: 0.75rem; }
 .k-status.past { background: var(--border-light); color: #666; }
 
 .btn-link-small.k-link { width: 100%; text-align: center; margin-top: 4px;}
-
-/* ================= CALENDAR VIEW (SPECIFIC TO EVENTS.VUE) ================= */
-.calendar-card-wrapper { display: flex; flex-direction: column; gap: 1rem; }
-.calendar-controls-wrapper { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; }
-.calendar-controls { display: flex; align-items: center; gap: 0.75rem; }
-.month-title { font-size: 1.2rem; font-weight: 600; color: var(--text-main); margin: 0; min-width: 160px; text-align: center; }
-.ml-3 { margin-left: 0.5rem; }
-
-.calendar-card { background: var(--bg-card); border: 1px solid var(--border-main); border-radius: 8px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); overflow: hidden; }
-:root.light-mode .calendar-card { border: 1.5px solid var(--border-main); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05); }
-
-.calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); border-top: 1px solid var(--border-main); border-left: 1px solid var(--border-main); }
-:root.light-mode .calendar-grid { border-top: 1.5px solid var(--border-main); border-left: 1.5px solid var(--border-main); }
-
-.weekday { background: var(--bg-app); padding: 0.6rem 0.5rem; text-align: center; font-size: 0.75rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; border-right: 1px solid var(--border-main); border-bottom: 1px solid var(--border-main); }
-:root.light-mode .weekday { border-right: 1.5px solid var(--border-main); border-bottom: 1.5px solid var(--border-main); }
-
-.day-cell { min-height: 120px; padding: 0.4rem; border-right: 1px solid var(--border-main); border-bottom: 1px solid var(--border-main); background: var(--bg-card); display: flex; flex-direction: column; transition: background 0.15s; }
-.day-cell:hover:not(.is-empty) { background: rgba(79, 70, 229, 0.04); }
-.day-cell.is-empty { background: rgba(0, 0, 0, 0.08); }
-:root.light-mode .day-cell.is-empty { background: rgba(0, 0, 0, 0.02); }
-.day-cell.is-today { background: rgba(79, 70, 229, 0.08); }
-:root.light-mode .day-cell { border-right: 1.5px solid var(--border-main); border-bottom: 1.5px solid var(--border-main); }
-:root.light-mode .day-cell:hover:not(.is-empty) { background: rgba(79, 70, 229, 0.05); }
-
-.day-number-container { display: flex; justify-content: flex-end; margin-bottom: 0.3rem; }
-.day-number { font-size: 0.8rem; font-weight: 600; color: var(--text-muted); }
-.day-cell.is-today .day-number { background: var(--primary); color: white; border-radius: 50%; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; }
-
-.events-list { display: flex; flex-direction: column; gap: 0.35rem; flex-grow: 1; overflow-y: auto; max-height: 120px; }
-.task-badge { padding: 0.35rem 0.5rem; border-radius: 4px; font-size: 0.7rem; line-height: 1.3; display: flex; flex-direction: column; border-left: 3px solid transparent; cursor: pointer; transition: all 0.15s; }
-.task-badge:hover { transform: translateY(-1px); opacity: 0.9; }
-.task-badge strong { font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.task-badge span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; opacity: 0.85; font-size: 0.65rem; margin-top: 2px;}
-
-.event-upcoming { background: rgba(139, 92, 246, 0.15); color: #8b5cf6; border-left-color: #8b5cf6; }
-.event-passed { background: var(--border-light); color: var(--text-muted); border-left-color: var(--text-muted); border-style: dashed; border-width: 1px; border-left-width: 2px; border-left-style: solid; }
 
 /* ================= MODAL STYLES ================= */
 .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.5); display: flex; justify-content: center; align-items: center; z-index: 2000; animation: fadeIn 0.2s ease-out; }
