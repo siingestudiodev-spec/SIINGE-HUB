@@ -13,6 +13,9 @@
           <button @click="currentView = 'kanban'" :class="{ active: currentView === 'kanban' }">
             📋 Kanban
           </button>
+          <button @click="currentView = 'calendar'" :class="{ active: currentView === 'calendar' }">
+            🗓️ Calendar
+          </button>
         </div>
 
         <label class="btn-secondary import-label">
@@ -67,7 +70,6 @@
       </div>
       
       <div v-for="e in filteredEvents" :key="e.id" class="list-row" :class="{ expired: isPast(e.start_date, e.duration_days) }">
-        
         <div class="col-main">
           <div class="event-title-group">
             <strong class="event-title">{{ e.event_name }}</strong>
@@ -113,7 +115,6 @@
         
         <div class="kanban-cards">
           <div v-for="e in eventsList" :key="e.id" class="k-card" :class="{ expired: isPast(e.start_date, e.duration_days) }">
-            
             <div class="k-card-top">
               <div class="k-title-group">
                 <strong class="k-title">{{ e.event_name }}</strong>
@@ -124,19 +125,58 @@
                 <button @click="deleteEvent(e.id)" class="del" title="Delete">✕</button>
               </div>
             </div>
-
             <div v-if="e.notes" class="k-notes clickable-notes" @click="openNoteModal(e)">
               {{ e.notes }} <span class="read-more-text">(read more)</span>
             </div>
             <a v-if="e.registration_url" :href="e.registration_url" target="_blank" class="btn-link-small k-link">🔗 Register / Info</a>
-            
             <div class="k-dates">
               <span>🗓 {{ formatDateShort(e.start_date) }}</span>
               <span class="k-status" :class="isPast(e.start_date, e.duration_days) ? 'past' : 'upcoming'">
                 {{ isPast(e.start_date, e.duration_days) ? 'Passed' : daysUntil(e.start_date) + ' days left' }}
               </span>
             </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div v-else-if="currentView === 'calendar'" class="calendar-card-wrapper">
+      <div class="calendar-controls-wrapper">
+        <div class="calendar-controls">
+          <button @click="changeMonth(-1)" class="btn-icon">◀</button>
+          <h2 class="month-title">{{ currentMonthName }} {{ currentYear }}</h2>
+          <button @click="changeMonth(1)" class="btn-icon">▶</button>
+          <button @click="goToToday" class="btn-secondary ml-3">Today</button>
+        </div>
+      </div>
+
+      <div class="calendar-card">
+        <div class="calendar-grid">
+          <div class="weekday" v-for="day in weekDays" :key="day">{{ day }}</div>
+          
+          <div 
+            v-for="(cell, index) in calendarCells" 
+            :key="index" 
+            class="day-cell"
+            :class="{ 'is-empty': !cell.date, 'is-today': isToday(cell.date) }"
+          >
+            <div v-if="cell.date" class="day-number-container">
+              <span class="day-number">{{ cell.dayNumber }}</span>
+            </div>
             
+            <div class="events-list" v-if="cell.date">
+              <div 
+                v-for="e in getEventsForDate(cell.date)" 
+                :key="e.id" 
+                class="task-badge"
+                :class="getEventCalendarClass(e)"
+                :title="e.event_name + ' - ' + (e.country || 'Global')"
+                @click="openNoteModal(e)"
+              >
+                <strong>{{ e.event_name || 'Unnamed Event' }}</strong>
+                <span>{{ e.country || 'Global' }}</span>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -190,6 +230,61 @@ function closeNoteModal() {
   showNoteModal.value = false
   selectedNoteEvent.value = null
 }
+
+// --- CALENDAR LOGIC ---
+const currentDate = ref(new Date())
+const weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+
+const currentMonthName = computed(() => {
+  return currentDate.value.toLocaleString('en-US', { month: 'long' })
+})
+const currentYear = computed(() => currentDate.value.getFullYear())
+
+const calendarCells = computed(() => {
+  const year = currentDate.value.getFullYear()
+  const month = currentDate.value.getMonth()
+  const firstDayOfMonth = new Date(year, month, 1).getDay()
+  const daysInMonth = new Date(year, month + 1, 0).getDate()
+  const cells = []
+  
+  for (let i = 0; i < firstDayOfMonth; i++) {
+    cells.push({ date: null, dayNumber: '' })
+  }
+  for (let i = 1; i <= daysInMonth; i++) {
+    const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`
+    cells.push({ date: dateStr, dayNumber: i })
+  }
+  return cells
+})
+
+function getEventsForDate(dateStr) {
+  // Finds events that start exactly on this date
+  return filteredEvents.value.filter(e => e.start_date === dateStr)
+}
+
+function getEventCalendarClass(e) {
+  if (isPast(e.start_date, e.duration_days)) return 'task-pending' // Gray styling for past events
+  return 'task-progress' // Blue styling for upcoming events
+}
+
+function changeMonth(offset) {
+  const newDate = new Date(currentDate.value)
+  newDate.setMonth(newDate.getMonth() + offset)
+  currentDate.value = newDate
+}
+
+function goToToday() {
+  currentDate.value = new Date()
+}
+
+function isToday(dateStr) {
+  if (!dateStr) return false
+  // Using local time string construction to avoid timezone issues
+  const today = new Date()
+  const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
+  return dateStr === todayStr
+}
+
 
 // --- DRAG-TO-SCROLL (KANBAN) ---
 const kanbanRef = ref(null)
@@ -311,10 +406,9 @@ const sortEvents = (a, b) => {
   const isPastA = isPast(a.start_date, a.duration_days)
   const isPastB = isPast(b.start_date, b.duration_days)
   
-  if (isPastA && !isPastB) return 1  // a passed, b upcoming -> b comes first
-  if (!isPastA && isPastB) return -1 // a upcoming, b passed -> a comes first
+  if (isPastA && !isPastB) return 1  
+  if (!isPastA && isPastB) return -1 
   
-  // If both are upcoming or both are past, sort by date ascending
   return new Date(a.start_date) - new Date(b.start_date)
 }
 
@@ -376,7 +470,6 @@ async function deleteEvent(id) {
   await supabase.from('events').delete().eq('id', id); fetchEvents()
 }
 
-// Must be accessible above for sorting
 function isPast(startDate, duration) {
   const end = new Date(startDate)
   end.setDate(end.getDate() + (duration || 1))
@@ -411,7 +504,7 @@ h1 { font-size: 2rem; font-weight: 700; color: var(--text-main); }
 .view-toggle button { background: transparent; border: none; padding: 0.5rem 1rem; border-radius: 8px; cursor: pointer; font-weight: 600; color: var(--text-muted); font-size: 0.85rem; transition: 0.2s; }
 .view-toggle button.active { background: white; color: var(--primary); box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
 
-/* BOTOONES GENERALES */
+/* BUTTONS */
 .import-label { background: var(--bg-card); border: 1px solid var(--border-main); padding: 0.65rem 1.3rem; border-radius: 10px; cursor: pointer; font-size: 0.9rem; font-weight: 600; color: var(--text-main); transition: 0.2s; }
 .import-label:hover { background: var(--border-light); }
 .btn-primary { background: var(--primary); color: white; border: none; padding: 0.65rem 1.3rem; border-radius: 10px; cursor: pointer; font-size: 0.92rem; font-weight: 700; transition: 0.2s; }
@@ -419,13 +512,13 @@ h1 { font-size: 2rem; font-weight: 700; color: var(--text-main); }
 .btn-link-small { display: inline-block; margin-top: 8px; font-size: 0.8rem; background: rgba(79, 70, 229, 0.1); color: var(--primary); padding: 4px 10px; border-radius: 6px; text-decoration: none; font-weight: 600; transition: 0.2s; }
 .btn-link-small:hover { background: var(--primary); color: white; }
 
-/* FILTROS */
+/* FILTERS */
 .filters-bar { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1.5rem; flex-wrap: wrap; }
 .filter-select { padding: 0.6rem 1rem; border: 1px solid var(--border-main); border-radius: 10px; font-size: 0.9rem; color: var(--text-main); background: var(--bg-card); cursor: pointer; }
 .btn-clear { background: var(--border-light); color: var(--text-muted); border: none; padding: 0.6rem 1rem; border-radius: 10px; cursor: pointer; font-size: 0.85rem; }
 .results-count { margin-left: auto; font-size: 0.85rem; color: var(--text-muted); font-weight: 600; }
 
-/* FORMULARIO */
+/* FORM */
 .form-card { background: var(--bg-card); padding: 2rem; border-radius: 16px; margin-bottom: 2rem; border: 1px solid var(--border-main); box-shadow: 0 4px 24px rgba(0,0,0,0.1); }
 .form-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.75rem; margin-bottom: 0.75rem; }
 input, textarea, select { width: 100%; padding: 0.7rem 1rem; background: var(--bg-app); border: 1px solid var(--border-main); border-radius: 10px; font-size: 0.92rem; color: var(--text-main); }
@@ -441,8 +534,6 @@ textarea { resize: vertical; margin-top: 0.75rem; }
 .col-main { flex: 3; display: flex; flex-direction: column; align-items: flex-start; }
 .event-title-group { display: flex; flex-direction: column; margin-bottom: 4px; }
 .event-title { font-size: 1rem; color: var(--text-main); line-height: 1.2; }
-
-/* CONTRAST FIX: Darker sub-texts for light mode */
 .event-loc-sub { font-size: 0.8rem; color: #555; margin-top: 2px; } 
 .event-desc-preview { font-size: 0.85rem; color: #444; margin-top: 6px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.4; }
 
@@ -494,7 +585,6 @@ textarea { resize: vertical; margin-top: 0.75rem; }
 .k-actions button:hover { background: var(--border-main); }
 .k-actions button.del:hover { background: #fee2e2; color: #dc2626; }
 
-/* CONTRAST FIX: Darker Kanban notes & limit lines */
 .k-notes { font-size: 0.85rem; color: #444; background: #f9fafb; padding: 10px; border-radius: 8px; border: 1px solid var(--border-light); line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
 
 .k-dates { display: flex; justify-content: space-between; align-items: center; font-size: 0.8rem; font-weight: 600; padding-top: 0.6rem; margin-top: 0.4rem; border-top: 1px dashed var(--border-light); color: var(--text-main); }
@@ -503,6 +593,46 @@ textarea { resize: vertical; margin-top: 0.75rem; }
 .k-status.past { background: var(--border-light); color: #666; }
 
 .btn-link-small.k-link { width: 100%; text-align: center; margin-top: 4px;}
+
+/* ================= CALENDAR VIEW ================= */
+.calendar-card-wrapper { display: flex; flex-direction: column; gap: 1rem; }
+.calendar-controls-wrapper { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; }
+.calendar-controls { display: flex; align-items: center; gap: 0.75rem; }
+.month-title { font-size: 1.2rem; font-weight: 600; color: var(--text-main); margin: 0; min-width: 160px; text-align: center; }
+.ml-3 { margin-left: 0.5rem; }
+
+.calendar-card { background: var(--bg-card); border: 1px solid var(--border-main); border-radius: 8px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); overflow: hidden; }
+:root.light-mode .calendar-card { border: 1.5px solid var(--border-main); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05); }
+
+.calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); border-top: 1px solid var(--border-main); border-left: 1px solid var(--border-main); }
+:root.light-mode .calendar-grid { border-top: 1.5px solid var(--border-main); border-left: 1.5px solid var(--border-main); }
+
+.weekday { background: var(--bg-app); padding: 0.6rem 0.5rem; text-align: center; font-size: 0.75rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; border-right: 1px solid var(--border-main); border-bottom: 1px solid var(--border-main); }
+:root.light-mode .weekday { border-right: 1.5px solid var(--border-main); border-bottom: 1.5px solid var(--border-main); }
+
+.day-cell { min-height: 120px; padding: 0.4rem; border-right: 1px solid var(--border-main); border-bottom: 1px solid var(--border-main); background: var(--bg-card); display: flex; flex-direction: column; transition: background 0.15s; }
+.day-cell:hover:not(.is-empty) { background: rgba(79, 70, 229, 0.04); }
+.day-cell.is-empty { background: rgba(0, 0, 0, 0.08); }
+:root.light-mode .day-cell.is-empty { background: rgba(0, 0, 0, 0.02); }
+.day-cell.is-today { background: rgba(79, 70, 229, 0.08); }
+:root.light-mode .day-cell { border-right: 1.5px solid var(--border-main); border-bottom: 1.5px solid var(--border-main); }
+:root.light-mode .day-cell:hover:not(.is-empty) { background: rgba(79, 70, 229, 0.05); }
+
+.day-number-container { display: flex; justify-content: flex-end; margin-bottom: 0.3rem; }
+.day-number { font-size: 0.8rem; font-weight: 600; color: var(--text-muted); }
+.day-cell.is-today .day-number { background: var(--primary); color: white; border-radius: 50%; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; }
+
+.events-list { display: flex; flex-direction: column; gap: 0.35rem; flex-grow: 1; overflow-y: auto; max-height: 120px; }
+.task-badge { padding: 0.35rem 0.5rem; border-radius: 4px; font-size: 0.7rem; line-height: 1.3; display: flex; flex-direction: column; border-left: 3px solid transparent; cursor: pointer; transition: all 0.15s; }
+.task-badge:hover { transform: translateY(-1px); opacity: 0.9; }
+.task-badge strong { font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.task-badge span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; opacity: 0.85; font-size: 0.65rem; margin-top: 2px;}
+
+/* Reuse your existing task status classes for events */
+.task-completed { background: var(--success-bg); color: var(--success-text); border-left-color: var(--success-text); }
+.task-overdue { background: var(--danger-bg); color: var(--danger-text); border-left-color: var(--danger-text); }
+.task-progress { background: rgba(14, 165, 233, 0.12); color: #0284c7; border-left-color: #0284c7; }
+.task-pending { background: rgba(107, 114, 128, 0.1); color: var(--text-muted); border-left-color: var(--text-muted); }
 
 /* ================= MODAL STYLES ================= */
 .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.5); display: flex; justify-content: center; align-items: center; z-index: 2000; animation: fadeIn 0.2s ease-out; }
