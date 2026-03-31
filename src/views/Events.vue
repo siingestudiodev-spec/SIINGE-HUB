@@ -3,12 +3,12 @@
     <div class="header">
       <div>
         <h1>📅 Events Manager</h1>
-        <p class="subtitle">Gestiona ferias y eventos textiles a nivel mundial</p>
+        <p class="subtitle">Manage worldwide textile trade shows & events</p>
       </div>
       <div class="header-actions">
         <div class="view-toggle">
           <button @click="currentView = 'list'" :class="{ active: currentView === 'list' }">
-            📄 Lista
+            📄 List
           </button>
           <button @click="currentView = 'kanban'" :class="{ active: currentView === 'kanban' }">
             📋 Kanban
@@ -16,7 +16,7 @@
         </div>
 
         <label class="btn-secondary import-label">
-          {{ importing ? '📥 Importando...' : '📥 Import Excel' }}
+          {{ importing ? '📥 Importing...' : '📥 Import Excel' }}
           <input type="file" @change="handleImport" accept=".xlsx, .xls, .csv" hidden :disabled="importing" />
         </label>
         <button @click="openAddForm" class="btn-primary">+ Add Event</button>
@@ -55,8 +55,8 @@
       </div>
     </div>
 
-    <div v-if="loading" class="loading">Cargando eventos...</div>
-    <div v-else-if="filteredEvents.length === 0" class="empty">No hay eventos que coincidan con los filtros.</div>
+    <div v-if="loading" class="loading">Loading events...</div>
+    <div v-else-if="filteredEvents.length === 0" class="empty">No events match your filters.</div>
     
     <div v-else-if="currentView === 'list'" class="list-view">
       <div class="list-header">
@@ -71,10 +71,10 @@
         <div class="col-main">
           <div class="event-title-group">
             <strong class="event-title">{{ e.event_name }}</strong>
-            <span class="event-loc-sub">📍 {{ [e.city, e.country].filter(Boolean).join(', ') || 'Ubicación no especificada' }}</span>
+            <span class="event-loc-sub">📍 {{ [e.city, e.country].filter(Boolean).join(', ') || 'Location not specified' }}</span>
           </div>
           <div v-if="e.notes" class="event-desc-preview clickable-notes" @click="openNoteModal(e)">
-            {{ e.notes }} <span class="read-more-text">(ver más)</span>
+            {{ e.notes }} <span class="read-more-text">(read more)</span>
           </div>
           <a v-if="e.registration_url" :href="e.registration_url" target="_blank" class="btn-link-small">🔗 Register / Info</a>
         </div>
@@ -126,9 +126,9 @@
             </div>
 
             <div v-if="e.notes" class="k-notes clickable-notes" @click="openNoteModal(e)">
-              {{ e.notes }} <span class="read-more-text">(ver más)</span>
+              {{ e.notes }} <span class="read-more-text">(read more)</span>
             </div>
-            <a v-if="e.registration_url" :href="e.registration_url" target="_blank" class="btn-link-small k-link">🔗 Registro / Info</a>
+            <a v-if="e.registration_url" :href="e.registration_url" target="_blank" class="btn-link-small k-link">🔗 Register / Info</a>
             
             <div class="k-dates">
               <span>🗓 {{ formatDateShort(e.start_date) }}</span>
@@ -177,7 +177,7 @@ const currentView = ref('list')
 const filterMonth = ref('')
 const filterCountry = ref('')
 
-// --- VARIABLES MODAL NOTAS ---
+// --- MODAL VARIABLES ---
 const showNoteModal = ref(false)
 const selectedNoteEvent = ref(null)
 
@@ -191,14 +191,14 @@ function closeNoteModal() {
   selectedNoteEvent.value = null
 }
 
-// --- VARIABLES DRAG-TO-SCROLL (KANBAN) ---
+// --- DRAG-TO-SCROLL (KANBAN) ---
 const kanbanRef = ref(null)
 let isDown = false
 let startX
 let scrollLeft
 
 const startDrag = (e) => {
-  if (e.target.closest('.clickable-notes') || e.target.closest('button') || e.target.closest('a')) return; // No arrastrar si clickea interactivos
+  if (e.target.closest('.clickable-notes') || e.target.closest('button') || e.target.closest('a')) return;
   isDown = true
   kanbanRef.value.classList.add('active')
   startX = e.pageX - kanbanRef.value.offsetLeft
@@ -214,7 +214,7 @@ const doDrag = (e) => {
   if (!isDown) return
   e.preventDefault()
   const x = e.pageX - kanbanRef.value.offsetLeft
-  const walk = (x - startX) * 1.5 // Velocidad
+  const walk = (x - startX) * 1.5
   kanbanRef.value.scrollLeft = scrollLeft - walk
 }
 
@@ -234,7 +234,7 @@ const emptyForm = () => ({
 
 const form = ref(emptyForm())
 
-// --- LÓGICA IMPORTACIÓN ---
+// --- IMPORT LOGIC ---
 const handleImport = (ev) => {
   const file = ev.target.files[0]
   if (!file) return
@@ -286,11 +286,11 @@ const handleImport = (ev) => {
         if (!error) count++
       }
       
-      alert(`¡Éxito! Se importaron ${count} eventos correctamente.`)
+      alert(`Success! Imported ${count} events.`)
       fetchEvents()
     } catch (err) {
-      console.error("Error crítico:", err)
-      alert("Hubo un error al procesar el Excel. Revisa la consola.")
+      console.error("Critical error:", err)
+      alert("Error processing the Excel file. Check the console.")
     } finally {
       importing.value = false
       ev.target.value = ''
@@ -306,7 +306,19 @@ function extractUrl(text) {
   return found ? found[0] : ''
 }
 
-// --- LÓGICA FILTROS Y VISTAS ---
+// --- CORE SORTING LOGIC ---
+const sortEvents = (a, b) => {
+  const isPastA = isPast(a.start_date, a.duration_days)
+  const isPastB = isPast(b.start_date, b.duration_days)
+  
+  if (isPastA && !isPastB) return 1  // a passed, b upcoming -> b comes first
+  if (!isPastA && isPastB) return -1 // a upcoming, b passed -> a comes first
+  
+  // If both are upcoming or both are past, sort by date ascending
+  return new Date(a.start_date) - new Date(b.start_date)
+}
+
+// --- FILTERS & VIEWS LOGIC ---
 const availableCountries = computed(() => {
   const countries = events.value.map(e => e.country).filter(Boolean)
   return [...new Set(countries)].sort()
@@ -319,7 +331,7 @@ const filteredEvents = computed(() => {
     return matchMonth && matchCountry
   })
   
-  return list.sort((a, b) => new Date(a.start_date) - new Date(b.start_date))
+  return list.sort(sortEvents)
 })
 
 const kanbanGroups = computed(() => {
@@ -331,17 +343,9 @@ const kanbanGroups = computed(() => {
   })
 
   Object.keys(groups).forEach(country => {
-    groups[country].sort((a, b) => {
-      const isPastA = isPast(a.start_date, a.duration_days)
-      const isPastB = isPast(b.start_date, b.duration_days)
-      if (isPastA && !isPastB) return 1  
-      if (!isPastA && isPastB) return -1 
-      const dateA = new Date(a.start_date).getTime()
-      const dateB = new Date(b.start_date).getTime()
-      if (!isPastA && !isPastB) return dateA - dateB 
-      else return dateB - dateA 
-    })
+    groups[country].sort(sortEvents)
   })
+
   return Object.keys(groups).sort().reduce((obj, key) => {
     obj[key] = groups[key]
     return obj
@@ -372,6 +376,7 @@ async function deleteEvent(id) {
   await supabase.from('events').delete().eq('id', id); fetchEvents()
 }
 
+// Must be accessible above for sorting
 function isPast(startDate, duration) {
   const end = new Date(startDate)
   end.setDate(end.getDate() + (duration || 1))
@@ -407,8 +412,9 @@ h1 { font-size: 2rem; font-weight: 700; color: var(--text-main); }
 .view-toggle button.active { background: white; color: var(--primary); box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
 
 /* BOTOONES GENERALES */
-.import-label { background: var(--bg-card); border: 1px solid var(--border-main); padding: 0.65rem 1.3rem; border-radius: 10px; cursor: pointer; font-size: 0.9rem; font-weight: 600; color: var(--text-main); }
-.btn-primary { background: var(--primary); color: white; border: none; padding: 0.65rem 1.3rem; border-radius: 10px; cursor: pointer; font-size: 0.92rem; font-weight: 700; }
+.import-label { background: var(--bg-card); border: 1px solid var(--border-main); padding: 0.65rem 1.3rem; border-radius: 10px; cursor: pointer; font-size: 0.9rem; font-weight: 600; color: var(--text-main); transition: 0.2s; }
+.import-label:hover { background: var(--border-light); }
+.btn-primary { background: var(--primary); color: white; border: none; padding: 0.65rem 1.3rem; border-radius: 10px; cursor: pointer; font-size: 0.92rem; font-weight: 700; transition: 0.2s; }
 .btn-secondary { background: var(--border-light); color: var(--text-main); border: none; padding: 0.65rem 1.3rem; border-radius: 10px; cursor: pointer; font-weight: 600; }
 .btn-link-small { display: inline-block; margin-top: 8px; font-size: 0.8rem; background: rgba(79, 70, 229, 0.1); color: var(--primary); padding: 4px 10px; border-radius: 6px; text-decoration: none; font-weight: 600; transition: 0.2s; }
 .btn-link-small:hover { background: var(--primary); color: white; }
@@ -425,7 +431,7 @@ h1 { font-size: 2rem; font-weight: 700; color: var(--text-main); }
 input, textarea, select { width: 100%; padding: 0.7rem 1rem; background: var(--bg-app); border: 1px solid var(--border-main); border-radius: 10px; font-size: 0.92rem; color: var(--text-main); }
 textarea { resize: vertical; margin-top: 0.75rem; }
 
-/* ================= VISTA DE LISTA COMPACTA ================= */
+/* ================= COMPACT LIST VIEW ================= */
 .list-view { display: flex; flex-direction: column; gap: 0.5rem; }
 .list-header { display: flex; padding: 0.8rem 1.5rem; font-size: 0.8rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 2px solid var(--border-light); margin-bottom: 0.5rem; }
 .list-row { display: flex; align-items: center; background: var(--bg-card); padding: 1.2rem 1.5rem; border-radius: 12px; border: 1px solid var(--border-main); transition: 0.2s; gap: 1rem; }
@@ -436,15 +442,12 @@ textarea { resize: vertical; margin-top: 0.75rem; }
 .event-title-group { display: flex; flex-direction: column; margin-bottom: 4px; }
 .event-title { font-size: 1rem; color: var(--text-main); line-height: 1.2; }
 
-/* FIX CONTRASTE: Oscurecer subtítulos en light mode */
+/* CONTRAST FIX: Darker sub-texts for light mode */
 .event-loc-sub { font-size: 0.8rem; color: #555; margin-top: 2px; } 
-
-/* FIX CONTRASTE: Oscurecer descripción previsualizada */
 .event-desc-preview { font-size: 0.85rem; color: #444; margin-top: 6px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.4; }
 
 .col-date { flex: 1.5; display: flex; flex-direction: column; font-size: 0.85rem; font-weight: 500; }
 .date-text { color: var(--text-main); }
-/* FIX CONTRASTE: Oscurecer duración */
 .compact-duration { color: #555; font-size: 0.75rem; margin-top: 2px; }
 
 .col-status { flex: 1; }
@@ -452,19 +455,18 @@ textarea { resize: vertical; margin-top: 0.75rem; }
 
 .status-badge { padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 700; }
 .status-badge.upcoming { background: rgba(79, 70, 229, 0.1); color: var(--primary); }
-/* FIX CONTRASTE: Oscurecer texto 'Passed' */
 .status-badge.past { background: var(--border-light); color: #666; }
 
 .btn-icon { background: var(--bg-app); border: 1px solid var(--border-main); border-radius: 6px; padding: 0.4rem; cursor: pointer; transition: 0.2s; }
 .btn-icon:hover { background: var(--border-light); }
 .btn-icon.delete:hover { background: #fee2e2; color: #dc2626; }
 
-/* GLOBALES NOTAS CLICABLES */
+/* CLICKABLE NOTES GLOBALS */
 .clickable-notes { cursor: pointer; transition: 0.2s; }
 .clickable-notes:hover { background: rgba(79, 70, 229, 0.04); border-radius: 4px;}
 .read-more-text { color: var(--primary); font-size: 0.8rem; font-weight: 600; margin-left: 3px;}
 
-/* ================= VISTA KANBAN DRAGGABLE ================= */
+/* ================= DRAGGABLE KANBAN VIEW ================= */
 .kanban-board { 
   display: flex; overflow-x: auto; gap: 1.5rem; padding-bottom: 1rem; align-items: flex-start;
   cursor: grab; user-select: none;
@@ -485,7 +487,6 @@ textarea { resize: vertical; margin-top: 0.75rem; }
 .k-card-top { display: flex; justify-content: space-between; align-items: flex-start; }
 .k-title-group { display: flex; flex-direction: column; flex: 1; padding-right: 10px; }
 .k-title { font-size: 0.95rem; font-weight: 700; line-height: 1.3; margin-bottom: 4px; color: var(--text-main);}
-/* FIX CONTRASTE: Oscurecer ubicación Kanban */
 .k-location { font-size: 0.75rem; color: #555; }
 
 .k-actions { display: flex; gap: 4px; }
@@ -493,18 +494,17 @@ textarea { resize: vertical; margin-top: 0.75rem; }
 .k-actions button:hover { background: var(--border-main); }
 .k-actions button.del:hover { background: #fee2e2; color: #dc2626; }
 
-/* FIX CONTRASTE: Oscurecer notas Kanban y limitar líneas */
+/* CONTRAST FIX: Darker Kanban notes & limit lines */
 .k-notes { font-size: 0.85rem; color: #444; background: #f9fafb; padding: 10px; border-radius: 8px; border: 1px solid var(--border-light); line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
 
 .k-dates { display: flex; justify-content: space-between; align-items: center; font-size: 0.8rem; font-weight: 600; padding-top: 0.6rem; margin-top: 0.4rem; border-top: 1px dashed var(--border-light); color: var(--text-main); }
 .k-status { font-size: 0.75rem; padding: 2px 6px; border-radius: 6px; }
 .k-status.upcoming { background: rgba(79, 70, 229, 0.1); color: var(--primary); }
-/* FIX CONTRASTE: Texto Passed Kanban */
 .k-status.past { background: var(--border-light); color: #666; }
 
 .btn-link-small.k-link { width: 100%; text-align: center; margin-top: 4px;}
 
-/* ================= ESTILOS MODAL ================= */
+/* ================= MODAL STYLES ================= */
 .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.5); display: flex; justify-content: center; align-items: center; z-index: 2000; animation: fadeIn 0.2s ease-out; }
 .modal-content { background: white; border-radius: 20px; box-shadow: 0 10px 40px rgba(0,0,0,0.2); width: 90%; max-width: 650px; max-height: 90vh; display: flex; flex-direction: column; overflow: hidden; animation: slideUp 0.3s ease-out; }
 .card-notes-modal { border: 1px solid var(--border-main); }
@@ -515,12 +515,12 @@ textarea { resize: vertical; margin-top: 0.75rem; }
 .btn-close-modal:hover { background: rgba(0,0,0,0.05); color: var(--text-main); }
 
 .modal-body-scroll { padding: 2rem; overflow-y: auto; flex: 1; }
-.full-notes-text { font-size: 1rem; color: #333; /* Texto oscuro para lectura */ line-height: 1.7; white-space: pre-wrap; /* Respeta saltos de línea */ margin: 0; }
+.full-notes-text { font-size: 1rem; color: #333; line-height: 1.7; white-space: pre-wrap; margin: 0; }
 
 .modal-footer { padding: 1.5rem; border-top: 1px solid var(--border-light); background: white; }
 .btn-full-width { width: 100%; text-align: center; justify-content: center; display: flex; align-items: center; text-decoration: none; font-size: 1rem; padding: 0.8rem; }
 
-/* ANIMACIONES */
+/* ANIMATIONS */
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
 
