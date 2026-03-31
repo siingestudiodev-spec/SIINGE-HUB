@@ -2,7 +2,7 @@
   <div class="testing-container">
     <div class="card">
       <div class="header">
-        <div class="status-pill">SMART-FILL + AUTO-COORDINATES</div>
+        <div class="status-pill">SMART-FILL + MAKE.COM SYNC</div>
         <h1>Digital Signature</h1>
         <p class="subtitle">Please review the document, fill in your details, and sign.</p>
       </div>
@@ -86,12 +86,12 @@
         class="btn-submit"
       >
         <span v-if="!loading">SIGN AND DOWNLOAD PDF</span>
-        <span v-else>GENERATING DOCUMENT...</span>
+        <span v-else>GENERATING & SAVING...</span>
       </button>
 
       <div v-if="success" class="success-box">
         <p>✅ Document generated successfully!</p>
-        <p class="small">Check your downloads folder.</p>
+        <p class="small">A copy has been saved to your downloads and synced to our secure drive.</p>
       </div>
     </div>
   </div>
@@ -100,6 +100,11 @@
 <script setup>
 import { ref, onMounted, reactive, computed, watch } from 'vue'
 import { PDFDocument } from 'pdf-lib'
+
+// ID Fijo temporal para pruebas
+const TARGET_ID = '0942abd4-cccd-443f-985f-f29f4c1212f9'
+// URL de tu Webhook en Make.com
+const WEBHOOK_URL = 'https://hook.us2.make.com/69exacv5yd8v62q4rj9ix2s26pfkj3m9'
 
 const activeDoc = ref('nda')
 const loading = ref(false)
@@ -257,13 +262,38 @@ const generateDocument = async () => {
     form.flatten()
     const pdfBytes = await pdfDoc.save()
 
+    // 1. PREPARAMOS EL NOMBRE DEL ARCHIVO
+    const cleanCompanyName = formData.companyName.replace(/\s+/g, '_')
+    const finalFileName = `SIGNED-${activeDoc.value.toUpperCase()}-${cleanCompanyName}.pdf`
+
+    // 2. DESCARGAMOS EL ARCHIVO LOCALMENTE
     const blob = new Blob([pdfBytes], { type: 'application/pdf' })
     const link = document.createElement('a')
     link.href = URL.createObjectURL(blob)
-    link.download = `${activeDoc.value.toUpperCase()}_Siinge_${formData.companyName.replace(/\s+/g, '_')}.pdf`
+    link.download = finalFileName
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
+
+    // 3. ENVIAMOS A MAKE.COM
+    const pdfBase64 = btoa(String.fromCharCode(...new Uint8Array(pdfBytes)))
+    
+    const webhookResponse = await fetch(WEBHOOK_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        manufacturerId: TARGET_ID,
+        documentType: activeDoc.value.toUpperCase(),
+        fileName: finalFileName,
+        fileBase64: pdfBase64
+      })
+    })
+
+    if (!webhookResponse.ok) {
+      throw new Error("Failed to send data to Make.com")
+    }
 
     success.value = true
 
@@ -288,7 +318,6 @@ h1 { font-size: 1.6rem; margin: 0; font-weight: 800; color: #f8fafc; }
 .tab-group button { flex: 1; padding: 10px; border-radius: 10px; border: none; background: transparent; color: #64748b; cursor: pointer; font-weight: 700; transition: 0.3s; font-size: 0.9rem; }
 .tab-group button.active { background: #38bdf8; color: #0f172a; }
 
-/* NUEVOS ESTILOS DEL VISOR PDF */
 .pdf-viewer-container { background: #0f172a; border-radius: 16px; border: 1px solid #334155; overflow: hidden; margin-bottom: 20px; display: flex; flex-direction: column; }
 .viewer-header { background: #1e293b; padding: 8px 15px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #334155; font-size: 0.75rem; font-weight: 600; color: #94a3b8; }
 .link-open { color: #38bdf8; text-decoration: none; transition: 0.2s; }
