@@ -7,16 +7,11 @@
       </div>
       <div class="header-actions">
         <label class="btn-secondary import-label">
-          📥 Import Excel
-          <input type="file" @change="handleImport" accept=".xlsx, .xls, .csv" hidden />
+          {{ importing ? '📥 Importando...' : '📥 Import Excel' }}
+          <input type="file" @change="handleImport" accept=".xlsx, .xls, .csv" hidden :disabled="importing" />
         </label>
         <button @click="openAddForm" class="btn-primary">+ Add Event</button>
       </div>
-    </div>
-
-    <div v-if="importing" class="import-progress">
-      <div class="progress-bar" :style="{ width: importProgress + '%' }"></div>
-      <p>Procesando eventos... {{ importProgress }}%</p>
     </div>
 
     <div class="filters-bar">
@@ -39,7 +34,7 @@
         <input v-model="form.country" placeholder="Country" />
         <input v-model="form.city" placeholder="City" />
         <input v-model="form.start_date" type="date" />
-        <input v-model.number="form.duration_days" type="number" placeholder="Duration (days)" />
+        <input v-model.number="form.duration_days" type="number" placeholder="Duration (days)" min="1" />
         <input v-model="form.registration_url" placeholder="Registration URL" />
       </div>
       <textarea v-model="form.notes" placeholder="Notes" rows="2"></textarea>
@@ -88,12 +83,11 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import { supabase } from '../lib/supabase'
-import * as XLSX from 'xlsx' // IMPORTANTE: Requiere npm install xlsx
+import * as XLSX from 'xlsx' // RECUERDA: npm install xlsx
 
 const events = ref([])
 const loading = ref(true)
 const importing = ref(false)
-const importProgress = ref(0)
 const showForm = ref(false)
 const editingId = ref(null)
 
@@ -116,7 +110,7 @@ const emptyForm = () => ({
 
 const form = ref(emptyForm())
 
-// --- LÓGICA DE IMPORTACIÓN DE EXCEL ---
+// --- LÓGICA DE IMPORTACIÓN MEJORADA ---
 const handleImport = (ev) => {
   const file = ev.target.files[0]
   if (!file) return
@@ -125,64 +119,64 @@ const handleImport = (ev) => {
   reader.onload = async (e) => {
     try {
       importing.value = true
-      importProgress.value = 0
-      
       const data = new Uint8Array(e.target.result)
       const workbook = XLSX.read(data, { type: 'array' })
       const worksheet = workbook.Sheets[workbook.SheetNames[0]]
-      
-      // Convertimos a JSON usando los nombres de tus columnas
       const rawJson = XLSX.utils.sheet_to_json(worksheet, { defval: "" })
-      
-      if (rawJson.length === 0) {
-        alert("El archivo está vacío.")
-        return
-      }
-
-      console.log("Columnas detectadas:", Object.keys(rawJson[0]))
 
       let count = 0
       for (const row of rawJson) {
-        // Mapeo basado en tus columnas: Task Name, Parent Name, Task Content, Due Date, Start Date
-        const startDateRaw = row['Start Date']
-        const dueDateRaw = row['Due Date']
+        // 1. Limpieza de nombres de columnas (quitar espacios)
+        const cleanRow = {}
+        Object.keys(row).forEach(k => cleanRow[k.trim()] = row[k])
 
-        if (!startDateRaw) continue
+        // 2. Saltamos filas sin nombre o separadoras
+        if (!cleanRow['Task Name'] || cleanRow['Task Name'].trim() === "") continue
 
-        const start = new Date(startDateRaw)
-        const end = dueDateRaw ? new Date(dueDateRaw) : start
-        
-        // Calculamos duración (mínimo 1 día)
-        const diffTime = Math.abs(end - start)
-        const duration = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) || 1
+        // 3. FUNCIÓN PARA LIMPIAR FECHAS DE CLICKUP ("19th", "21st")
+        const parseClickUpDate = (dateStr) => {
+          if (!dateStr) return null
+          const cleanDate = String(dateStr).replace(/(\d+)(st|nd|rd|th)/, "$1")
+          const d = new Date(cleanDate)
+          return isNaN(d.getTime()) ? null : d.toISOString().split('T')[0]
+        }
+
+        const startDate = parseClickUpDate(cleanRow['Start Date'])
+        const dueDate = parseClickUpDate(cleanRow['Due Date'])
+
+        if (!startDate) {
+          console.warn("Fecha inválida saltada:", cleanRow['Task Name'])
+          continue
+        }
+
+        // 4. Calcular duración asegurando mínimo 1 día
+        const startObj = new Date(startDate)
+        const endObj = dueDate ? new Date(dueDate) : startObj
+        let duration = Math.ceil(Math.abs(endObj - startObj) / (1000 * 60 * 60 * 24))
+        if (duration === 0 || isNaN(duration)) duration = 1
 
         const newEvent = {
-          event_name: row['Task Name'] || 'Unnamed Event',
-          country: row['Parent Name'] || '',
+          event_name: cleanRow['Task Name'],
+          country: cleanRow['Parent Name'] || '',
           city: '',
-          start_date: isNaN(start.getTime()) ? null : start.toISOString().split('T')[0],
+          start_date: startDate,
           duration_days: duration,
-          registration_url: extractUrl(row['Task Content'] || ''),
-          notes: row['Task Content'] || ''
+          registration_url: extractUrl(cleanRow['Task Content'] || ''),
+          notes: cleanRow['Task Content'] || ''
         }
 
-        if (newEvent.start_date) {
-          const { error } = await supabase.from('events').insert([newEvent])
-          if (!error) count++
-        }
-
-        importProgress.value = Math.round((count / rawJson.length) * 100)
+        const { error } = await supabase.from('events').insert([newEvent])
+        if (!error) count++
       }
       
       alert(`¡Éxito! Se importaron ${count} eventos correctamente.`)
       fetchEvents()
     } catch (err) {
       console.error("Error crítico:", err)
-      alert("Error procesando el Excel. Revisa el formato de las columnas.")
+      alert("Hubo un error al procesar el Excel. Revisa la consola.")
     } finally {
       importing.value = false
-      importProgress.value = 0
-      ev.target.value = '' // Reset input
+      ev.target.value = '' // Reseteamos el input
     }
   }
   reader.readAsArrayBuffer(file)
@@ -282,9 +276,8 @@ h1 { font-size: 2rem; font-weight: 700; color: var(--text-main); }
 .subtitle { color: var(--text-muted); margin-top: 0.25rem; font-size: 0.92rem; }
 
 /* IMPORT BAR */
-.import-label { background: var(--bg-card); border: 1px solid var(--border-main); padding: 0.65rem 1.3rem; border-radius: 10px; cursor: pointer; font-size: 0.9rem; font-weight: 600; }
-.import-progress { background: var(--primary-bg); border: 1px solid var(--primary); padding: 1.5rem; border-radius: 12px; margin-bottom: 2rem; text-align: center; }
-.progress-bar { height: 8px; background: var(--primary); border-radius: 10px; transition: width 0.3s ease; margin-bottom: 0.5rem; }
+.import-label { background: var(--bg-card); border: 1px solid var(--border-main); padding: 0.65rem 1.3rem; border-radius: 10px; cursor: pointer; font-size: 0.9rem; font-weight: 600; color: var(--text-main); }
+.import-label:hover { background: var(--border-light); }
 
 /* FILTERS */
 .filters-bar { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1.5rem; flex-wrap: wrap; }
@@ -299,6 +292,7 @@ h1 { font-size: 2rem; font-weight: 700; color: var(--text-main); }
 .form-card { background: var(--bg-card); padding: 2rem; border-radius: 16px; margin-bottom: 2rem; border: 1px solid var(--border-main); box-shadow: 0 4px 24px rgba(0,0,0,0.2); }
 .form-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.75rem; margin-bottom: 0.75rem; }
 input, textarea, select { width: 100%; padding: 0.7rem 1rem; background: var(--bg-app); border: 1px solid var(--border-main); border-radius: 10px; font-size: 0.92rem; color: var(--text-main); font-family: 'Inter', sans-serif; }
+textarea { resize: vertical; margin-top: 0.75rem; }
 
 /* CARDS */
 .cards-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1.25rem; }
@@ -306,15 +300,26 @@ input, textarea, select { width: 100%; padding: 0.7rem 1rem; background: var(--b
 .event-card:hover { transform: translateY(-2px); border-color: var(--primary); }
 .event-card.expired { opacity: 0.6; filter: grayscale(0.5); border-style: dashed; }
 
+.card-top { display: flex; justify-content: space-between; align-items: flex-start; }
 .event-name { font-size: 1rem; font-weight: 700; color: var(--text-main); }
 .event-location { font-size: 0.83rem; color: var(--text-muted); margin-top: 0.2rem; }
 
-.event-dates { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+.card-actions { display: flex; gap: 0.4rem; flex-shrink: 0; }
+.btn-edit { background: var(--border-light); color: var(--primary); border: none; padding: 0.35rem 0.7rem; border-radius: 8px; cursor: pointer; }
+.btn-delete { background: var(--danger-bg); color: var(--danger-text); border: none; padding: 0.35rem 0.7rem; border-radius: 8px; cursor: pointer; }
+
+.event-dates { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.5rem; }
 .date-badge { background: rgba(79, 70, 229, 0.15); color: var(--primary); padding: 0.25rem 0.7rem; border-radius: 20px; font-size: 0.82rem; font-weight: 600; }
 .duration-badge { background: var(--success-bg); color: var(--success-text); padding: 0.25rem 0.7rem; border-radius: 20px; font-size: 0.82rem; font-weight: 600; }
 
+.expired-label { color: var(--danger-text); font-size: 0.85rem; font-weight: 600; }
+.days-left { color: var(--warning-text); font-size: 0.85rem; font-weight: 600; }
+
 .btn-register { display: inline-block; background: var(--primary); color: white; padding: 0.5rem 1rem; border-radius: 8px; text-decoration: none; font-size: 0.85rem; font-weight: 700; text-align: center; width: 100%; }
+
+.card-notes { font-size: 0.82rem; color: var(--text-muted); font-style: italic; border-top: 1px solid var(--border-light); padding-top: 0.5rem; }
 
 .btn-primary { background: var(--primary); color: white; border: none; padding: 0.65rem 1.3rem; border-radius: 10px; cursor: pointer; font-size: 0.92rem; font-weight: 700; }
 .btn-secondary { background: var(--border-light); color: var(--text-main); border: none; padding: 0.65rem 1.3rem; border-radius: 10px; cursor: pointer; font-weight: 600; }
+.loading, .empty { text-align: center; padding: 3rem; color: var(--text-muted); }
 </style>
