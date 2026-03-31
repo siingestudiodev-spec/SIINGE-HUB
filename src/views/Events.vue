@@ -174,7 +174,7 @@
                 @click="openNoteModal(e)"
               >
                 <strong>{{ e.event_name || 'Unnamed Event' }}</strong>
-                <span>{{ e.country || 'Global' }}</span>
+                <span>📌 {{ e.country || 'Global' }}</span>
               </div>
             </div>
           </div>
@@ -258,13 +258,12 @@ const calendarCells = computed(() => {
 })
 
 function getEventsForDate(dateStr) {
-  // Finds events that start exactly on this date
   return filteredEvents.value.filter(e => e.start_date === dateStr)
 }
 
 function getEventCalendarClass(e) {
-  if (isPast(e.start_date, e.duration_days)) return 'task-pending' // Gray styling for past events
-  return 'task-progress' // Blue styling for upcoming events
+  if (isPast(e.start_date, e.duration_days)) return 'event-passed'
+  return 'event-upcoming'
 }
 
 function changeMonth(offset) {
@@ -279,12 +278,9 @@ function goToToday() {
 
 function isToday(dateStr) {
   if (!dateStr) return false
-  // Using local time string construction to avoid timezone issues
-  const today = new Date()
-  const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
+  const todayStr = new Date().toLocaleDateString('en-CA') 
   return dateStr === todayStr
 }
-
 
 // --- DRAG-TO-SCROLL (KANBAN) ---
 const kanbanRef = ref(null)
@@ -594,7 +590,7 @@ textarea { resize: vertical; margin-top: 0.75rem; }
 
 .btn-link-small.k-link { width: 100%; text-align: center; margin-top: 4px;}
 
-/* ================= CALENDAR VIEW ================= */
+/* ================= CALENDAR VIEW (SPECIFIC TO EVENTS.VUE) ================= */
 .calendar-card-wrapper { display: flex; flex-direction: column; gap: 1rem; }
 .calendar-controls-wrapper { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; }
 .calendar-controls { display: flex; align-items: center; gap: 0.75rem; }
@@ -628,11 +624,8 @@ textarea { resize: vertical; margin-top: 0.75rem; }
 .task-badge strong { font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .task-badge span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; opacity: 0.85; font-size: 0.65rem; margin-top: 2px;}
 
-/* Reuse your existing task status classes for events */
-.task-completed { background: var(--success-bg); color: var(--success-text); border-left-color: var(--success-text); }
-.task-overdue { background: var(--danger-bg); color: var(--danger-text); border-left-color: var(--danger-text); }
-.task-progress { background: rgba(14, 165, 233, 0.12); color: #0284c7; border-left-color: #0284c7; }
-.task-pending { background: rgba(107, 114, 128, 0.1); color: var(--text-muted); border-left-color: var(--text-muted); }
+.event-upcoming { background: rgba(139, 92, 246, 0.15); color: #8b5cf6; border-left-color: #8b5cf6; }
+.event-passed { background: var(--border-light); color: var(--text-muted); border-left-color: var(--text-muted); border-style: dashed; border-width: 1px; border-left-width: 2px; border-left-style: solid; }
 
 /* ================= MODAL STYLES ================= */
 .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.5); display: flex; justify-content: center; align-items: center; z-index: 2000; animation: fadeIn 0.2s ease-out; }
@@ -648,7 +641,7 @@ textarea { resize: vertical; margin-top: 0.75rem; }
 .full-notes-text { font-size: 1rem; color: #333; line-height: 1.7; white-space: pre-wrap; margin: 0; }
 
 .modal-footer { padding: 1.5rem; border-top: 1px solid var(--border-light); background: white; }
-.btn-full-width { width: 100%; text-align: center; justify-content: center; display: flex; align-items: center; text-decoration: none; font-size: 1rem; padding: 0.8rem; }
+.btn-full-width { width: 100%; text-align: center; justify-content: center; display: flex; align-items: center; text-decoration: none; font-size: 1rem; padding: 0.8rem; background: var(--primary); color: white; border-radius: 8px; font-weight: bold;}
 
 /* ANIMATIONS */
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
