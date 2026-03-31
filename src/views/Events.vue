@@ -2,10 +2,19 @@
   <div class="container">
     <div class="header">
       <div>
-        <h1>📅 Events 2026</h1>
-        <p class="subtitle">Trade shows & industry events by Continent</p>
+        <h1>📅 Events Manager</h1>
+        <p class="subtitle">Gestiona ferias y eventos textiles a nivel mundial</p>
       </div>
       <div class="header-actions">
+        <div class="view-toggle">
+          <button @click="currentView = 'list'" :class="{ active: currentView === 'list' }">
+            📄 Lista
+          </button>
+          <button @click="currentView = 'kanban'" :class="{ active: currentView === 'kanban' }">
+            📋 Kanban
+          </button>
+        </div>
+
         <label class="btn-secondary import-label">
           {{ importing ? '📥 Importando...' : '📥 Import Excel' }}
           <input type="file" @change="handleImport" accept=".xlsx, .xls, .csv" hidden :disabled="importing" />
@@ -49,40 +58,68 @@
     <div v-if="loading" class="loading">Loading events...</div>
     <div v-else-if="filteredEvents.length === 0" class="empty">No events match your filters.</div>
     
-    <div v-else class="continents-container">
-      <div v-for="(eventsList, continent) in groupedEvents" :key="continent" class="continent-section">
-        <h2 class="continent-title">🌍 {{ continent }} Events</h2>
+    <div v-else-if="currentView === 'list'" class="list-view">
+      <div class="list-header">
+        <div class="col-name">Event Name</div>
+        <div class="col-location">Location</div>
+        <div class="col-date">Date</div>
+        <div class="col-status">Status</div>
+        <div class="col-actions">Actions</div>
+      </div>
+      
+      <div v-for="e in filteredEvents" :key="e.id" class="list-row" :class="{ expired: isPast(e.start_date, e.duration_days) }">
+        <div class="col-name">
+          <strong>{{ e.event_name }}</strong>
+          <a v-if="e.registration_url" :href="e.registration_url" target="_blank" class="link-icon" title="Registration Link">🔗</a>
+        </div>
+        <div class="col-location">📍 {{ [e.city, e.country].filter(Boolean).join(', ') || '—' }}</div>
+        <div class="col-date">
+          🗓 {{ formatDate(e.start_date) }} 
+          <span class="compact-duration">({{ e.duration_days }}d)</span>
+        </div>
+        <div class="col-status">
+          <span v-if="isPast(e.start_date, e.duration_days)" class="status-badge past">⛔ Passed</span>
+          <span v-else class="status-badge upcoming">⏳ In {{ daysUntil(e.start_date) }} days</span>
+        </div>
+        <div class="col-actions">
+          <button @click="editEvent(e)" class="btn-icon">✏️</button>
+          <button @click="deleteEvent(e.id)" class="btn-icon delete">✕</button>
+        </div>
+      </div>
+    </div>
+
+    <div v-else-if="currentView === 'kanban'" class="kanban-board">
+      <div v-for="(eventsList, country) in kanbanGroups" :key="country" class="kanban-column">
+        <div class="kanban-col-header">
+          <h3>{{ country === 'null' || !country ? 'Unspecified' : country }}</h3>
+          <span class="badge-count">{{ eventsList.length }}</span>
+        </div>
         
-        <div class="cards-grid">
-          <div v-for="e in eventsList" :key="e.id" class="event-card" :class="{ expired: isPast(e.start_date, e.duration_days) }">
-            <div class="card-top">
-              <div>
-                <strong class="event-name">{{ e.event_name }}</strong>
-                <div class="event-location">📍 {{ [e.city, e.country].filter(Boolean).join(', ') || '—' }}</div>
-              </div>
-              <div class="card-actions">
-                <button @click="editEvent(e)" class="btn-edit" title="Edit">✏️</button>
-                <button @click="deleteEvent(e.id)" class="btn-delete" title="Delete">✕</button>
+        <div class="kanban-cards">
+          <div v-for="e in eventsList" :key="e.id" class="k-card" :class="{ expired: isPast(e.start_date, e.duration_days) }">
+            <div class="k-card-top">
+              <strong class="k-title">{{ e.event_name }}</strong>
+              <div class="k-actions">
+                <button @click="editEvent(e)">✏️</button>
+                <button @click="deleteEvent(e.id)" class="del">✕</button>
               </div>
             </div>
-
-            <div class="event-dates">
-              <span class="date-badge">🗓 {{ formatDate(e.start_date) }}</span>
-              <span class="duration-badge">{{ e.duration_days }} day{{ e.duration_days > 1 ? 's' : '' }}</span>
+            
+            <div class="k-location" v-if="e.city">{{ e.city }}</div>
+            
+            <div class="k-dates">
+              <span>{{ formatDateShort(e.start_date) }}</span>
+              <span class="k-status" :class="isPast(e.start_date, e.duration_days) ? 'past' : 'upcoming'">
+                {{ isPast(e.start_date, e.duration_days) ? 'Passed' : daysUntil(e.start_date) + ' days left' }}
+              </span>
             </div>
-
-            <div v-if="isPast(e.start_date, e.duration_days)" class="expired-label">⛔ Event has passed</div>
-            <div v-else class="days-left">⏳ {{ daysUntil(e.start_date) }} days away</div>
-
-            <div v-if="e.registration_url" class="card-link">
-              <a :href="e.registration_url" target="_blank" class="btn-register">🔗 Register / Info</a>
-            </div>
-
-            <div v-if="e.notes" class="card-notes">{{ e.notes }}</div>
+            
+            <a v-if="e.registration_url" :href="e.registration_url" target="_blank" class="k-link">🔗 Link</a>
           </div>
         </div>
       </div>
     </div>
+
   </div>
 </template>
 
@@ -96,6 +133,9 @@ const loading = ref(true)
 const importing = ref(false)
 const showForm = ref(false)
 const editingId = ref(null)
+
+// Control de vistas (list o kanban)
+const currentView = ref('list')
 
 const filterMonth = ref('')
 const filterCountry = ref('')
@@ -115,50 +155,6 @@ const emptyForm = () => ({
 })
 
 const form = ref(emptyForm())
-
-// --- DICCIONARIO DE CONTINENTES ---
-function getContinent(country) {
-  if (!country) return 'Other'
-  
-  const europe = ['Portugal', 'Spain', 'France', 'Italy', 'Germany', 'United Kingdom', 'UK', 'Netherlands', 'Belgium', 'Switzerland', 'Poland', 'Sweden', 'Denmark', 'Norway', 'Finland', 'Austria', 'Greece']
-  const asia = ['China', 'Vietnam', 'Turkey', 'India', 'Japan', 'South Korea', 'Taiwan', 'Bangladesh', 'Pakistan', 'Indonesia', 'Thailand', 'Malaysia', 'Singapore']
-  const america = ['United States', 'USA', 'Mexico', 'Colombia', 'Brazil', 'Argentina', 'Canada', 'Peru', 'Chile', 'Ecuador', 'Panama']
-  const africa = ['Egypt', 'South Africa', 'Morocco', 'Nigeria', 'Kenya', 'Ethiopia']
-  const oceania = ['Australia', 'New Zealand']
-
-  if (europe.includes(country)) return 'Europe'
-  if (asia.includes(country)) return 'Asia'
-  if (america.includes(country)) return 'America'
-  if (africa.includes(country)) return 'Africa'
-  if (oceania.includes(country)) return 'Oceania'
-  
-  return 'Other' // Si el país no está en la lista o no tiene país asignado
-}
-
-// --- AGRUPACIÓN POR CONTINENTES ---
-const groupedEvents = computed(() => {
-  // Primero aplicamos los filtros normales
-  const filtered = filteredEvents.value
-
-  // Preparamos la estructura
-  const groups = {
-    'America': [],
-    'Europe': [],
-    'Asia': [],
-    'Africa': [],
-    'Oceania': [],
-    'Other': []
-  }
-
-  // Llenamos los grupos
-  filtered.forEach(e => {
-    const continent = getContinent(e.country)
-    groups[continent].push(e)
-  })
-
-  // Retornamos solo los continentes que tengan eventos
-  return Object.fromEntries(Object.entries(groups).filter(([_, evts]) => evts.length > 0))
-})
 
 // --- LÓGICA DE IMPORTACIÓN ---
 const handleImport = (ev) => {
@@ -232,18 +228,60 @@ function extractUrl(text) {
   return found ? found[0] : ''
 }
 
-// --- LÓGICA DE FILTROS Y BASE DE DATOS ---
+// --- LÓGICA DE FILTROS Y VISTAS ---
 const availableCountries = computed(() => {
   const countries = events.value.map(e => e.country).filter(Boolean)
   return [...new Set(countries)].sort()
 })
 
 const filteredEvents = computed(() => {
-  return events.value.filter(e => {
+  let list = events.value.filter(e => {
     const matchMonth = !filterMonth.value || (e.start_date && e.start_date.slice(5, 7) === filterMonth.value)
     const matchCountry = !filterCountry.value || e.country === filterCountry.value
     return matchMonth && matchCountry
   })
+  
+  // Ordenar cronológicamente para la vista de lista
+  return list.sort((a, b) => new Date(a.start_date) - new Date(b.start_date))
+})
+
+// --- LÓGICA DEL TABLERO KANBAN ---
+const kanbanGroups = computed(() => {
+  const groups = {}
+  
+  // Agrupar por país
+  filteredEvents.value.forEach(e => {
+    const c = e.country || 'Other'
+    if (!groups[c]) groups[c] = []
+    groups[c].push(e)
+  })
+
+  // Ordenar dentro de cada país (Más próximos primero, pasados al final)
+  Object.keys(groups).forEach(country => {
+    groups[country].sort((a, b) => {
+      const isPastA = isPast(a.start_date, a.duration_days)
+      const isPastB = isPast(b.start_date, b.duration_days)
+      
+      if (isPastA && !isPastB) return 1  // B va primero (A ya pasó)
+      if (!isPastA && isPastB) return -1 // A va primero (B ya pasó)
+      
+      // Si ambos son próximos o ambos pasados, ordenamos por fecha
+      const dateA = new Date(a.start_date).getTime()
+      const dateB = new Date(b.start_date).getTime()
+      
+      if (!isPastA && !isPastB) {
+        return dateA - dateB // El más próximo en el tiempo primero
+      } else {
+        return dateB - dateA // El que pasó más recientemente primero
+      }
+    })
+  })
+
+  // Retornar objeto ordenado alfabéticamente por llave (país)
+  return Object.keys(groups).sort().reduce((obj, key) => {
+    obj[key] = groups[key]
+    return obj
+  }, {})
 })
 
 function clearFilters() {
@@ -292,19 +330,30 @@ async function deleteEvent(id) {
   fetchEvents()
 }
 
+// --- UTILIDADES DE FECHAS ---
 function isPast(startDate, duration) {
   const end = new Date(startDate)
   end.setDate(end.getDate() + (duration || 1))
+  // Reseteamos horas para que el día actual no cuente como pasado hasta media noche
+  end.setHours(23, 59, 59, 999) 
   return end < new Date()
 }
 
 function daysUntil(startDate) {
-  const diff = new Date(startDate) - new Date()
-  return Math.ceil(diff / (1000 * 60 * 60 * 24))
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const eventDate = new Date(startDate)
+  const diff = eventDate - today
+  const days = Math.ceil(diff / (1000 * 60 * 60 * 24))
+  return days < 0 ? 0 : days
 }
 
 function formatDate(date) {
   return new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+}
+
+function formatDateShort(date) {
+  return new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }
 
 onMounted(fetchEvents)
@@ -318,55 +367,79 @@ onMounted(fetchEvents)
 h1 { font-size: 2rem; font-weight: 700; color: var(--text-main); }
 .subtitle { color: var(--text-muted); margin-top: 0.25rem; font-size: 0.92rem; }
 
-/* IMPORT BAR */
-.import-label { background: var(--bg-card); border: 1px solid var(--border-main); padding: 0.65rem 1.3rem; border-radius: 10px; cursor: pointer; font-size: 0.9rem; font-weight: 600; color: var(--text-main); }
+/* VIEW SWITCHER */
+.view-toggle { display: flex; background: var(--border-light); border-radius: 10px; padding: 4px; margin-right: 10px; }
+.view-toggle button { background: transparent; border: none; padding: 0.5rem 1rem; border-radius: 8px; cursor: pointer; font-weight: 600; color: var(--text-muted); font-size: 0.85rem; transition: 0.2s; }
+.view-toggle button.active { background: white; color: var(--primary); box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+
+/* BOTOONES GENERALES */
+.import-label { background: var(--bg-card); border: 1px solid var(--border-main); padding: 0.65rem 1.3rem; border-radius: 10px; cursor: pointer; font-size: 0.9rem; font-weight: 600; color: var(--text-main); transition: 0.2s; }
 .import-label:hover { background: var(--border-light); }
+.btn-primary { background: var(--primary); color: white; border: none; padding: 0.65rem 1.3rem; border-radius: 10px; cursor: pointer; font-size: 0.92rem; font-weight: 700; transition: 0.2s; }
+.btn-secondary { background: var(--border-light); color: var(--text-main); border: none; padding: 0.65rem 1.3rem; border-radius: 10px; cursor: pointer; font-weight: 600; }
 
-/* FILTERS */
+/* FILTROS */
 .filters-bar { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1.5rem; flex-wrap: wrap; }
-.filter-select { 
-  padding: 0.6rem 1rem; border: 1px solid var(--border-main); border-radius: 10px; 
-  font-size: 0.9rem; color: var(--text-main); background: var(--bg-card); cursor: pointer; 
-}
+.filter-select { padding: 0.6rem 1rem; border: 1px solid var(--border-main); border-radius: 10px; font-size: 0.9rem; color: var(--text-main); background: var(--bg-card); cursor: pointer; }
 .btn-clear { background: var(--border-light); color: var(--text-muted); border: none; padding: 0.6rem 1rem; border-radius: 10px; cursor: pointer; font-size: 0.85rem; }
-.results-count { margin-left: auto; font-size: 0.85rem; color: var(--text-muted); }
+.results-count { margin-left: auto; font-size: 0.85rem; color: var(--text-muted); font-weight: 600; }
 
-/* FORM */
-.form-card { background: var(--bg-card); padding: 2rem; border-radius: 16px; margin-bottom: 2rem; border: 1px solid var(--border-main); box-shadow: 0 4px 24px rgba(0,0,0,0.2); }
+/* FORMULARIO */
+.form-card { background: var(--bg-card); padding: 2rem; border-radius: 16px; margin-bottom: 2rem; border: 1px solid var(--border-main); box-shadow: 0 4px 24px rgba(0,0,0,0.1); }
 .form-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.75rem; margin-bottom: 0.75rem; }
-input, textarea, select { width: 100%; padding: 0.7rem 1rem; background: var(--bg-app); border: 1px solid var(--border-main); border-radius: 10px; font-size: 0.92rem; color: var(--text-main); font-family: 'Inter', sans-serif; }
+input, textarea, select { width: 100%; padding: 0.7rem 1rem; background: var(--bg-app); border: 1px solid var(--border-main); border-radius: 10px; font-size: 0.92rem; color: var(--text-main); }
 textarea { resize: vertical; margin-top: 0.75rem; }
 
-/* CONTINENTS SECION */
-.continent-section { margin-bottom: 3.5rem; }
-.continent-title { font-size: 1.5rem; font-weight: 800; color: var(--text-main); margin-bottom: 1.5rem; padding-bottom: 0.5rem; border-bottom: 2px solid var(--border-light); }
+/* ================= VISTA DE LISTA COMPACTA ================= */
+.list-view { display: flex; flex-direction: column; gap: 0.5rem; }
+.list-header { display: flex; padding: 0.8rem 1.5rem; font-size: 0.8rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 2px solid var(--border-light); margin-bottom: 0.5rem; }
+.list-row { display: flex; align-items: center; background: var(--bg-card); padding: 1rem 1.5rem; border-radius: 12px; border: 1px solid var(--border-main); transition: 0.2s; }
+.list-row:hover { border-color: var(--primary); transform: translateX(4px); }
+.list-row.expired { opacity: 0.6; background: rgba(0,0,0,0.02); }
 
-/* CARDS */
-.cards-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1.25rem; }
-.event-card { background: var(--bg-card); border-radius: 16px; border: 1px solid var(--border-main); padding: 1.5rem; box-shadow: 0 4px 24px rgba(0,0,0,0.1); display: flex; flex-direction: column; gap: 0.75rem; transition: transform 0.2s; }
-.event-card:hover { transform: translateY(-2px); border-color: var(--primary); }
-.event-card.expired { opacity: 0.6; filter: grayscale(0.5); border-style: dashed; }
+.col-name { flex: 2; font-size: 0.95rem; display: flex; align-items: center; gap: 10px; }
+.link-icon { text-decoration: none; font-size: 0.9rem; }
+.col-location { flex: 1.5; font-size: 0.85rem; color: var(--text-muted); }
+.col-date { flex: 1.5; font-size: 0.85rem; font-weight: 500; }
+.compact-duration { color: var(--text-muted); font-size: 0.75rem; margin-left: 5px; }
+.col-status { flex: 1; }
+.col-actions { flex: 0.5; display: flex; gap: 0.5rem; justify-content: flex-end; }
 
-.card-top { display: flex; justify-content: space-between; align-items: flex-start; }
-.event-name { font-size: 1rem; font-weight: 700; color: var(--text-main); }
-.event-location { font-size: 0.83rem; color: var(--text-muted); margin-top: 0.2rem; }
+.status-badge { padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 700; }
+.status-badge.upcoming { background: rgba(79, 70, 229, 0.1); color: var(--primary); }
+.status-badge.past { background: var(--border-light); color: var(--text-muted); }
 
-.card-actions { display: flex; gap: 0.4rem; flex-shrink: 0; }
-.btn-edit { background: var(--border-light); color: var(--primary); border: none; padding: 0.35rem 0.7rem; border-radius: 8px; cursor: pointer; }
-.btn-delete { background: var(--danger-bg); color: var(--danger-text); border: none; padding: 0.35rem 0.7rem; border-radius: 8px; cursor: pointer; }
+.btn-icon { background: var(--bg-app); border: 1px solid var(--border-main); border-radius: 6px; padding: 0.4rem; cursor: pointer; transition: 0.2s; }
+.btn-icon:hover { background: var(--border-light); }
+.btn-icon.delete:hover { background: #fee2e2; color: #dc2626; }
 
-.event-dates { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.5rem; }
-.date-badge { background: rgba(79, 70, 229, 0.15); color: var(--primary); padding: 0.25rem 0.7rem; border-radius: 20px; font-size: 0.82rem; font-weight: 600; }
-.duration-badge { background: var(--success-bg); color: var(--success-text); padding: 0.25rem 0.7rem; border-radius: 20px; font-size: 0.82rem; font-weight: 600; }
+/* ================= VISTA KANBAN ================= */
+.kanban-board { display: flex; overflow-x: auto; gap: 1.5rem; padding-bottom: 1rem; align-items: flex-start; }
+.kanban-column { min-width: 320px; max-width: 320px; flex-shrink: 0; background: var(--bg-app); border-radius: 16px; padding: 1rem; border: 1px solid var(--border-main); }
+.kanban-col-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; padding: 0 0.5rem; }
+.kanban-col-header h3 { font-size: 1.1rem; font-weight: 800; color: var(--text-main); margin: 0; }
+.badge-count { background: var(--border-light); color: var(--text-muted); padding: 2px 8px; border-radius: 12px; font-size: 0.8rem; font-weight: 700; }
 
-.expired-label { color: var(--danger-text); font-size: 0.85rem; font-weight: 600; }
-.days-left { color: var(--warning-text); font-size: 0.85rem; font-weight: 600; }
+.kanban-cards { display: flex; flex-direction: column; gap: 0.75rem; }
+.k-card { background: var(--bg-card); border-radius: 12px; padding: 1.2rem; border: 1px solid var(--border-main); box-shadow: 0 2px 8px rgba(0,0,0,0.04); display: flex; flex-direction: column; gap: 0.6rem; }
+.k-card.expired { opacity: 0.55; filter: grayscale(0.8); }
 
-.btn-register { display: inline-block; background: var(--primary); color: white; padding: 0.5rem 1rem; border-radius: 8px; text-decoration: none; font-size: 0.85rem; font-weight: 700; text-align: center; width: 100%; }
+.k-card-top { display: flex; justify-content: space-between; align-items: flex-start; }
+.k-title { font-size: 0.95rem; font-weight: 700; line-height: 1.3; }
+.k-actions { display: flex; gap: 4px; }
+.k-actions button { background: none; border: none; cursor: pointer; opacity: 0.5; transition: 0.2s; font-size: 0.85rem; }
+.k-actions button:hover { opacity: 1; }
 
-.card-notes { font-size: 0.82rem; color: var(--text-muted); font-style: italic; border-top: 1px solid var(--border-light); padding-top: 0.5rem; }
+.k-location { font-size: 0.8rem; color: var(--text-muted); }
 
-.btn-primary { background: var(--primary); color: white; border: none; padding: 0.65rem 1.3rem; border-radius: 10px; cursor: pointer; font-size: 0.92rem; font-weight: 700; }
-.btn-secondary { background: var(--border-light); color: var(--text-main); border: none; padding: 0.65rem 1.3rem; border-radius: 10px; cursor: pointer; font-weight: 600; }
-.loading, .empty { text-align: center; padding: 3rem; color: var(--text-muted); }
+.k-dates { display: flex; justify-content: space-between; align-items: center; font-size: 0.8rem; font-weight: 600; padding-top: 0.5rem; border-top: 1px dashed var(--border-light); }
+.k-status { font-size: 0.75rem; padding: 2px 6px; border-radius: 6px; }
+.k-status.upcoming { background: rgba(79, 70, 229, 0.1); color: var(--primary); }
+.k-status.past { background: var(--border-light); color: var(--text-muted); }
+
+.k-link { font-size: 0.8rem; color: var(--primary); text-decoration: none; font-weight: 700; margin-top: 0.2rem; }
+.k-link:hover { text-decoration: underline; }
+
+/* GLOBALS */
+.loading, .empty { text-align: center; padding: 3rem; color: var(--text-muted); font-weight: 500; }
 </style>
