@@ -20,14 +20,17 @@
 
       <div class="pdf-viewer-container">
         <div class="viewer-header">
-          <span>Document Preview</span>
-          <a :href="activeDoc === 'nda' ? '/template_nda.pdf' : '/template_mma.pdf'" target="_blank" class="link-open">Open in new tab ↗</a>
+          <span>Document Preview <span v-if="previewLoading" class="loading-text">(Cargando vista segura...)</span></span>
+          <a v-if="!previewLoading" :href="previewUrl" target="_blank" class="link-open">Open in new tab ↗</a>
         </div>
+        
         <iframe 
-          :src="activeDoc === 'nda' ? '/template_nda.pdf' : '/template_mma.pdf'" 
+          v-if="!previewLoading"
+          :src="previewUrl + '#toolbar=0&navpanes=0'" 
           class="pdf-frame"
           title="Document Preview"
         ></iframe>
+        <div v-else class="pdf-frame skeleton-loader"></div>
       </div>
 
       <div class="form-section">
@@ -98,7 +101,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, reactive, computed, watch } from 'vue'
+import { ref, onMounted, reactive, computed, watch, nextTick } from 'vue'
 import { PDFDocument } from 'pdf-lib'
 
 // ID Fijo temporal para pruebas
@@ -109,6 +112,10 @@ const WEBHOOK_URL = 'https://hook.us2.make.com/69exacv5yd8v62q4rj9ix2s26pfkj3m9'
 const activeDoc = ref('nda')
 const loading = ref(false)
 const success = ref(false)
+
+// --- VARIABLES PARA LA VISTA PREVIA DE SOLO LECTURA ---
+const previewUrl = ref('')
+const previewLoading = ref(true)
 
 const formData = reactive({
   companyName: '',
@@ -130,25 +137,58 @@ const signaturePad = ref(null)
 let ctx = null
 let drawing = false
 
-onMounted(() => {
+// --- FUNCIÓN PARA GENERAR EL PDF DE SOLO LECTURA (FLATTEN) ---
+const loadReadOnlyPreview = async () => {
+  previewLoading.value = true
+  try {
+    const pdfUrl = activeDoc.value === 'nda' ? '/template_nda.pdf' : '/template_mma.pdf'
+    
+    // Obtenemos el PDF original
+    const existingPdfBytes = await fetch(pdfUrl).then(res => res.arrayBuffer())
+    const pdfDoc = await PDFDocument.load(existingPdfBytes)
+    
+    // LA MAGIA: Aplana el formulario. Convierte los campos en "dibujo" estático
+    const form = pdfDoc.getForm()
+    form.flatten()
+    
+    // Guardamos el resultado de solo lectura y creamos una URL local (Blob)
+    const pdfBytes = await pdfDoc.save()
+    const blob = new Blob([pdfBytes], { type: 'application/pdf' })
+    
+    // Limpiamos la URL anterior para no saturar la memoria del navegador
+    if (previewUrl.value) URL.revokeObjectURL(previewUrl.value)
+    
+    previewUrl.value = URL.createObjectURL(blob)
+  } catch (err) {
+    console.error("Error cargando vista previa segura:", err)
+  } finally {
+    previewLoading.value = false
+  }
+}
+
+onMounted(async () => {
+  // Inicializamos el Canvas
   ctx = signaturePad.value.getContext('2d')
-  
   ctx.lineWidth = 15 
   ctx.lineCap = 'round'
   ctx.lineJoin = 'round'
   ctx.strokeStyle = '#000000'
-  
   ctx.shadowBlur = 1
   ctx.shadowColor = '#000000'
 
   const rect = signaturePad.value.getBoundingClientRect()
   signaturePad.value.width = rect.width
   signaturePad.value.height = rect.height
+
+  // Cargamos la primera vista previa
+  await loadReadOnlyPreview()
 })
 
-watch(activeDoc, () => {
+// Cuando cambian de pestaña, actualizamos la vista previa segura
+watch(activeDoc, async () => {
   success.value = false
   clearPad()
+  await loadReadOnlyPreview()
 })
 
 const startDrawing = (e) => { drawing = true; draw(e); }
@@ -183,6 +223,7 @@ const generateDocument = async () => {
     const year = d.getFullYear()
     const formattedDate = `${month}/${day}/${year}`
     
+    // ATENCIÓN: Usamos el archivo ORIGINAL para rellenar los datos, NO la vista previa aplanada
     const pdfUrl = activeDoc.value === 'nda' ? '/template_nda.pdf' : '/template_mma.pdf'
     
     const existingPdfBytes = await fetch(pdfUrl).then(res => res.arrayBuffer())
@@ -320,9 +361,13 @@ h1 { font-size: 1.6rem; margin: 0; font-weight: 800; color: #f8fafc; }
 
 .pdf-viewer-container { background: #0f172a; border-radius: 16px; border: 1px solid #334155; overflow: hidden; margin-bottom: 20px; display: flex; flex-direction: column; }
 .viewer-header { background: #1e293b; padding: 8px 15px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #334155; font-size: 0.75rem; font-weight: 600; color: #94a3b8; }
+.loading-text { color: #38bdf8; font-style: italic; margin-left: 5px; }
 .link-open { color: #38bdf8; text-decoration: none; transition: 0.2s; }
 .link-open:hover { color: #7dd3fc; }
+
 .pdf-frame { width: 100%; height: 250px; border: none; background: white; }
+.skeleton-loader { background: linear-gradient(90deg, #1e293b 25%, #334155 50%, #1e293b 75%); background-size: 200% 100%; animation: skeletonLoading 1.5s infinite; }
+@keyframes skeletonLoading { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
 
 .form-section { text-align: left; margin-bottom: 20px; background: #0f172a; padding: 20px; border-radius: 16px; border: 1px solid #334155; }
 .row { display: flex; gap: 15px; }
