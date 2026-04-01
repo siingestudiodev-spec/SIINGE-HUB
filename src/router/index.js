@@ -9,7 +9,7 @@ import LoginView from '../views/LoginView.vue'
 import Sourcing from '../views/Sourcing.vue'
 import Events from '../views/Events.vue'
 import CalendarView from '../views/CalendarView.vue' 
-import TestingView from '../views/TestingView.vue' // <-- IMPORTACIÓN PARA PRUEBAS DE FIRMA
+import TestingView from '../views/TestingView.vue' 
 
 const routes = [
   { path: '/login', component: LoginView },
@@ -55,10 +55,11 @@ const routes = [
     meta: { requiresAuth: true } 
   },
   { 
+    // RUTA AISLADA PÚBLICA PARA FIRMAS
     path: '/testing', 
     component: TestingView, 
-    meta: { requiresAuth: true } 
-  } // <-- NUEVA RUTA PARA TESTEAR DRIVE Y FIRMA
+    meta: { requiresAuth: false, hideNavbar: true } 
+  } 
 ]
 
 const router = createRouter({

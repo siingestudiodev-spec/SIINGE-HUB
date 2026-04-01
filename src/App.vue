@@ -1,6 +1,7 @@
 <template>
-  <div class="app-container" v-if="session">
-    <header class="top-navbar">
+  <div class="app-container" v-if="session || isPublicRoute">
+    
+    <header class="top-navbar" v-if="!route.meta.hideNavbar">
       <div class="navbar-left">
         <div class="logo-section">
           <img src="https://i.ibb.co/xK52ckkK/Whats-App-Image-2026-02-24-at-13-58-58-1.jpg" alt="logo" class="logo" />
@@ -63,13 +64,14 @@
       <router-view />
     </main>
   </div>
-  <div v-else>
+  
+  <div v-else-if="!session && !isPublicRoute">
     <router-view />
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useThemeStore } from './stores/themeStore'
 import { supabase } from './lib/supabase'
@@ -83,6 +85,9 @@ const isDark = computed(() => themeStore.isDark)
 const notifications = ref([])
 const showNotifs = ref(false)
 const unreadCount = computed(() => notifications.value.filter(n => !n.is_read).length)
+
+// Computado para saber si la ruta actual es pública (no requiere navbar ni sesión)
+const isPublicRoute = computed(() => route.meta.hideNavbar === true)
 
 const vClickOutside = {
   mounted(el, binding) {
@@ -132,6 +137,7 @@ onMounted(async () => {
 })
 
 async function fetchNotifications() {
+  if (!session.value) return
   const { data } = await supabase.from('notifications')
     .select('*')
     .eq('recipient_email', session.value.user.email)
@@ -141,6 +147,7 @@ async function fetchNotifications() {
 }
 
 async function markAllRead() {
+  if (!session.value) return
   notifications.value.forEach(n => n.is_read = true)
   await supabase.from('notifications').update({ is_read: true }).eq('recipient_email', session.value.user.email)
 }
