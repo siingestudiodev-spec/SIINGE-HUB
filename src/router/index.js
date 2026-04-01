@@ -56,7 +56,7 @@ const routes = [
   },
   { 
     // RUTA AISLADA PÚBLICA PARA FIRMAS
-    path: '/testing', 
+    path: '/contracts', 
     component: TestingView, 
     meta: { requiresAuth: false, hideNavbar: true } 
   } 
