@@ -2,7 +2,7 @@
   <div class="testing-container">
     <div class="card">
       <div class="header">
-        <div class="status-pill">SMART-FILL + MAKE.COM SYNC</div>
+        <div class="status-pill">SIINGE STUDIO</div>
         <h1>Digital Signature</h1>
         <p class="subtitle">Please review the document, fill in your details, and sign.</p>
       </div>
