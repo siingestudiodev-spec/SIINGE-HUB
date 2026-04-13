@@ -108,3 +108,55 @@ a {
 ::-webkit-scrollbar-thumb:hover {
   background: var(--border-light);
 }
+/* FOLDER STYLES */
+.folder-section {
+  margin-bottom: 2rem;
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.folder-header {
+  background: var(--bg-card);
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid var(--border-light);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.folder-title {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.folder-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.folder-manufacturers {
+  padding: 1rem;
+  background: var(--bg-app);
+}
+
+.header-actions {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}
+
+@media (max-width: 768px) {
+  .header-actions {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  .folder-header {
+    padding: 0.75rem 1rem;
+  }
+  .folder-title {
+    font-size: 1.1rem;
+  }
+}

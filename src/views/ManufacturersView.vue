@@ -2,15 +2,41 @@
   <div class="container">
     <div class="header">
       <h1>Manufacturers</h1>
-      <button @click="openAddForm" class="btn-primary">
-        {{ showForm ? 'Cancel' : '+ Add Manufacturer' }}
-      </button>
+      <div class="header-actions">
+        <button @click="openFolderForm" class="btn-secondary">
+          📁 {{ showFolderForm ? 'Cancel Folder' : '+ New Folder' }}
+        </button>
+        <button @click="openAddForm" class="btn-primary">
+          {{ showForm ? 'Cancel' : '+ Add Manufacturer' }}
+        </button>
+      </div>
+    </div>
+
+    <div v-if="showFolderForm" class="form-card">
+      <h2>Create New Folder</h2>
+      <div class="form-grid">
+        <div class="input-group">
+          <input v-model="folderForm.name" placeholder="Folder Name *" />
+        </div>
+      </div>
+      <div class="form-actions mt-4">
+        <button @click="saveFolder" class="btn-primary">
+          CREATE FOLDER
+        </button>
+        <button @click="resetFolderForm" class="btn-secondary">Cancel</button>
+      </div>
     </div>
 
     <div v-if="showForm" class="form-card">
       <h2>{{ editing ? 'Edit Manufacturer' : 'New Manufacturer' }}</h2>
       <div class="form-grid">
         <div class="input-group"><input v-model="form.company_name" placeholder="Company Name *" /></div>
+        <div class="input-group">
+          <select v-model="form.folder_id">
+            <option :value="null">No Folder</option>
+            <option v-for="f in folders" :key="f.id" :value="f.id">{{ f.name }}</option>
+          </select>
+        </div>
         <div class="input-group"><input v-model="form.country" placeholder="Country" /></div>
         <div class="input-group"><input v-model="form.contact_name" placeholder="Contact Name" /></div>
         <div class="input-group"><input v-model="form.phone" placeholder="Phone" /></div>
@@ -62,6 +88,10 @@
 
     <div class="filters">
       <input v-model="search" placeholder="🔍 Search..." class="search-input" />
+      <select v-model="filterFolder" class="filter-select">
+        <option value="">All Folders</option>
+        <option v-for="f in folders" :key="f.id" :value="f.id">{{ f.name }}</option>
+      </select>
       <select v-model="filterCountry" class="filter-select">
         <option value="">All Countries</option>
         <option v-for="c in countries" :key="c" :value="c">{{ c }}</option>
@@ -70,97 +100,123 @@
         <option value="">All Categories</option>
         <option v-for="c in categories" :key="c" :value="c">{{ c }}</option>
       </select>
-      <button v-if="search || filterCountry || filterCategory" @click="clearFilters" class="btn-clear">
+      <button v-if="search || filterFolder || filterCountry || filterCategory" @click="clearFilters" class="btn-clear">
         ✕ CLEAR
       </button>
       <span class="results-count">{{ filteredManufacturers.length }} result{{ filteredManufacturers.length !== 1 ? 's' : '' }}</span>
     </div>
 
     <div v-if="loading" class="loading">Loading...</div>
-    <div v-else-if="filteredManufacturers.length === 0" class="empty">No manufacturers found.</div>
+    <div v-else-if="filteredFolders.length === 0 && filteredManufacturers.length === 0" class="empty">No manufacturers or folders found.</div>
     
     <div v-else class="list-container">
-      <div v-for="m in filteredManufacturers" :key="m.id" class="horizontal-card">
+      <div v-for="folder in filteredFolders" :key="folder.id" class="folder-section">
         
-        <div class="card-identity">
-          <div class="card-avatar">{{ m.company_name?.charAt(0) }}</div>
-          <div class="card-title-block">
-            <h3>{{ m.company_name }}</h3>
-            <div class="badges-row">
-              <span class="country-badge">🌍 {{ m.country || 'Unknown' }}</span>
-              <span v-if="m.nda_signed" class="legal-badge nda">NDA</span>
-              <span v-if="m.mma_signed" class="legal-badge mma">MMA</span>
-            </div>
+        <div class="folder-header" @click="toggleFolder(folder.id)">
+          <div class="folder-info-wrapper">
+            <span class="expand-icon">{{ isExpanded(folder.id) ? '▼' : '▶' }}</span>
+            <h2 class="folder-title">📁 {{ folder.name }} 
+              <span v-if="folder.manufacturers.length === 0" class="empty-badge">(Empty)</span>
+              <span v-else class="empty-badge">({{ folder.manufacturers.length }})</span>
+            </h2>
+          </div>
+          <div class="folder-actions" @click.stop>
+            <button @click="editFolder(folder)" class="btn-action-icon btn-edit" title="Edit Folder">✏️</button>
+            <button @click="deleteFolder(folder.id)" class="btn-action-icon btn-delete" title="Delete Folder">🗑️</button>
           </div>
         </div>
-          
-        <div class="card-info-block">
-          <div class="contact-info">
-            <div class="info-row" v-if="m.contact_name">
-              <span class="info-icon">👤</span><strong>{{ m.contact_name }}</strong>
-            </div>
-            <div class="info-row" v-if="m.phone">
-              <span class="info-icon">📞</span><a :href="'tel:'+m.phone">{{ m.phone }}</a>
-            </div>
-            <div class="info-row" v-if="m.email">
-              <span class="info-icon">✉️</span><a :href="'mailto:'+m.email">{{ m.email }}</a>
-            </div>
-            <div class="info-row" v-if="m.website">
-              <span class="info-icon">🌐</span><a :href="m.website" target="_blank">Website</a>
-            </div>
-          </div>
+        
+        <transition name="slide-fade">
+          <div v-show="isExpanded(folder.id)" class="folder-content">
+            <div class="folder-manufacturers" v-if="folder.manufacturers.length > 0">
+              <div v-for="m in folder.manufacturers" :key="m.id" class="horizontal-card">
+                
+                <div class="card-identity">
+                  <div class="card-avatar">{{ m.company_name?.charAt(0) }}</div>
+                  <div class="card-title-block">
+                    <h3>{{ m.company_name }}</h3>
+                    <div class="badges-row">
+                      <span class="country-badge">🌍 {{ m.country || 'Unknown' }}</span>
+                      <span v-if="m.nda_signed" class="legal-badge nda">NDA</span>
+                      <span v-if="m.mma_signed" class="legal-badge mma">MMA</span>
+                    </div>
+                  </div>
+                </div>
+                  
+                <div class="card-info-block">
+                  <div class="contact-info">
+                    <div class="info-row" v-if="m.contact_name">
+                      <span class="info-icon">👤</span><strong>{{ m.contact_name }}</strong>
+                    </div>
+                    <div class="info-row" v-if="m.phone">
+                      <span class="info-icon">📞</span><a :href="'tel:'+m.phone">{{ m.phone }}</a>
+                    </div>
+                    <div class="info-row" v-if="m.email">
+                      <span class="info-icon">✉️</span><a :href="'mailto:'+m.email">{{ m.email }}</a>
+                    </div>
+                    <div class="info-row" v-if="m.website">
+                      <span class="info-icon">🌐</span><a :href="m.website" target="_blank">Website</a>
+                    </div>
+                  </div>
 
-          <div class="tags-section">
-            <div class="info-row align-start" v-if="m.product_categories">
-              <span class="info-icon mt-1">🏷️</span>
-              <div class="tags-container">
-                <span v-for="tag in m.product_categories.split(',')" :key="tag" class="category-tag">
-                  {{ tag.trim() }}
-                </span>
+                  <div class="tags-section">
+                    <div class="info-row align-start" v-if="m.product_categories">
+                      <span class="info-icon mt-1">🏷️</span>
+                      <div class="tags-container">
+                        <span v-for="tag in m.product_categories.split(',')" :key="tag" class="category-tag">
+                          {{ tag.trim() }}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="card-details-block">
+                  <div class="info-row" v-if="m.certifications">
+                    <span class="info-icon">📜</span>
+                    <button @click="showCertsPopup(m)" class="btn-view-certs">
+                      View {{ m.certifications.split(',').length }} Certs
+                    </button>
+                  </div>
+                  
+                  <div class="info-row notes-row" v-if="m.notes" @click="showNotesPopup(m.notes)" style="cursor: pointer;">
+                    <span class="info-icon">📝</span>
+                    <span class="truncate-text" :title="m.notes">{{ m.notes }}</span>
+                  </div>
+                    
+                  <div v-if="m.manufacturer_email_logs && m.manufacturer_email_logs.length > 0" class="email-history-preview mt-2">
+                    <div class="reach-date" :class="{ 'overdue': isOverdue(m.manufacturer_email_logs[0].sent_at) }">
+                      <span class="log-icon">🕒</span> {{ m.manufacturer_email_logs[0].template_name }}: {{ new Date(m.manufacturer_email_logs[0].sent_at).toLocaleDateString('en-US', { day: '2-digit', month: 'short' }) }}
+                      
+                      <span v-if="m.manufacturer_email_logs[0].read_at" class="status-badge is-read" :title="'Read at: ' + new Date(m.manufacturer_email_logs[0].read_at).toLocaleString()">Read</span>
+                      <span v-else class="status-badge is-sent" title="Sent (not read yet)">Sent</span>
+                      
+                      <span v-if="isOverdue(m.manufacturer_email_logs[0].sent_at) && !m.manufacturer_email_logs[0].read_at" class="warning-icon" title="No response in more than 7 days">⚠️</span>
+                    </div>
+
+                    <button v-if="m.manufacturer_email_logs.length > 1" @click="showEmailHistoryPopup(m)" class="btn-view-more mt-1">
+                      View All {{ m.manufacturer_email_logs.length }} Logs
+                    </button>
+                  </div>
+                </div>
+
+                <div class="card-actions-vertical">
+                  <div class="action-top-row">
+                    <button @click="editManufacturer(m)" class="btn-action-icon btn-edit" title="Edit">✏️</button>
+                    <button @click="openLogContactModal(m)" class="btn-action-icon btn-log" title="Log Contact">📝</button>
+                    <button @click="deleteManufacturer(m.id)" class="btn-action-icon btn-delete" title="Delete">🗑️</button>
+                  </div>
+                  <button v-if="m.email" @click="openInitialReachModal(m)" class="btn-action-full btn-initial-reach">🚀 REACH</button>
+                  <button v-if="m.email" @click="openEmailModal(m)" class="btn-action-full btn-email">✉️ EMAIL</button>
+                </div>
+
               </div>
             </div>
-          </div>
-        </div>
-
-        <div class="card-details-block">
-          <div class="info-row" v-if="m.certifications">
-            <span class="info-icon">📜</span>
-            <button @click="showCertsPopup(m)" class="btn-view-certs">
-              View {{ m.certifications.split(',').length }} Certs
-            </button>
-          </div>
-          
-          <div class="info-row notes-row" v-if="m.notes" @click="showNotesPopup(m.notes)" style="cursor: pointer;">
-            <span class="info-icon">📝</span>
-            <span class="truncate-text" :title="m.notes">{{ m.notes }}</span>
-          </div>
-            
-          <div v-if="m.manufacturer_email_logs && m.manufacturer_email_logs.length > 0" class="email-history-preview mt-2">
-            
-            <div class="reach-date" :class="{ 'overdue': isOverdue(m.manufacturer_email_logs[0].sent_at) }">
-              <span class="log-icon">🕒</span> {{ m.manufacturer_email_logs[0].template_name }}: {{ new Date(m.manufacturer_email_logs[0].sent_at).toLocaleDateString('en-US', { day: '2-digit', month: 'short' }) }}
-              
-              <span v-if="m.manufacturer_email_logs[0].read_at" class="status-badge is-read" :title="'Read at: ' + new Date(m.manufacturer_email_logs[0].read_at).toLocaleString()">Read</span>
-              <span v-else class="status-badge is-sent" title="Sent (not read yet)">Sent</span>
-              
-              <span v-if="isOverdue(m.manufacturer_email_logs[0].sent_at) && !m.manufacturer_email_logs[0].read_at" class="warning-icon" title="No response in more than 7 days">⚠️</span>
+            <div v-else class="empty-folder-message">
+              No manufacturers in this folder yet.
             </div>
-
-            <button v-if="m.manufacturer_email_logs.length > 1" @click="showEmailHistoryPopup(m)" class="btn-view-more mt-1">
-              View All {{ m.manufacturer_email_logs.length }} Logs
-            </button>
           </div>
-        </div>
-
-        <div class="card-actions-vertical">
-          <div class="action-top-row">
-            <button @click="editManufacturer(m)" class="btn-action-icon btn-edit" title="Edit">✏️</button>
-            <button @click="openLogContactModal(m)" class="btn-action-icon btn-log" title="Log Contact">📝</button>
-            <button @click="deleteManufacturer(m.id)" class="btn-action-icon btn-delete" title="Delete">🗑️</button>
-          </div>
-          <button v-if="m.email" @click="openInitialReachModal(m)" class="btn-action-full btn-initial-reach">🚀 REACH</button>
-          <button v-if="m.email" @click="openEmailModal(m)" class="btn-action-full btn-email">✉️ EMAIL</button>
-        </div>
+        </transition>
 
       </div>
     </div>
@@ -332,14 +388,21 @@ const htmlSignature = `<br><br>
 </table>`
 
 const manufacturers = ref([])
+const folders = ref([])
 const templatesList = ref([])
 const loading = ref(true)
 const showForm = ref(false)
+const showFolderForm = ref(false)
 const editing = ref(false)
+const editingFolder = ref(false)
 const editId = ref(null)
+const editFolderId = ref(null)
 const search = ref('')
+const filterFolder = ref('')
 const filterCountry = ref('')
 const filterCategory = ref('')
+
+const expandedFolders = ref(new Set(['no-folder']))
 
 const categoryOptions = [
   'Activewear', "Children's wear", 'Swimwear', 'Evening wear', 
@@ -369,13 +432,27 @@ const logContactModal = ref({
 const form = ref({ 
   company_name: '', country: '', contact_name: '', phone: '', 
   email: '', website: '', product_categories: '', certifications: '', notes: '',
-  nda_signed: false, mma_signed: false
+  nda_signed: false, mma_signed: false, folder_id: null
 })
+
+const folderForm = ref({ name: '' })
 
 const emailModal = ref({ 
   show: false, to: '', subject: '', body: '', sending: false, success: false, 
   error: '', manufacturerId: null, companyName: '', selectedTemplate: '', isInitialReach: false  
 })
+
+function toggleFolder(id) {
+  if (expandedFolders.value.has(id)) {
+    expandedFolders.value.delete(id)
+  } else {
+    expandedFolders.value.add(id)
+  }
+}
+
+function isExpanded(id) {
+  return expandedFolders.value.has(id)
+}
 
 const countries = computed(() => {
   return [...new Set(manufacturers.value.map(m => m.country).filter(Boolean))].sort()
@@ -384,6 +461,33 @@ const countries = computed(() => {
 const categories = computed(() => {
   const all = manufacturers.value.flatMap(m => m.product_categories ? m.product_categories.split(',').map(c => c.trim()) : [])
   return [...new Set(all)].filter(Boolean).sort()
+})
+
+const filteredFolders = computed(() => {
+  const folderMap = {}
+
+  folders.value.forEach(f => {
+    folderMap[f.id] = { id: f.id, name: f.name, manufacturers: [] }
+  })
+
+  folderMap['no-folder'] = { id: 'no-folder', name: 'No Folder', manufacturers: [] }
+
+  filteredManufacturers.value.forEach(m => {
+    const folderId = m.folder_id || 'no-folder'
+    if (folderMap[folderId]) {
+      folderMap[folderId].manufacturers.push(m)
+    } else {
+      folderMap['no-folder'].manufacturers.push(m)
+    }
+  })
+
+  return Object.values(folderMap)
+    .filter(f => f.manufacturers.length > 0 || (!search.value && !filterCountry.value && !filterCategory.value))
+    .sort((a, b) => {
+      if (a.id === 'no-folder') return 1
+      if (b.id === 'no-folder') return -1
+      return a.name.localeCompare(b.name)
+    })
 })
 
 const filteredManufacturers = computed(() => {
@@ -395,7 +499,8 @@ const filteredManufacturers = computed(() => {
       m.product_categories?.toLowerCase().includes(s)
     const matchCountry = !filterCountry.value || m.country === filterCountry.value
     const matchCategory = !filterCategory.value || m.product_categories?.toLowerCase().includes(filterCategory.value.toLowerCase())
-    return matchSearch && matchCountry && matchCategory
+    const matchFolder = !filterFolder.value || m.folder_id === filterFolder.value
+    return matchSearch && matchCountry && matchCategory && matchFolder
   })
 })
 
@@ -417,16 +522,95 @@ function showEmailHistoryPopup(m) {
 
 async function saveManufacturer() {
   if (!form.value.company_name) return alert('Name required')
-  form.value.product_categories = selectedCategories.value.join(', ')
-  form.value.certifications = selectedCertifications.value.join(', ')
   
-  if (editing.value) {
-    await supabase.from('manufacturers').update(form.value).eq('id', editId.value)
-  } else {
-    await supabase.from('manufacturers').insert([form.value])
+  // CREAMOS UN PAYLOAD COMPLETAMENTE LIMPIO CON SOLO LAS COLUMNAS EXISTENTES
+  const cleanPayload = {
+    company_name: form.value.company_name,
+    // Forzamos que si es un string vacío, mande un null real a PostgreSQL
+    folder_id: form.value.folder_id === '' ? null : form.value.folder_id, 
+    country: form.value.country,
+    contact_name: form.value.contact_name,
+    phone: form.value.phone,
+    email: form.value.email,
+    website: form.value.website,
+    product_categories: selectedCategories.value.join(', '),
+    certifications: selectedCertifications.value.join(', '),
+    notes: form.value.notes,
+    nda_signed: form.value.nda_signed,
+    mma_signed: form.value.mma_signed
   }
+
+  let err = null
+  if (editing.value) {
+    const { error } = await supabase.from('manufacturers').update(cleanPayload).eq('id', editId.value)
+    err = error
+  } else {
+    const { error } = await supabase.from('manufacturers').insert([cleanPayload])
+    err = error
+  }
+
+  if (err) {
+    console.error("Error de Supabase:", err)
+    return alert('Error guardando en la base de datos: ' + err.message)
+  }
+
   resetForm()
   fetchManufacturers()
+}
+
+async function saveFolder() {
+  if (!folderForm.value.name.trim()) return alert('Folder name required')
+  
+  let err = null
+  if (editingFolder.value) {
+    const { error } = await supabase.from('folders').update({ name: folderForm.value.name }).eq('id', editFolderId.value)
+    err = error
+  } else {
+    const { error } = await supabase.from('folders').insert([{ name: folderForm.value.name }])
+    err = error
+  }
+
+  if (err) {
+    console.error("Error de Supabase al crear carpeta:", err)
+    return alert('Error creando la carpeta en la base de datos: ' + err.message)
+  }
+
+  resetFolderForm()
+  fetchFolders()
+}
+
+function editFolder(f) {
+  folderForm.value.name = f.name
+  editFolderId.value = f.id
+  editingFolder.value = true
+  showFolderForm.value = true
+  window.scrollTo({ top: 0, behavior: 'smooth' })
+}
+
+async function deleteFolder(folderId) {
+  if (!confirm('Are you sure? This will not delete manufacturers, but they will be moved to "No Folder".')) return
+  
+  await supabase.from('manufacturers').update({ folder_id: null }).eq('folder_id', folderId)
+  await supabase.from('folders').delete().eq('id', folderId)
+  
+  fetchFolders()
+  fetchManufacturers()
+}
+
+function resetFolderForm() {
+  folderForm.value = { name: '' }
+  editingFolder.value = false
+  editFolderId.value = null
+  showFolderForm.value = false
+}
+
+function openFolderForm() {
+  if (showFolderForm.value) {
+    resetFolderForm()
+    return
+  }
+  resetFolderForm()
+  showFolderForm.value = true
 }
 
 function editManufacturer(m) {
@@ -443,7 +627,7 @@ function resetForm() {
   form.value = { 
     company_name: '', country: '', contact_name: '', phone: '', 
     email: '', website: '', product_categories: '', certifications: '', notes: '',
-    nda_signed: false, mma_signed: false
+    nda_signed: false, mma_signed: false, folder_id: null
   }
   selectedCategories.value = []
   selectedCertifications.value = []
@@ -458,10 +642,15 @@ async function fetchManufacturers() {
     .from('manufacturers')
     .select('*, manufacturer_email_logs(id, template_name, sent_at, read_at)')
     .order('company_name')
-    .order('sent_at', { foreignTable: 'manufacturer_email_logs', ascending: false }) // El índice [0] siempre será el más reciente
+    .order('sent_at', { foreignTable: 'manufacturer_email_logs', ascending: false })
     
   manufacturers.value = data || []
   loading.value = false
+}
+
+async function fetchFolders() {
+  const { data } = await supabase.from('folders').select('*').order('name')
+  folders.value = data || []
 }
 
 async function fetchTemplates() {
@@ -480,6 +669,7 @@ function openAddForm() {
 
 function clearFilters() { 
   search.value = ''
+  filterFolder.value = ''
   filterCountry.value = ''
   filterCategory.value = '' 
 }
@@ -622,6 +812,7 @@ function isOverdue(dateString) {
 
 onMounted(() => { 
   fetchManufacturers()
+  fetchFolders()
   fetchTemplates() 
 })
 </script>
@@ -645,6 +836,67 @@ h1 {
   font-size: 2rem; 
   font-weight: 800; 
   color: var(--text-main); 
+}
+
+/* NUEVOS ESTILOS PARA CARPETAS INTERACTIVAS */
+.folder-section { 
+  margin-bottom: 1.5rem; 
+  border-radius: 16px; 
+  overflow: hidden; 
+  background: var(--bg-card); 
+  border: 1px solid var(--border-main); 
+  box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+}
+.folder-header { 
+  display: flex; 
+  justify-content: space-between; 
+  align-items: center; 
+  padding: 1.2rem 1.5rem; 
+  background: var(--bg-app); 
+  cursor: pointer; 
+  transition: background 0.2s; 
+  user-select: none;
+}
+.folder-header:hover { 
+  background: var(--border-light); 
+}
+.folder-info-wrapper { 
+  display: flex; 
+  align-items: center; 
+  gap: 12px; 
+}
+.expand-icon { 
+  font-size: 0.8rem; 
+  color: var(--text-muted); 
+  width: 20px; 
+  text-align: center;
+  transition: transform 0.3s;
+}
+.folder-title { 
+  font-size: 1.1rem; 
+  font-weight: 700; 
+  margin: 0; 
+  color: var(--text-main);
+  display: flex;
+  align-items: center;
+}
+
+/* Transición para el colapso suave */
+.slide-fade-enter-active {
+  transition: all 0.3s ease-out;
+}
+.slide-fade-leave-active {
+  transition: all 0.2s cubic-bezier(1, 0.5, 0.8, 1);
+}
+.slide-fade-enter-from,
+.slide-fade-leave-to {
+  transform: translateY(-10px);
+  opacity: 0;
+}
+.folder-content {
+  padding: 1.5rem;
+  border-top: 1px solid var(--border-main);
+  background: var(--bg-card);
 }
 
 /* FORM & INPUTS */
@@ -791,6 +1043,21 @@ input:focus, textarea:focus, select:focus {
   gap: 1.2rem; 
 }
 
+.empty-folder-message {
+  padding: 1rem 1.5rem;
+  color: var(--text-muted);
+  font-style: italic;
+  font-size: 0.85rem;
+  background: rgba(0,0,0,0.05);
+  border-radius: 12px;
+}
+.empty-badge {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  font-weight: normal;
+  margin-left: 0.5rem;
+}
+
 .horizontal-card { 
   background: var(--bg-card); 
   border-radius: 16px; 
@@ -800,6 +1067,7 @@ input:focus, textarea:focus, select:focus {
   transition: transform 0.2s, box-shadow 0.2s; 
   box-shadow: 0 4px 6px rgba(0,0,0,0.1);
   overflow: hidden; 
+  margin-bottom: 1rem;
 }
 
 .horizontal-card:hover { 
