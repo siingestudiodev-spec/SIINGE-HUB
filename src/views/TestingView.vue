@@ -106,8 +106,8 @@ import { PDFDocument } from 'pdf-lib'
 
 // ID Fijo temporal para pruebas
 const TARGET_ID = '0942abd4-cccd-443f-985f-f29f4c1212f9'
-// URL de tu Webhook en Make.com
-const WEBHOOK_URL = 'https://hook.us2.make.com/69exacv5yd8v62q4rj9ix2s26pfkj3m9'
+// URL de tu NUEVO Webhook en Make.com
+const WEBHOOK_URL = 'https://hook.us2.make.com/iu8tlpynkaut9d3e3vrxf2bllt5qjyvb'
 
 const activeDoc = ref('nda')
 const loading = ref(false)
