@@ -393,7 +393,8 @@ async function checkUrlForNotification() {
 
 async function fetchProjects() {
   loading.value = true
-  const { data } = await supabase.from('projects').select('*').order('created_at', { ascending: false })
+  const { data, error } = await supabase.from('projects').select('*').order('created_at', { ascending: false })
+  if (error) console.error('fetchProjects error:', error)
   projects.value = data || []
   loading.value = false
 }
