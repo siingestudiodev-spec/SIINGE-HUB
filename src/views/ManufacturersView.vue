@@ -184,6 +184,12 @@
                     <span class="truncate-text" :title="m.notes">{{ m.notes }}</span>
                   </div>
                     
+                  <div v-if="m.followup_due_at && !m.followup_sent_at && !m.followup_manually_completed_at" class="followup-status-row mt-2">
+                    <span class="info-icon">📅</span>
+                    <span :class="['followup-chip', followupChipClass(m)]">{{ followupChipLabel(m) }}</span>
+                    <button @click.stop="openFollowupModal(m)" class="btn-edit-followup" title="Edit date">✏️</button>
+                  </div>
+
                   <div v-if="m.manufacturer_email_logs && m.manufacturer_email_logs.length > 0" class="email-history-preview mt-2">
                     <div class="reach-date" :class="{ 'overdue': isOverdue(m.manufacturer_email_logs[0].sent_at) }">
                       <span class="log-icon">🕒</span> {{ m.manufacturer_email_logs[0].template_name }}: {{ new Date(m.manufacturer_email_logs[0].sent_at).toLocaleDateString('en-US', { day: '2-digit', month: 'short' }) }}
@@ -204,9 +210,11 @@
                   <div class="action-top-row">
                     <button @click="editManufacturer(m)" class="btn-action-icon btn-edit" title="Edit">✏️</button>
                     <button @click="openLogContactModal(m)" class="btn-action-icon btn-log" title="Log Contact">📝</button>
+                    <button @click="openFollowupModal(m)" class="btn-action-icon btn-followup" title="Schedule Follow-up">📅</button>
                     <button @click="deleteManufacturer(m.id)" class="btn-action-icon btn-delete" title="Delete">🗑️</button>
                   </div>
-                  <button v-if="m.email" @click="openInitialReachModal(m)" class="btn-action-full btn-initial-reach">🚀 REACH</button>
+                  <button v-if="m.email && !m.initial_reach_sent" @click="openInitialReachModal(m)" class="btn-action-full btn-initial-reach">🚀 REACH</button>
+                  <button v-if="m.initial_reach_sent && !m.initial_reach_responded_at" @click="markResponded(m)" class="btn-action-full btn-responded">✅ RESPONDED</button>
                   <button v-if="m.email" @click="openEmailModal(m)" class="btn-action-full btn-email">✉️ EMAIL</button>
                 </div>
 
@@ -335,57 +343,47 @@
     </div>
 
   </div>
+
+  <!-- FOLLOW-UP DATE MODAL -->
+  <div v-if="followupModal.show" class="modal-overlay" @click.self="followupModal.show = false">
+    <div class="modal max-w-400">
+      <div class="modal-header">
+        <h2>📅 Schedule Follow-up</h2>
+        <button @click="followupModal.show = false" class="modal-close">✕</button>
+      </div>
+      <div class="modal-body-pad">
+        <p class="followup-modal-hint">
+          Set a reminder date for <strong>{{ followupModal.manu?.company_name }}</strong>.
+          Aparecerá en la vista de Follow-ups cuando llegue esa fecha.
+        </p>
+        <div class="modal-field">
+          <label>Date</label>
+          <input type="date" v-model="followupModal.date" class="modal-input" :min="todayDate" />
+        </div>
+        <div class="modal-field">
+          <label>Notes (optional)</label>
+          <input v-model="followupModal.notes" class="modal-input" placeholder="Contexto del follow-up..." />
+        </div>
+      </div>
+      <div class="modal-actions-row">
+        <button v-if="followupModal.manu?.followup_due_at" @click="clearFollowup" class="btn-secondary btn-sm-danger">
+          🗑 Clear
+        </button>
+        <div style="flex:1"></div>
+        <button @click="followupModal.show = false" class="btn-secondary">Cancel</button>
+        <button @click="saveFollowup" :disabled="!followupModal.date" class="btn-primary">Save</button>
+      </div>
+    </div>
+  </div>
+
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { supabase } from '../lib/supabase'
-import emailjs from '@emailjs/browser'
+const SUPABASE_URL      = import.meta.env.VITE_SUPABASE_URL
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
 
-const SUPABASE_PROJECT_URL = 'https://dshnhzgnfgtwqobqazxu.supabase.co'
-const EMAILJS_SERVICE_ID  = 'service_vxy88pq'
-const EMAILJS_TEMPLATE_ID = 'template_44apzvs'
-const EMAILJS_PUBLIC_KEY  = 'CFmOQW7RjLSBDwIOV'
-
-const htmlSignature = `<br><br>
-<table cellpadding="0" cellspacing="0" style="border-collapse: collapse; line-height: 1.15; width: 100%;" id="isPasted" width="100%">
-  <tbody valign="middle">
-    <tr valign="inherit">
-      <td style="vertical-align:middle;padding:.01px 12px 0.01px 1px;width:92px;text-align:center;" valign="middle" align="center">
-        <img border="0" src="https://permanent-assets-download.flockmail.com/signature/2408373/2024-06-03_36c3cd811224bc3a55b5_55761" width="92" alt="photo" style="width: 78px; vertical-align: middle; border-radius: 0px; height: 83px; border: 0px; display: block;">
-      </td>
-      <td valign="top" style="padding:.01px 0.01px 0.01px 12px;vertical-align:top;border-left:solid 1px #BDBDBD;"><strong><strong><br></strong></strong>
-        <table cellpadding="0" cellspacing="0" style="border-collapse: collapse; width: 100%;" width="100%">
-          <tbody valign="middle">
-            <tr valign="inherit">
-              <td style="padding:.01px;" valign="inherit">
-                <p style="margin:.1px;line-height:108.0%;font-size:16px;">
-                  <span style="font-size: 12pt;"><strong><strong>Luis Domínguez</strong><br style="color: rgb(51, 51, 51); font-family: Arial, sans-serif; font-size: 14px; font-weight: 400;"></strong></span>
-                  <span style="color: rgb(51, 51, 51); font-family: Arial, sans-serif; font-size: 11pt; font-weight: 400; display: inline !important;"><strong>Product Operations Manager</strong></span>
-                </p>
-                <p style="margin:.1px;line-height:108.0%;font-size:16px;">
-                  <span style="color: rgb(51, 51, 51); font-family: Arial, sans-serif; font-size: 11pt; font-weight: 400; display: inline !important;"><strong>​</strong></span><br style="color: rgb(51, 51, 51); font-family: Arial, sans-serif; font-size: 14px; font-weight: 400;">
-                  <span style="color: rgb(51, 51, 51); font-family: Arial, sans-serif; font-size: 14px; font-weight: 400; display: inline !important;">+57 350 201 4528 &nbsp; | &nbsp;&nbsp;</span>
-                  <a href="https://www.siinge.studio/" style="color: rgb(76, 140, 246); font-family: Arial, sans-serif; font-size: 14px; font-weight: 400;" target="_blank">www.siinge.studio</a><br style="color: rgb(51, 51, 51); font-family: Arial, sans-serif; font-size: 14px; font-weight: 400;">
-                  <a href="mailto:production@siinge.studio" style="color: rgb(76, 140, 246); font-family: Arial, sans-serif; font-size: 14px; font-weight: 400;" target="_blank">production@siinge.studio</a>
-                </p>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </td>
-    </tr>
-  </tbody>
-</table>
-<table cellpadding="0" cellspacing="0" width="100%" style="width:100%;color:gray;border-top:1px solid gray;line-height:normal;margin-top:10px;">
-  <tbody valign="middle">
-    <tr valign="inherit">
-      <td style="padding:9px 8px 0 0;" valign="inherit">
-        <p style="color:#888888;text-align:left;font-size:10px;margin:1px;line-height:120%;font-family:Arial ;">IMPORTANT: The contents of this email and any attachments are confidential. They are intended for the named recipient(s) only. If you have received this email by mistake, please notify the sender immediately and do not disclose the contents to anyone or make copies thereof.</p>
-      </td>
-    </tr>
-  </tbody>
-</table>`
 
 const manufacturers = ref([])
 const folders = ref([])
@@ -418,6 +416,74 @@ const selectedCategories = ref([])
 const selectedCertifications = ref([])
 const certPopup = ref({ show: false, list: [] })
 const notesPopup = ref({ show: false, text: '' })
+const followupModal = ref({ show: false, manu: null, date: '', notes: '' })
+
+const todayDate = new Date().toISOString().split('T')[0]
+
+function followupChipClass(m) {
+  const now = new Date()
+  const due = new Date(m.followup_due_at)
+  const diff = Math.floor((now - due) / 86400000)
+  if (diff < 0) return 'chip-upcoming'
+  if (diff === 0) return 'chip-today'
+  return 'chip-overdue'
+}
+
+function followupChipLabel(m) {
+  const now = new Date()
+  now.setHours(0,0,0,0)
+  const due = new Date(m.followup_due_at)
+  due.setHours(0,0,0,0)
+  const diff = Math.floor((now - due) / 86400000)
+  if (diff < 0) return `Follow-up in ${Math.abs(diff)}d`
+  if (diff === 0) return 'Follow-up today'
+  return `Follow-up ${diff}d overdue`
+}
+
+function openFollowupModal(m) {
+  followupModal.value = {
+    show: true,
+    manu: m,
+    date: m.followup_due_at ? m.followup_due_at.split('T')[0] : '',
+    notes: m.followup_notes || '',
+  }
+}
+
+async function saveFollowup() {
+  if (!followupModal.value.date) return
+  const isoDate = new Date(followupModal.value.date + 'T13:00:00Z').toISOString()
+  await supabase.from('manufacturers').update({
+    followup_due_at: isoDate,
+    followup_notes: followupModal.value.notes || null,
+    followup_sent_at: null,
+    followup_manually_completed_at: null,
+  }).eq('id', followupModal.value.manu.id)
+  followupModal.value.show = false
+  fetchManufacturers()
+}
+
+async function clearFollowup() {
+  await supabase.from('manufacturers').update({
+    followup_due_at: null,
+    followup_notes: null,
+    followup_sent_at: null,
+    followup_manually_completed_at: null,
+  }).eq('id', followupModal.value.manu.id)
+  followupModal.value.show = false
+  fetchManufacturers()
+}
+
+async function markResponded(m) {
+  await supabase.from('manufacturers').update({
+    initial_reach_responded_at: new Date().toISOString(),
+    followup_due_at: new Date().toISOString(),
+    followup_type: 'call',
+    followup_notes: 'Schedule intro call — they responded to initial reach',
+    followup_sent_at: null,
+    followup_manually_completed_at: null,
+  }).eq('id', m.id)
+  fetchManufacturers()
+}
 
 const emailHistoryPopup = ref({ show: false, list: [], companyName: '' })
 
@@ -753,48 +819,35 @@ async function saveLogContact() {
 async function sendEmail() {
   emailModal.value.sending = true
   try {
-    const templateName = emailModal.value.isInitialReach ? 'Initial Reach' : (emailModal.value.selectedTemplate?.name || 'Custom Email')
-    const { data: logEntry, error: logError } = await supabase
-      .from('manufacturer_email_logs')
-      .insert([{
-        manufacturer_id: emailModal.value.manufacturerId,
-        template_name: templateName,
-      }])
-      .select()
-      .single()
+    const templateName = emailModal.value.isInitialReach
+      ? 'Initial Reach'
+      : (emailModal.value.selectedTemplate?.name || 'Custom Email')
 
-    if (logError) throw logError
-    const trackingId = logEntry.id
-    const trackingUrl = `${SUPABASE_PROJECT_URL}/functions/v1/track-email?id=${trackingId}`
-    const pixelTag = `<img src="${trackingUrl}" width="1" height="1" style="display:none !important;" />`
-    const trackedSignature = htmlSignature.replace('</tbody>', `${pixelTag}</tbody>`)
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/send-manu-email`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        manufacturer_id:  emailModal.value.manufacturerId,
+        subject:          emailModal.value.subject,
+        body:             emailModal.value.body,
+        template_name:    templateName,
+        is_initial_reach: emailModal.value.isInitialReach,
+      }),
+    })
 
-    await emailjs.send(
-      EMAILJS_SERVICE_ID, 
-      EMAILJS_TEMPLATE_ID, 
-      { 
-        to_email: emailModal.value.to, 
-        subject: emailModal.value.subject, 
-        message: emailModal.value.body,
-        signature: trackedSignature
-      }, 
-      EMAILJS_PUBLIC_KEY
-    )
-    
-    if (emailModal.value.isInitialReach) {
-        await supabase.from('manufacturers').update({ 
-          initial_reach_sent: true, 
-          initial_reach_sent_at: new Date().toISOString(), 
-        }).eq('id', emailModal.value.manufacturerId)
-    }
-    
+    const result = await res.json()
+    if (!res.ok) throw new Error(result.error || 'Failed to send email')
+
     fetchManufacturers()
     emailModal.value.show = false
-  } catch (err) { 
-    alert('Error sending email. Check console.') 
+  } catch (err) {
+    alert('Error sending email: ' + err.message)
     console.error(err)
-  } finally { 
-    emailModal.value.sending = false 
+  } finally {
+    emailModal.value.sending = false
   }
 }
 
@@ -1238,6 +1291,24 @@ input:focus, textarea:focus, select:focus {
 .btn-action-full { width: 100%; padding: 0.6rem; border-radius: 8px; font-size: 0.75rem; font-weight: 800; border: none; cursor: pointer; text-transform: uppercase; transition: filter 0.2s; }
 .btn-initial-reach { background: var(--primary); color: white; }
 .btn-email { background: var(--success-bg); color: var(--success-text); }
+.btn-responded { background: #d1fae5; color: #065f46; }
+.btn-followup:hover { border-color: #f59e0b; background: #fef3c7; }
+
+/* FOLLOW-UP CHIP */
+.followup-status-row { display: flex; align-items: center; gap: 0.4rem; }
+.followup-chip { font-size: 0.72rem; font-weight: 700; padding: 2px 8px; border-radius: 20px; white-space: nowrap; }
+.chip-upcoming { background: #ede9fe; color: #7c3aed; }
+.chip-today    { background: #fef3c7; color: #d97706; }
+.chip-overdue  { background: #fee2e2; color: #dc2626; }
+.btn-edit-followup { background: none; border: none; cursor: pointer; font-size: 0.7rem; opacity: 0.5; padding: 0; line-height: 1; }
+.btn-edit-followup:hover { opacity: 1; }
+
+/* FOLLOW-UP MODAL */
+.followup-modal-hint { font-size: 0.85rem; color: var(--text-body); margin: 0 0 1rem; line-height: 1.5; }
+.modal-body-pad { padding: 1.2rem 1.5rem; }
+.modal-actions-row { display: flex; align-items: center; gap: 0.6rem; padding: 1rem 1.5rem; border-top: 1px solid var(--border-light); }
+.btn-sm-danger { color: #dc2626; border-color: #fca5a5; }
+.btn-sm-danger:hover { background: #fee2e2; }
 
 /* MODALES */
 .modal-overlay { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.8); z-index: 1000; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(4px); }

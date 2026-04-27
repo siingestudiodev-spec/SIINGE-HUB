@@ -9,7 +9,8 @@ import LoginView from '../views/LoginView.vue'
 import Sourcing from '../views/Sourcing.vue'
 import Events from '../views/Events.vue'
 import CalendarView from '../views/CalendarView.vue' 
-import TestingView from '../views/TestingView.vue' 
+import TestingView from '../views/TestingView.vue'
+import FollowUpsView from '../views/FollowUpsView.vue'
 
 const routes = [
   { path: '/login', component: LoginView },
@@ -54,12 +55,17 @@ const routes = [
     component: CalendarView, 
     meta: { requiresAuth: true } 
   },
-  { 
+  {
+    path: '/followups',
+    component: FollowUpsView,
+    meta: { requiresAuth: true }
+  },
+  {
     // RUTA AISLADA PÚBLICA PARA FIRMAS
-    path: '/contracts', 
-    component: TestingView, 
-    meta: { requiresAuth: false, hideNavbar: true } 
-  } 
+    path: '/contracts',
+    component: TestingView,
+    meta: { requiresAuth: false, hideNavbar: true }
+  }
 ]
 
 const router = createRouter({

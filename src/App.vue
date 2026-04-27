@@ -28,6 +28,9 @@
         <router-link to="/events" class="nav-item" :class="{ active: isActive('/events') }">
           🎪 Events
         </router-link>
+        <router-link to="/followups" class="nav-item" :class="{ active: isActive('/followups') }">
+          📞 Follow-ups
+        </router-link>
       </nav>
 
       <div class="navbar-right">

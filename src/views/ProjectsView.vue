@@ -37,6 +37,7 @@
               <span class="stage-badge" :style="{ color: getStageColor(p.status), borderColor: getStageColor(p.status) }">
                 📍 {{ p.status }}
               </span>
+              <span v-if="p.crm_stage" class="crm-badge">CRM · {{ p.crm_stage }}</span>
             </div>
           </div>
         </div>
@@ -83,6 +84,7 @@
               <div class="bc-title-wrap">
                 <h4>{{ p.project_name }}</h4>
                 <span class="bc-client" v-if="p.client_name">👤 {{ p.client_name }}</span>
+                <span v-if="p.crm_stage" class="crm-badge" style="margin-top: 3px;">CRM · {{ p.crm_stage }}</span>
               </div>
             </div>
             
@@ -591,6 +593,7 @@ h1 { font-size: 2rem; margin: 0; }
 .card-avatar { width: 48px; height: 48px; color: white; font-weight: 700; font-size: 1.3rem; border-radius: 12px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .card-title-block h3 { margin: 0 0 0.3rem 0; font-size: 1.1rem; line-height: 1.2; }
 .stage-badge { background: rgba(0,0,0,0.2); padding: 0.2rem 0.6rem; border-radius: 6px; font-size: 0.75rem; font-weight: 700; border: 1px solid; display: inline-block; margin-top: 0.3rem;}
+.crm-badge { background: rgba(99,102,241,0.12); color: #818cf8; border: 1px solid rgba(99,102,241,0.3); padding: 0.15rem 0.5rem; border-radius: 4px; font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; display: inline-block; margin-top: 0.3rem; margin-left: 4px; }
 .card-info-main { flex: 2; padding: 1.5rem; display: flex; flex-direction: column; gap: 0.8rem; }
 .contact-info { display: flex; flex-wrap: wrap; gap: 1.2rem; }
 .info-row { display: flex; align-items: center; gap: 0.6rem; font-size: 0.9rem; color: var(--text-body); }
