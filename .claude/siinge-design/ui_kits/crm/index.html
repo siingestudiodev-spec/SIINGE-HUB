@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>SIINGE CRM — UI Kit</title>
+<link rel="stylesheet" href="../../colors_and_type.css">
+<style>
+  html, body { margin: 0; background: var(--paper); font-family: var(--font-sans); color: var(--ink); }
+  * { box-sizing: border-box; }
+  button { font-family: inherit; }
+  input { font-family: inherit; }
+</style>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel" src="primitives.jsx"></script>
+<script type="text/babel" src="Sidebar.jsx"></script>
+<script type="text/babel" src="Login.jsx"></script>
+<script type="text/babel" src="Dashboard.jsx"></script>
+<script type="text/babel" src="Pipeline.jsx"></script>
+<script type="text/babel" src="Clients.jsx"></script>
+<script type="text/babel" src="ContractsLog.jsx"></script>
+
+<script type="text/babel">
+const App = () => {
+  const KEY = 'siinge_crm_view';
+  const [authed, setAuthed] = React.useState(() => localStorage.getItem('siinge_authed') === '1');
+  const [view, setView] = React.useState(() => localStorage.getItem(KEY) || 'dashboard');
+
+  React.useEffect(() => { localStorage.setItem(KEY, view); }, [view]);
+  React.useEffect(() => { localStorage.setItem('siinge_authed', authed ? '1' : '0'); }, [authed]);
+
+  if (view === 'portal') {
+    return (<>
+      <PortalSign />
+      <button onClick={() => setView('dashboard')} style={{
+        position: 'fixed', bottom: 16, left: 16, zIndex: 50,
+        background: 'var(--ink)', color: 'var(--paper)', border: 0,
+        fontSize: 9, fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase',
+        padding: '8px 12px', borderRadius: 4, cursor: 'pointer', opacity: .7,
+      }}>← Back to CRM</button>
+    </>);
+  }
+
+  if (!authed) return <Login onSignIn={() => setAuthed(true)} />;
+
+  const titles = {
+    dashboard: { sub: 'Overview', title: 'Business Analytics', actions: <Btn variant="ghost" size="sm">This Quarter</Btn> },
+    pipeline: { sub: 'Sales', title: 'Pipeline', actions: <Btn variant="primary" size="sm" icon={<Icon name="plus" size={11} color="var(--paper)" />}>New Deal</Btn> },
+    clients: { sub: 'Directory', title: 'Clients', actions: null },
+    contracts: { sub: 'Vault', title: 'Contracts Log', actions: <Btn variant="ember" size="sm" onClick={() => setView('portal')}>Preview Portal</Btn> },
+  };
+  const cfg = titles[view];
+
+  return (
+    <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--paper)' }}>
+      <Sidebar active={view} onNavigate={setView} />
+      <main style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+        <TopBar title={cfg.title} subtitle={cfg.sub} actions={<>
+          {cfg.actions}
+          <button onClick={() => setAuthed(false)} title="Sign out" style={{
+            background: 'transparent', border: 0, padding: 8, cursor: 'pointer', color: 'var(--ink-3)',
+          }}><Icon name="settings" size={16} /></button>
+        </>} />
+        <div style={{ flex: 1, overflow: 'auto' }}>
+          {view === 'dashboard' && <Dashboard />}
+          {view === 'pipeline' && <Pipeline />}
+          {view === 'clients' && <Clients />}
+          {view === 'contracts' && <ContractsLog />}
+        </div>
+      </main>
+    </div>
+  );
+};
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>

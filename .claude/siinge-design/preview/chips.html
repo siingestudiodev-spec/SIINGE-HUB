@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>Status Chips</title>
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  body{margin:0;padding:24px;background:var(--paper);font-family:var(--font-sans)}
+  .row{display:flex;gap:8px;align-items:center;margin-bottom:14px;flex-wrap:wrap}
+  .chip{font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;padding:4px 8px;border-radius:2px;border:1px solid;display:inline-flex;align-items:center;gap:6px}
+  .dot{width:5px;height:5px;border-radius:999px;display:inline-block}
+  .neutral{background:var(--paper-2);border-color:var(--border);color:var(--ink-2)}
+  .pos{background:#E5EAD9;border-color:#B8C4A0;color:#3A4F2A}
+  .cau{background:#F5E9C8;border-color:#DBC68A;color:#7A5512}
+  .crit{background:#F1DAD3;border-color:#D9B5AB;color:#6E1F1F}
+  .info{background:#DCE3E7;border-color:#B6C0C7;color:#2B4654}
+  .ember{background:#F3D9C5;border-color:#D9A37E;color:#7C2D12}
+  .live{background:transparent;border:none;color:var(--info);padding:0;font-weight:700}
+  .live .ring{position:relative;width:8px;height:8px}
+  .live .ring::before{content:"";position:absolute;inset:0;border-radius:999px;background:var(--info);opacity:.3;animation:p 1.6s ease-out infinite}
+  .live .ring::after{content:"";position:absolute;inset:2px;border-radius:999px;background:var(--info)}
+  @keyframes p{0%{transform:scale(.6);opacity:.5}100%{transform:scale(1.6);opacity:0}}
+  .lbl{font-size:10px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-3);width:90px}
+</style></head>
+<body>
+  <div class="row"><div class="lbl">Pipeline</div><span class="chip neutral"><span class="dot" style="background:#A39C8E"></span>Intake</span><span class="chip info"><span class="dot" style="background:#3B5A6B"></span>Call Booked</span><span class="chip cau"><span class="dot" style="background:#B5841E"></span>Proposal Sent</span><span class="chip pos"><span class="dot" style="background:#4F6B3A"></span>Signed</span><span class="chip crit"><span class="dot" style="background:#8C2A2A"></span>Churn</span></div>
+  <div class="row"><div class="lbl">Document</div><span class="chip neutral">NDA · Draft</span><span class="chip cau">NDA · Sent</span><span class="chip pos">NDA · Signed</span><span class="chip ember">SOW · Sent</span></div>
+  <div class="row"><div class="lbl">Live</div><span class="live"><span class="ring"></span>Opened 3 min ago</span></div>
+</body></html>

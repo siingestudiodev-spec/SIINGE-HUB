@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>Inputs</title>
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  body{margin:0;padding:24px;background:var(--paper);font-family:var(--font-sans)}
+  .field{margin-bottom:14px;max-width:340px}
+  .lbl{font-size:10px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-3);margin-bottom:6px;display:block}
+  .inp{width:100%;font-family:var(--font-sans);font-size:14px;padding:11px 14px;background:var(--bone);border:1px solid var(--ink-5);border-radius:4px;color:var(--ink);outline:none;box-sizing:border-box}
+  .inp:focus{border-color:var(--ink);box-shadow:0 0 0 2px var(--paper),0 0 0 3px var(--ink)}
+  .inp.err{border-color:var(--critical);background:#FBF3F1}
+  .help{font-size:11px;color:var(--ink-3);margin-top:5px}
+  .help.err{color:var(--critical);font-weight:600}
+  .row{display:flex;gap:18px}
+</style></head>
+<body>
+  <div class="row">
+    <div class="field"><label class="lbl">Email Address</label><input class="inp" value="admin@siinge.studio"/></div>
+    <div class="field"><label class="lbl">Password</label><input class="inp" type="password" value="••••••••"/></div>
+  </div>
+  <div class="row">
+    <div class="field"><label class="lbl">Company</label><input class="inp" placeholder="Catalina Beach Studio"/><div class="help">Used on the contract letterhead.</div></div>
+    <div class="field"><label class="lbl">Email</label><input class="inp err" value="not-an-email"/><div class="help err">Use a valid email format.</div></div>
+  </div>
+</body></html>

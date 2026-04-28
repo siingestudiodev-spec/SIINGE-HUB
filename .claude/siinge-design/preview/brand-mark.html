@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>Brand · Mark</title>
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  body{margin:0;padding:24px;background:var(--paper);font-family:var(--font-sans);display:flex;gap:18px}
+  .pane{flex:1;border:1px solid var(--border-soft);border-radius:4px;padding:16px;display:flex;flex-direction:column;align-items:center;gap:10px}
+  .pane.dark{background:var(--ink)}
+  .pane.paper{background:var(--paper-2)}
+  .pane img{height:90px;width:auto;object-fit:contain}
+  .lbl{font-size:9px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-3)}
+  .pane.dark .lbl{color:var(--ink-4)}
+</style></head>
+<body>
+  <div class="pane"><img src="../assets/logo-mark-wordmark.png" alt=""/><div class="lbl">Lockup · Paper</div></div>
+  <div class="pane paper"><img src="../assets/logo-mark.png" style="height:80px"/><div class="lbl">Mark Only</div></div>
+  <div class="pane dark"><img src="../assets/logo-mark-wordmark-white.png"/><div class="lbl">Reverse · Ink</div></div>
+</body></html>

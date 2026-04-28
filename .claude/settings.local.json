@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx vite *)",
+      "Bash(echo \"EXIT:$?\")",
+      "Bash(cp \"/c/Users/obsti/Desktop/newcrm/.claude/siinge-design/colors_and_type.css\" \"/c/Users/obsti/Desktop/newcrm/client-crm/src/styles/siinge-tokens.css\")",
+      "Bash(cp \"/c/Users/obsti/Desktop/newcrm/.claude/siinge-design/assets/logo-mark-wordmark.png\" \"/c/Users/obsti/Desktop/newcrm/client-crm/src/assets/siinge-logo.png\")",
+      "Bash(cp \"/c/Users/obsti/Desktop/newcrm/.claude/siinge-design/assets/logo-mark-wordmark-white.png\" \"/c/Users/obsti/Desktop/newcrm/client-crm/src/assets/siinge-logo-white.png\")",
+      "Bash(xargs grep *)",
+      "Bash(npm run *)",
+      "Bash(vercel --version)",
+      "Bash(vercel --prod)",
+      "Bash(vercel logs *)",
+      "Bash(vercel env *)",
+      "Bash(npx eslint *)",
+      "Bash(npx vue-tsc *)"
+    ]
+  }
+}

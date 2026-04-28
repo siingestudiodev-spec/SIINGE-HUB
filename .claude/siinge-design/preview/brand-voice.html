@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>Brand · Voice</title>
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  body{margin:0;padding:24px 28px;background:var(--paper);font-family:var(--font-sans)}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+  .col h4{font-family:var(--font-sans);font-size:10px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-3);margin:0 0 8px}
+  .ex{padding:10px 12px;border-left:2px solid var(--ink);background:var(--bone);font-family:var(--font-display);font-style:italic;font-size:14px;line-height:1.5;color:var(--ink-2);margin-bottom:8px}
+  .ex.bad{border-left-color:var(--critical);text-decoration:line-through;color:var(--ink-4)}
+  .ex.good{border-left-color:var(--positive)}
+</style></head>
+<body>
+  <div class="grid">
+    <div class="col">
+      <h4>Drop</h4>
+      <div class="ex bad">Welcome back to your dashboard! 👋</div>
+      <div class="ex bad">📋 No contracts found</div>
+      <div class="ex bad">Crunching numbers...</div>
+    </div>
+    <div class="col">
+      <h4>Keep</h4>
+      <div class="ex good">Authorized personnel only.</div>
+      <div class="ex good">No contracts on file.</div>
+      <div class="ex good">Compiling.</div>
+    </div>
+  </div>
+</body></html>

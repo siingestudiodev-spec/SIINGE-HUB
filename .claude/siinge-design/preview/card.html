@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>Card</title>
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  body{margin:0;padding:24px;background:var(--paper);font-family:var(--font-sans)}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .card{background:var(--bone);border:1px solid var(--border-soft);border-radius:8px;padding:20px;position:relative}
+  .eb{font-size:10px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-3)}
+  .ti{font-family:var(--font-display);font-size:24px;line-height:1.05;letter-spacing:-.02em;color:var(--ink);margin:6px 0 4px}
+  .meta{font-size:11px;color:var(--ink-3);font-family:var(--font-mono)}
+  .row{display:flex;justify-content:space-between;align-items:flex-end;margin-top:14px;padding-top:12px;border-top:1px solid var(--border-soft)}
+  .val{font-family:var(--font-display);font-size:22px;color:var(--ink)}
+  .accent{position:absolute;left:0;top:0;bottom:0;width:2px;background:var(--ember)}
+  .stat{font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;padding:3px 7px;border-radius:2px;background:#F5E9C8;color:#7A5512;border:1px solid #DBC68A}
+</style></head>
+<body>
+  <div class="grid">
+    <div class="card">
+      <div class="eb">Record · 4F2A9C8E</div>
+      <div class="ti"><em>Catalina</em> Beach Studio</div>
+      <div class="meta">Proposal sent · 12 Sept 2025</div>
+      <div class="row"><div class="val">$24,800</div><span class="stat">Awaiting</span></div>
+    </div>
+    <div class="card">
+      <div class="accent"></div>
+      <div class="eb">High-value</div>
+      <div class="ti"><em>Marin</em> Holdings</div>
+      <div class="meta">Strategy call booked · 3 PM</div>
+      <div class="row"><div class="val">$48,000</div><span class="stat" style="background:#E5EAD9;border-color:#B8C4A0;color:#3A4F2A">Signed</span></div>
+    </div>
+  </div>
+</body></html>

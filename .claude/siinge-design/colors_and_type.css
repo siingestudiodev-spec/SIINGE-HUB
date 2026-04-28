@@ -1,0 +1,255 @@
+/* =========================================================================
+   SIINGE STUDIO — COLORS & TYPE TOKENS
+   Editorial-minimalist system. Monochrome ink on warm sand, with a single
+   sun-glow accent reserved for moments of emphasis.
+   ========================================================================= */
+
+/* ---- Webfonts ---- */
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+:root {
+  /* =====================================================================
+     COLORS
+     One philosophy: ink on paper. Neutrals do 95% of the work; the
+     "ember" accent appears sparingly (CTA, signed states, a single
+     hairline). Avoid introducing new hues — extend the neutral ramp.
+     ===================================================================== */
+
+  /* — Surface (warm paper) — */
+  --paper:        #FAF7F2;  /* default app background, warm cream */
+  --paper-2:      #F3EEE5;  /* sunken surfaces, table headers, side rails */
+  --paper-3:      #E8E2D6;  /* hover-fill on neutral chips, dividers in soft contexts */
+
+  /* — Ink (true black is reserved for type & strokes) — */
+  --ink:          #0E0E0C;  /* primary text, primary buttons, the brand black */
+  --ink-2:        #2A2724;  /* body text */
+  --ink-3:        #6B655C;  /* supporting text, labels */
+  --ink-4:        #A39C8E;  /* disabled, captions, placeholder */
+  --ink-5:        #C9C2B4;  /* hairline borders on paper */
+
+  /* — Pure / surface complement (reverse system) — */
+  --bone:         #FFFFFF;  /* card surface on top of paper */
+  --bone-edge:    #EDE7DA;  /* card edge against paper */
+
+  /* — Accent: ember (the single sun glow) — */
+  --ember:        #C2410C;  /* CTA emphasis, signed/won states, link underline */
+  --ember-soft:   #F3D9C5;  /* tinted background for ember chips */
+  --ember-deep:   #7C2D12;  /* hover/press */
+
+  /* — Semantic (kept tonal, never primary-blue) — */
+  --positive:     #4F6B3A;  /* moss — confirmed, won, signed */
+  --positive-soft:#E5EAD9;
+  --caution:      #B5841E;  /* amber-ochre — pending, in-flight */
+  --caution-soft: #F5E9C8;
+  --critical:     #8C2A2A;  /* terracotta — destructive, churn, error */
+  --critical-soft:#F1DAD3;
+  --info:         #3B5A6B;  /* dusk slate — neutral info; rarely used */
+  --info-soft:    #DCE3E7;
+
+  /* — Foreground / Background semantic aliases — */
+  --bg:           var(--paper);
+  --bg-elevated:  var(--bone);
+  --bg-sunken:    var(--paper-2);
+  --fg:           var(--ink);
+  --fg-1:         var(--ink-2);
+  --fg-2:         var(--ink-3);
+  --fg-3:         var(--ink-4);
+  --border:       var(--ink-5);
+  --border-soft:  var(--bone-edge);
+  --border-strong:var(--ink);
+
+  /* =====================================================================
+     TYPE
+     Two families. Cormorant Garamond carries the brand voice (display +
+     wordmark-feel headers). Inter handles UI and body. JetBrains Mono
+     for IDs and tabular numerals.
+     ===================================================================== */
+
+  --font-display: 'Cormorant Garamond', 'Times New Roman', Georgia, serif;
+  --font-sans:    'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono:    'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+
+  /* Type scale (modular, gentle; editorial feels generous) */
+  --fs-12: 0.75rem;     /* 12 — micro / metadata */
+  --fs-13: 0.8125rem;   /* 13 — labels (uppercased) */
+  --fs-14: 0.875rem;    /* 14 — body small */
+  --fs-16: 1rem;        /* 16 — body */
+  --fs-18: 1.125rem;    /* 18 — body large */
+  --fs-22: 1.375rem;    /* 22 — h4 (sans) */
+  --fs-28: 1.75rem;     /* 28 — h3 (sans) */
+  --fs-36: 2.25rem;     /* 36 — h2 (display) */
+  --fs-48: 3rem;        /* 48 — h1 (display) */
+  --fs-72: 4.5rem;      /* 72 — hero (display) */
+
+  /* Line-heights */
+  --lh-tight: 1.05;
+  --lh-snug:  1.2;
+  --lh-base:  1.55;
+  --lh-loose: 1.75;
+
+  /* Letter-spacing — eyebrow labels are wide, display is tight */
+  --tr-eyebrow:  0.18em;   /* TINY UPPERCASE LABELS */
+  --tr-allcaps:  0.08em;   /* small uppercased buttons */
+  --tr-tight:   -0.02em;   /* display sizes */
+  --tr-default:  0em;
+
+  /* =====================================================================
+     SPACING (4px base, generous editorial rhythm)
+     ===================================================================== */
+  --s-1: 4px;
+  --s-2: 8px;
+  --s-3: 12px;
+  --s-4: 16px;
+  --s-5: 20px;
+  --s-6: 24px;
+  --s-8: 32px;
+  --s-10: 40px;
+  --s-12: 48px;
+  --s-16: 64px;
+  --s-20: 80px;
+  --s-24: 96px;
+
+  /* =====================================================================
+     RADII — small. Editorial sources prefer near-square.
+     ===================================================================== */
+  --r-0: 0px;
+  --r-1: 2px;       /* chips, badges */
+  --r-2: 4px;       /* inputs, buttons */
+  --r-3: 8px;       /* cards */
+  --r-4: 12px;      /* surface modals */
+  --r-pill: 999px;  /* status dots, avatar */
+  --r-arch: 50% 50% 8px 8px / 35% 35% 8px 8px;  /* sun-arch echo */
+
+  /* =====================================================================
+     SHADOWS — almost imperceptible. Editorial relies on hairlines.
+     ===================================================================== */
+  --shadow-0: none;
+  --shadow-1: 0 1px 0 rgba(14,14,12,0.04), 0 1px 2px rgba(14,14,12,0.04);
+  --shadow-2: 0 1px 0 rgba(14,14,12,0.04), 0 8px 20px -12px rgba(14,14,12,0.18);
+  --shadow-3: 0 24px 60px -32px rgba(14,14,12,0.28);
+  --shadow-inset: inset 0 0 0 1px var(--border);
+
+  /* =====================================================================
+     MOTION — quiet, deliberate. No bounce, no spring.
+     ===================================================================== */
+  --ease: cubic-bezier(0.2, 0.6, 0.2, 1);
+  --dur-fast:  120ms;
+  --dur-base:  220ms;
+  --dur-slow:  420ms;
+}
+
+/* =========================================================================
+   SEMANTIC TYPE STYLES — apply to elements directly.
+   ========================================================================= */
+
+html, body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-sans);
+  font-size: var(--fs-16);
+  line-height: var(--lh-base);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Display — Cormorant. Reserved for hero, section openers, signed quotes */
+.display-hero {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: clamp(3rem, 8vw, var(--fs-72));
+  line-height: var(--lh-tight);
+  letter-spacing: var(--tr-tight);
+  color: var(--ink);
+}
+
+.display-1, h1 {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: var(--fs-48);
+  line-height: var(--lh-tight);
+  letter-spacing: var(--tr-tight);
+  color: var(--ink);
+}
+
+.display-2, h2 {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: var(--fs-36);
+  line-height: var(--lh-snug);
+  letter-spacing: var(--tr-tight);
+  color: var(--ink);
+}
+
+/* Heads — Sans for UI density */
+.head-3, h3 {
+  font-family: var(--font-sans);
+  font-weight: 600;
+  font-size: var(--fs-28);
+  line-height: var(--lh-snug);
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+
+.head-4, h4 {
+  font-family: var(--font-sans);
+  font-weight: 600;
+  font-size: var(--fs-22);
+  line-height: var(--lh-snug);
+  color: var(--ink);
+}
+
+.head-5, h5 {
+  font-family: var(--font-sans);
+  font-weight: 600;
+  font-size: var(--fs-18);
+  line-height: var(--lh-snug);
+  color: var(--ink);
+}
+
+/* Body */
+.body-lg, p.lg { font-size: var(--fs-18); line-height: var(--lh-loose); color: var(--ink-2); }
+.body, p      { font-size: var(--fs-16); line-height: var(--lh-base);  color: var(--ink-2); }
+.body-sm      { font-size: var(--fs-14); line-height: var(--lh-base);  color: var(--ink-3); }
+.caption      { font-size: var(--fs-12); line-height: var(--lh-base);  color: var(--ink-3); }
+
+/* The signature label — uppercased, ultra-wide, used everywhere */
+.eyebrow, .label {
+  font-family: var(--font-sans);
+  font-weight: 600;
+  font-size: var(--fs-12);
+  text-transform: uppercase;
+  letter-spacing: var(--tr-eyebrow);
+  color: var(--ink-3);
+}
+.eyebrow-xs {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: var(--tr-eyebrow);
+  color: var(--ink-3);
+}
+
+/* Mono — for IDs, refs, tabular numerals */
+.mono, code, kbd {
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+  letter-spacing: 0;
+  color: var(--ink-2);
+}
+
+/* Editorial accents */
+.serif    { font-family: var(--font-display); }
+.italic   { font-style: italic; }
+.allcaps  { text-transform: uppercase; letter-spacing: var(--tr-allcaps); }
+
+/* Hairline divider — used to break editorial sections */
+.rule {
+  display: block;
+  width: 100%;
+  height: 1px;
+  background: var(--ink);
+  border: 0;
+  margin: var(--s-8) 0;
+  opacity: 0.9;
+}
+.rule-soft { background: var(--border); opacity: 1; }

@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>Spacing</title>
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  body{margin:0;padding:24px;background:var(--paper);font-family:var(--font-sans)}
+  table{width:100%;border-collapse:collapse}
+  td{padding:6px 0;vertical-align:middle;border-bottom:1px solid var(--border-soft)}
+  tr:last-child td{border-bottom:none}
+  .tok{font-family:var(--font-mono);font-size:12px;color:var(--ink-2);width:60px}
+  .px{font-family:var(--font-mono);font-size:11px;color:var(--ink-4);width:48px}
+  .bar{height:10px;background:var(--ink);border-radius:1px}
+  .role{font-size:11px;color:var(--ink-3);text-align:right;font-style:italic;font-family:var(--font-display)}
+</style></head>
+<body>
+<table>
+  <tr><td class="tok">--s-1</td><td class="px">4</td><td><div class="bar" style="width:4px"></div></td><td class="role">hairline gap</td></tr>
+  <tr><td class="tok">--s-2</td><td class="px">8</td><td><div class="bar" style="width:8px"></div></td><td class="role">chip pad</td></tr>
+  <tr><td class="tok">--s-3</td><td class="px">12</td><td><div class="bar" style="width:12px"></div></td><td class="role">inline</td></tr>
+  <tr><td class="tok">--s-4</td><td class="px">16</td><td><div class="bar" style="width:16px"></div></td><td class="role">field gap</td></tr>
+  <tr><td class="tok">--s-6</td><td class="px">24</td><td><div class="bar" style="width:24px"></div></td><td class="role">card pad</td></tr>
+  <tr><td class="tok">--s-8</td><td class="px">32</td><td><div class="bar" style="width:32px"></div></td><td class="role">section</td></tr>
+  <tr><td class="tok">--s-12</td><td class="px">48</td><td><div class="bar" style="width:48px"></div></td><td class="role">gutter</td></tr>
+  <tr><td class="tok">--s-16</td><td class="px">64</td><td><div class="bar" style="width:64px"></div></td><td class="role">page edge</td></tr>
+</table>
+</body></html>

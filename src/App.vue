@@ -206,23 +206,25 @@ async function logout() {
 }
 
 .logo {
-  width: 36px;
-  height: 36px;
-  border-radius: 6px;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--r-2);
   object-fit: contain;
 }
 
 .brand-name {
-  font-size: 0.95rem;
+  font-size: var(--fs-12);
   font-weight: 700;
   color: var(--text-main);
+  text-transform: uppercase;
+  letter-spacing: var(--tr-eyebrow);
 }
 
 /* MENÚ NAVEGACIÓN */
 .navbar-menu {
   flex: 1;
   display: flex;
-  gap: 0.5rem;
+  gap: 0.25rem;
   align-items: center;
 }
 
@@ -230,26 +232,28 @@ async function logout() {
   display: flex;
   align-items: center;
   gap: 0.4rem;
-  padding: 0.6rem 1rem;
-  color: var(--text-body);
+  padding: 0.5rem 0.875rem;
+  color: var(--text-muted);
   text-decoration: none;
-  border-radius: 6px;
-  font-size: 0.85rem;
-  font-weight: 500;
-  transition: all 0.15s;
+  border-radius: var(--r-1);
+  font-size: var(--fs-12);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: var(--tr-allcaps);
+  transition: color var(--dur-fast) var(--ease);
   white-space: nowrap;
   border-bottom: 2px solid transparent;
 }
 
 .nav-item:hover {
-  background: var(--border-light);
   color: var(--text-main);
+  background: transparent;
 }
 
 .nav-item.active {
   color: var(--primary);
   border-bottom-color: var(--primary);
-  font-weight: 600;
+  font-weight: 700;
 }
 
 /* SECCIÓN DERECHA */
@@ -267,33 +271,34 @@ async function logout() {
 .btn-notif {
   background: transparent;
   border: 1px solid var(--border-main);
-  width: 36px;
-  height: 36px;
-  border-radius: 6px;
+  width: 34px;
+  height: 34px;
+  border-radius: var(--r-2);
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: all 0.15s;
+  transition: border-color var(--dur-fast) var(--ease);
   position: relative;
-  font-size: 1rem;
+  font-size: 0.9rem;
+  color: var(--text-muted);
 }
 
 .btn-notif:hover {
-  background: var(--border-light);
   border-color: var(--primary);
+  color: var(--text-main);
 }
 
 .badge {
   position: absolute;
   top: -4px;
   right: -4px;
-  background: #ef4444;
-  color: white;
-  font-size: 0.6rem;
+  background: var(--ember);
+  color: var(--bone);
+  font-size: 0.55rem;
   font-weight: 700;
-  width: 16px;
-  height: 16px;
+  width: 15px;
+  height: 15px;
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -305,39 +310,40 @@ async function logout() {
 .btn-logout {
   background: transparent;
   border: 1px solid var(--border-main);
-  width: 36px;
-  height: 36px;
-  border-radius: 6px;
+  width: 34px;
+  height: 34px;
+  border-radius: var(--r-2);
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  font-size: 1rem;
-  transition: all 0.15s;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  transition: border-color var(--dur-fast) var(--ease);
 }
 
 .btn-theme:hover,
 .btn-logout:hover {
-  background: var(--border-light);
   border-color: var(--primary);
+  color: var(--text-main);
 }
 
 /* NOTIFICACIONES DROPDOWN */
 .notifs-dropdown {
   position: absolute;
-  top: 45px;
+  top: 44px;
   right: 0;
   width: 340px;
   background: var(--bg-card);
   border: 1px solid var(--border-main);
-  border-radius: 8px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  border-radius: var(--r-3);
+  box-shadow: var(--shadow-3);
   overflow: hidden;
   z-index: 200;
 }
 
 .notifs-header {
-  padding: 0.9rem 1rem;
+  padding: var(--s-3) var(--s-4);
   border-bottom: 1px solid var(--border-light);
   display: flex;
   justify-content: space-between;
@@ -346,8 +352,11 @@ async function logout() {
 
 .notifs-header h4 {
   margin: 0;
-  font-size: 0.9rem;
-  color: var(--text-main);
+  font-size: var(--fs-12);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: var(--tr-eyebrow);
+  color: var(--text-muted);
 }
 
 .btn-clear {
@@ -355,16 +364,15 @@ async function logout() {
   color: var(--text-muted);
   border: none;
   cursor: pointer;
-  font-size: 0.75rem;
+  font-size: var(--fs-12);
   font-weight: 600;
   padding: 0.2rem 0.5rem;
-  border-radius: 4px;
-  transition: 0.2s;
+  border-radius: var(--r-1);
+  transition: color var(--dur-fast);
 }
 
 .btn-clear:hover {
   color: var(--primary);
-  background: var(--border-light);
 }
 
 .notifs-body {
@@ -373,18 +381,17 @@ async function logout() {
 }
 
 .empty-notifs {
-  padding: 2rem 1rem;
+  padding: var(--s-10) var(--s-4);
   text-align: center;
   color: var(--text-muted);
-  font-size: 0.85rem;
-  font-style: italic;
+  font-size: var(--fs-13);
 }
 
 .notif-item {
-  padding: 0.8rem 1rem;
+  padding: var(--s-3) var(--s-4);
   border-bottom: 1px solid var(--border-light);
   cursor: pointer;
-  transition: background 0.2s;
+  transition: background var(--dur-fast);
 }
 
 .notif-item:last-child {
@@ -392,23 +399,24 @@ async function logout() {
 }
 
 .notif-item:hover {
-  background: var(--bg-app);
+  background: var(--bg-sunken);
 }
 
 .notif-item.unread {
-  background: rgba(79, 70, 229, 0.08);
+  background: var(--primary-soft);
 }
 
 .notif-text {
-  font-size: 0.85rem;
+  font-size: var(--fs-13);
   color: var(--text-main);
-  margin-bottom: 0.3rem;
-  line-height: 1.4;
+  margin-bottom: 0.25rem;
+  line-height: 1.45;
 }
 
 .notif-time {
-  font-size: 0.75rem;
+  font-size: var(--fs-12);
   color: var(--text-muted);
+  font-family: var(--font-mono);
 }
 
 /* ÁREA DE CONTENIDO */

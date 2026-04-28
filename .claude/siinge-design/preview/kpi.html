@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>KPI Tile</title>
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  body{margin:0;padding:24px;background:var(--paper);font-family:var(--font-sans)}
+  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+  .tile{background:var(--bone);border:1px solid var(--border-soft);border-radius:4px;padding:18px}
+  .eb{font-size:10px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-3)}
+  .num{font-family:var(--font-display);font-size:48px;line-height:1;letter-spacing:-.03em;color:var(--ink);margin-top:10px}
+  .num small{font-size:18px;color:var(--ink-3);font-style:italic;margin-left:4px}
+  .sub{font-size:11px;color:var(--ink-3);margin-top:8px;font-family:var(--font-display);font-style:italic}
+  .bar{height:2px;background:var(--paper-2);margin-top:12px;overflow:hidden}
+  .bar div{height:100%;background:var(--ink)}
+  .ember .bar div{background:var(--ember)}
+</style></head>
+<body>
+  <div class="grid">
+    <div class="tile"><div class="eb">Active Pipeline</div><div class="num">$184k</div><div class="sub">Open across 12 deals.</div></div>
+    <div class="tile ember"><div class="eb">Win Rate</div><div class="num">62<small>%</small></div><div class="bar"><div style="width:62%"></div></div></div>
+    <div class="tile"><div class="eb">Avg. Time to Close</div><div class="num">14<small>days</small></div><div class="sub">Lead to signed contract.</div></div>
+  </div>
+</body></html>

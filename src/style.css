@@ -1,68 +1,125 @@
-@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
 
 * {
   box-sizing: border-box;
 }
 
-/* DARK MODE - Default */
-:root,
-:root.dark-mode {
-  /* --- FONDOS --- */
-  --bg-app: #0f1119;
-  --bg-card: #16171d;
-  
-  /* --- TEXTOS --- */
-  --text-main: #ffffff;
-  --text-body: #d1d5db;
-  --text-muted: #9ca3af;
+/* ====================================================================
+   SIINGE DESIGN TOKENS
+   ==================================================================== */
+:root {
+  /* --- Raw palette --- */
+  --paper:        #FAF7F2;
+  --paper-2:      #F3EEE5;
+  --paper-3:      #E8E2D6;
+  --ink:          #0E0E0C;
+  --ink-2:        #2A2724;
+  --ink-3:        #6B655C;
+  --ink-4:        #A39C8E;
+  --ink-5:        #C9C2B4;
+  --bone:         #FFFFFF;
+  --bone-edge:    #EDE7DA;
+  --ember:        #C2410C;
+  --ember-soft:   #F3D9C5;
+  --ember-deep:   #7C2D12;
+  --positive:     #4F6B3A;
+  --positive-soft:#E5EAD9;
+  --caution:      #B5841E;
+  --caution-soft: #F5E9C8;
+  --critical:     #8C2A2A;
+  --critical-soft:#F1DAD3;
+  --info:         #3B5A6B;
+  --info-soft:    #DCE3E7;
 
-  /* --- COLORES DE MARCA --- */
-  --primary: #4f46e5;
-  --primary-hover: #4338ca;
-  
-  /* --- BORDES Y LÍNEAS --- */
-  --border-light: #2d2d3d;
-  --border-main: #383847;
-  
-  /* --- ESTADOS --- */
-  --success-bg: rgba(34, 197, 94, 0.12);
-  --success-text: #4ade80;
-  
-  --warning-bg: rgba(234, 179, 8, 0.12);
-  --warning-text: #facc15;
-  
-  --danger-bg: rgba(225, 29, 72, 0.12);
-  --danger-text: #f87171;
+  /* --- Fonts --- */
+  --font-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+
+  /* --- Type scale --- */
+  --fs-12: 0.75rem;
+  --fs-13: 0.8125rem;
+  --fs-14: 0.875rem;
+  --fs-16: 1rem;
+  --fs-18: 1.125rem;
+  --fs-22: 1.375rem;
+  --fs-28: 1.75rem;
+  --fs-36: 2.25rem;
+
+  /* --- Letter spacing --- */
+  --tr-eyebrow: 0.18em;
+  --tr-allcaps:  0.08em;
+
+  /* --- Spacing --- */
+  --s-1: 4px;   --s-2: 8px;   --s-3: 12px;  --s-4: 16px;
+  --s-5: 20px;  --s-6: 24px;  --s-8: 32px;  --s-10: 40px;
+  --s-12: 48px; --s-16: 64px; --s-20: 80px;
+
+  /* --- Radii --- */
+  --r-1: 2px;  --r-2: 4px;  --r-3: 8px;  --r-4: 12px;  --r-pill: 999px;
+
+  /* --- Shadows --- */
+  --shadow-0: none;
+  --shadow-1: 0 1px 0 rgba(14,14,12,0.04), 0 1px 2px rgba(14,14,12,0.04);
+  --shadow-2: 0 1px 0 rgba(14,14,12,0.04), 0 8px 20px -12px rgba(14,14,12,0.18);
+  --shadow-3: 0 24px 60px -32px rgba(14,14,12,0.28);
+
+  /* --- Motion --- */
+  --ease: cubic-bezier(0.2, 0.6, 0.2, 1);
+  --dur-fast: 120ms;
+  --dur-base: 220ms;
 }
 
-/* LIGHT MODE */
+/* LIGHT MODE — SIINGE warm paper (default) */
+:root,
 :root.light-mode {
-  /* --- FONDOS --- */
-  --bg-app: #f5f5f7;
-  --bg-card: #ffffff;
-  
-  /* --- TEXTOS --- */
-  --text-main: #171717;
-  --text-body: #525252;
-  --text-muted: #7c7c8c;
+  --bg-app:     var(--paper);
+  --bg-card:    var(--bone);
+  --bg-sunken:  var(--paper-2);
 
-  /* --- COLORES DE MARCA --- */
-  --primary: #4f46e5;
-  --primary-hover: #4338ca;
-  
-  /* --- BORDES Y LÍNEAS --- */
-  --border-light: #e5e5e5;
-  --border-main: #d4d4d8;
-  
-  /* --- ESTADOS --- */
-  --success-bg: rgba(34, 197, 94, 0.1);
-  --success-text: #16a34a;
-  
-  --warning-bg: rgba(234, 179, 8, 0.1);
-  --warning-text: #ca8a04;
-  
-  --danger-bg: rgba(225, 29, 72, 0.1);
-  --danger-text: #dc2626;
+  --text-main:   var(--ink);
+  --text-body:   var(--ink-2);
+  --text-muted:  var(--ink-3);
+  --text-subtle: var(--ink-4);
+
+  --primary:       var(--ember);
+  --primary-hover: var(--ember-deep);
+  --primary-soft:  var(--ember-soft);
+
+  --border-light:  var(--bone-edge);
+  --border-main:   var(--ink-5);
+
+  --success-bg:   var(--positive-soft);
+  --success-text: var(--positive);
+  --warning-bg:   var(--caution-soft);
+  --warning-text: var(--caution);
+  --danger-bg:    var(--critical-soft);
+  --danger-text:  var(--critical);
+}
+
+/* DARK MODE — ink-based SIINGE */
+:root.dark-mode {
+  --bg-app:    var(--ink);
+  --bg-card:   #1A1916;
+  --bg-sunken: #141210;
+
+  --text-main:   var(--paper);
+  --text-body:   var(--paper-3);
+  --text-muted:  var(--ink-4);
+  --text-subtle: var(--ink-3);
+
+  --primary:       var(--ember);
+  --primary-hover: #D9511A;
+  --primary-soft:  rgba(194, 65, 12, 0.18);
+
+  --border-light: #2A2724;
+  --border-main:  #3A3530;
+
+  --success-bg:   rgba(79, 107, 58, 0.2);
+  --success-text: #7A9E5B;
+  --warning-bg:   rgba(181, 132, 30, 0.2);
+  --warning-text: #D4A043;
+  --danger-bg:    rgba(140, 42, 42, 0.2);
+  --danger-text:  #C24A4A;
 }
 
 html, body {
@@ -70,7 +127,11 @@ html, body {
   padding: 0;
   background-color: var(--bg-app);
   color: var(--text-body);
-  font-family: 'Poppins', sans-serif;
+  font-family: var(--font-sans);
+  font-size: var(--fs-16);
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
   min-height: 100vh;
 }
 
@@ -79,9 +140,8 @@ html, body {
   min-height: 100vh;
 }
 
-/* UTILIDADES GLOBALES */
 button {
-  font-family: 'Poppins', sans-serif;
+  font-family: var(--font-sans);
   cursor: pointer;
 }
 
@@ -90,35 +150,58 @@ a {
   text-decoration: none;
 }
 
-/* SCROLLBAR PERSONALIZADO */
+code, kbd {
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+  color: var(--text-body);
+}
+
+/* EYEBROW — uppercase label signature */
+.eyebrow, .label {
+  font-weight: 600;
+  font-size: var(--fs-12);
+  text-transform: uppercase;
+  letter-spacing: var(--tr-eyebrow);
+  color: var(--text-muted);
+}
+
+/* HAIRLINE DIVIDER */
+.rule {
+  display: block;
+  width: 100%;
+  height: 1px;
+  background: var(--border-main);
+  border: 0;
+  margin: var(--s-8) 0;
+}
+
+/* SCROLLBAR */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
-
 ::-webkit-scrollbar-track {
   background: transparent;
 }
-
 ::-webkit-scrollbar-thumb {
   background: var(--border-main);
-  border-radius: 3px;
+  border-radius: var(--r-1);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--ink-3);
 }
 
-::-webkit-scrollbar-thumb:hover {
-  background: var(--border-light);
-}
 /* FOLDER STYLES */
 .folder-section {
-  margin-bottom: 2rem;
+  margin-bottom: var(--s-8);
   border: 1px solid var(--border-light);
-  border-radius: 8px;
+  border-radius: var(--r-3);
   overflow: hidden;
 }
 
 .folder-header {
   background: var(--bg-card);
-  padding: 1rem 1.5rem;
+  padding: var(--s-4) var(--s-6);
   border-bottom: 1px solid var(--border-light);
   display: flex;
   justify-content: space-between;
@@ -127,36 +210,36 @@ a {
 
 .folder-title {
   margin: 0;
-  font-size: 1.25rem;
+  font-size: var(--fs-18);
   font-weight: 600;
   color: var(--text-main);
 }
 
 .folder-actions {
   display: flex;
-  gap: 0.5rem;
+  gap: var(--s-2);
 }
 
 .folder-manufacturers {
-  padding: 1rem;
+  padding: var(--s-4);
   background: var(--bg-app);
 }
 
 .header-actions {
   display: flex;
-  gap: 1rem;
+  gap: var(--s-4);
   align-items: center;
 }
 
 @media (max-width: 768px) {
   .header-actions {
     flex-direction: column;
-    gap: 0.5rem;
+    gap: var(--s-2);
   }
   .folder-header {
-    padding: 0.75rem 1rem;
+    padding: var(--s-3) var(--s-4);
   }
   .folder-title {
-    font-size: 1.1rem;
+    font-size: var(--fs-16);
   }
 }
