@@ -34,7 +34,7 @@ import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { supabase } from '../lib/supabase'
 import { ArrowRight } from 'lucide-vue-next'
-import logoImage from '@/assets/siinge-logo.png'
+import logoImage from '../assets/siinge-logo.png'
 
 const router = useRouter()
 const email = ref('')

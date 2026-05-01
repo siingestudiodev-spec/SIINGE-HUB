@@ -82,7 +82,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { useThemeStore } from './stores/themeStore'
 import { supabase } from './lib/supabase'
 import { Factory, ClipboardList, Search, Mail, Calendar, PartyPopper, Phone, Bell, Sun, Moon, LogOut } from 'lucide-vue-next'
-import logo from '@/assets/siinge-mark.png'
+import logo from './assets/siinge-mark.png'
 
 const router = useRouter()
 const route = useRoute()
