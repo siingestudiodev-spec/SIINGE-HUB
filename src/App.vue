@@ -4,7 +4,7 @@
     <header class="top-navbar" v-if="!route.meta.hideNavbar">
       <div class="navbar-left">
         <div class="logo-section">
-          <img src="https://i.ibb.co/xK52ckkK/Whats-App-Image-2026-02-24-at-13-58-58-1.jpg" alt="logo" class="logo" />
+          <img :src="logo" alt="SIINGE" class="logo" />
           <div class="brand-name">SIINGE Hub</div>
         </div>
       </div>
@@ -82,6 +82,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { useThemeStore } from './stores/themeStore'
 import { supabase } from './lib/supabase'
 import { Factory, ClipboardList, Search, Mail, Calendar, PartyPopper, Phone, Bell, Sun, Moon, LogOut } from 'lucide-vue-next'
+import logo from '@/assets/siinge-mark.png'
 
 const router = useRouter()
 const route = useRoute()

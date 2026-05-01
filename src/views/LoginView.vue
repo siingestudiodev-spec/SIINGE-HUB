@@ -3,7 +3,7 @@
     <img src="/src/assets/siinge-mark.png" class="watermark" alt="" aria-hidden="true" />
     <div class="login-card">
       <div class="login-header">
-        <img src="https://i.ibb.co/xK52ckkK/Whats-App-Image-2026-02-24-at-13-58-58-1.jpg" alt="SIINGE STUDIO" class="logo" />
+        <img :src="logoImage" alt="SIINGE STUDIO" class="logo" />
         <h1 class="display display--lg">SIINGE STUDIO</h1>
         <p class="eyebrow" style="margin-top: 8px;">Manufacturers Hub</p>
         <p class="eyebrow subtitle">Sign in to your workspace</p>
@@ -34,6 +34,7 @@ import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { supabase } from '../lib/supabase'
 import { ArrowRight } from 'lucide-vue-next'
+import logoImage from '@/assets/siinge-logo.png'
 
 const router = useRouter()
 const email = ref('')
