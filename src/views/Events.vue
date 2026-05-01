@@ -37,7 +37,7 @@
     </div>
 
     <div v-if="showForm" class="form-card">
-      <h2>{{ editingId ? 'Edit Event' : 'New Event' }}</h2>
+      <h2 class="title">{{ editingId ? 'Edit Event' : 'New Event' }}</h2>
       <div class="form-grid">
         <input v-model="form.event_name" placeholder="Event Name *" />
         <input v-model="form.country" placeholder="Country" />

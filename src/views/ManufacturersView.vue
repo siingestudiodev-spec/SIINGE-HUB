@@ -246,7 +246,7 @@
     <div v-if="notesPopup.show" class="modal-overlay" @click.self="notesPopup.show = false">
       <div class="modal max-w-500">
         <div class="modal-header">
-          <h2>Notes</h2>
+          <h2 class="title">Notes</h2>
           <button @click="notesPopup.show = false" class="modal-close">✕</button>
         </div>
         <div class="modal-body" style="padding: 20px; max-height: 400px; overflow-y: auto;">
@@ -258,7 +258,7 @@
     <div v-if="emailHistoryPopup.show" class="modal-overlay" @click.self="emailHistoryPopup.show = false">
       <div class="modal max-w-500">
         <div class="modal-header">
-          <h2>Contact History</h2>
+          <h2 class="title">Contact History</h2>
           <button @click="emailHistoryPopup.show = false" class="modal-close">✕</button>
         </div>
         <div class="modal-body" style="padding: 10px 20px 20px; max-height: 400px; overflow-y: auto;">
@@ -278,7 +278,7 @@
     <div v-if="logContactModal.show" class="modal-overlay" @click.self="logContactModal.show = false">
       <div class="modal">
         <div class="modal-header">
-          <h2>Log Contact: {{ logContactModal.companyName }}</h2>
+          <h2 class="title">Log Contact: {{ logContactModal.companyName }}</h2>
           <button @click="logContactModal.show = false" class="modal-close">✕</button>
         </div>
         
@@ -304,7 +304,7 @@
     <div v-if="emailModal.show" class="modal-overlay" @click.self="emailModal.show = false">
       <div class="modal">
         <div class="modal-header">
-          <h2>{{ emailModal.isInitialReach ? 'Edit & Send Initial Reach' : 'Send Custom Email' }} to {{ emailModal.companyName }}</h2>
+          <h2 class="title">{{ emailModal.isInitialReach ? 'Edit & Send Initial Reach' : 'Send Custom Email' }} to {{ emailModal.companyName }}</h2>
           <button @click="emailModal.show = false" class="modal-close">✕</button>
         </div>
         <div class="modal-field">
@@ -348,7 +348,7 @@
   <div v-if="followupModal.show" class="modal-overlay" @click.self="followupModal.show = false">
     <div class="modal max-w-400">
       <div class="modal-header">
-        <h2>Schedule Follow-up</h2>
+        <h2 class="title">Schedule Follow-up</h2>
         <button @click="followupModal.show = false" class="modal-close">✕</button>
       </div>
       <div class="modal-body-pad">

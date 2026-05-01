@@ -67,7 +67,7 @@
     <div v-if="showModal" class="modal-overlay" @click.self="closeModal">
       <div class="modal max-w-700">
         <div class="modal-header">
-          <h2>{{ editingId ? 'Edit Material' : 'Material Specifications' }}</h2>
+          <h2 class="title">{{ editingId ? 'Edit Material' : 'Material Specifications' }}</h2>
           <button @click="closeModal" class="modal-close">✕</button>
         </div>
         <div class="modal-body">
@@ -106,7 +106,7 @@
     <div v-if="factoryModal.show" class="modal-overlay" @click.self="factoryModal.show = false">
       <div class="modal max-w-500">
         <div class="modal-header">
-          <h2><Factory :size="16" :stroke-width="1.5" /> Factory Details</h2>
+          <h2 class="title"><Factory :size="16" :stroke-width="1.5" /> Factory Details</h2>
           <button @click="factoryModal.show = false" class="modal-close">✕</button>
         </div>
         <div class="factory-detail-content" v-if="factoryModal.data">

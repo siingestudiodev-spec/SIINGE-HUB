@@ -252,7 +252,7 @@
     <div v-if="notesModal.show" class="modal-overlay z-high" @click.self="closeNotesModal">
       <div class="modal notes-modal">
         <div class="modal-header">
-          <h2>Notes: {{ notesModal.stageName }}</h2>
+          <h2 class="title">Notes: {{ notesModal.stageName }}</h2>
           <button @click="closeNotesModal" class="modal-close">✕</button>
         </div>
         

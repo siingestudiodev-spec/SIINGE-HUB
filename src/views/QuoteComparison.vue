@@ -15,7 +15,7 @@
     </div>
 
     <div v-if="showForm" class="form-card">
-      <h2>{{ editingId ? 'Edit Quote Option' : 'New Quote Option' }}</h2>
+      <h2 class="title">{{ editingId ? 'Edit Quote Option' : 'New Quote Option' }}</h2>
       <div class="form-grid">
         <div class="input-field">
           <label>Factory *</label>

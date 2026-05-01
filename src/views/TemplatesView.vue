@@ -9,7 +9,7 @@
 
     <div class="legal-documents-section">
       <div class="legal-header">
-        <h2>Legal Documents</h2>
+        <h2 class="title">Legal Documents</h2>
         <p>Download your official SIINGE templates automatically stamped with today's date.</p>
       </div>
       <div class="legal-actions">
@@ -34,7 +34,7 @@
     <hr class="section-divider" />
 
     <div v-if="showForm" class="form-card">
-      <h2>{{ editing ? 'Edit Email Template' : 'New Email Template' }}</h2>
+      <h2 class="title">{{ editing ? 'Edit Email Template' : 'New Email Template' }}</h2>
       <div class="form-grid-single">
         <input v-model="form.name" placeholder="Template Name (e.g., Initial Reach) *" />
         <input v-model="form.subject" placeholder="Email Subject *" />
@@ -46,7 +46,7 @@
     </div>
 
     <div class="section-title">
-      <h2>Saved Email Templates</h2>
+      <h2 class="title">Saved Email Templates</h2>
     </div>
 
     <div v-if="loading" class="loading">Loading...</div>

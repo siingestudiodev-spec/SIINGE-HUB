@@ -22,7 +22,7 @@
     </div>
 
     <div v-if="showForm" class="form-card">
-      <h2>{{ editingId ? 'Edit Provider' : 'New Provider' }}</h2>
+      <h2 class="title">{{ editingId ? 'Edit Provider' : 'New Provider' }}</h2>
       <div class="form-grid">
         <input v-model="form.provider" placeholder="Provider Name *" />
         <input v-model="form.country" placeholder="Country" />
