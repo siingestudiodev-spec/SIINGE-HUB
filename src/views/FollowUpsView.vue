@@ -50,14 +50,14 @@
                   </span>
                 </td>
                 <td class="col-notes">
-                  <span v-if="m.followup_type === 'call'" class="type-badge call">📞 Call</span>
+                  <span v-if="m.followup_type === 'call'" class="type-badge call"><Phone :size="11" :stroke-width="2" /> Call</span>
                   <span v-else class="type-badge email">✉ Email</span>
                   <span class="notes-text">{{ m.followup_notes || '—' }}</span>
                 </td>
                 <td class="col-actions">
                   <template v-if="m.followup_type === 'call'">
                     <button @click="markDone(m)" class="btn btn-call btn-sm">
-                      📞 Mark as Called
+                      <Phone :size="12" :stroke-width="2" /> Mark as Called
                     </button>
                   </template>
                   <template v-else>
@@ -110,7 +110,7 @@
 
       <!-- EMPTY STATE -->
       <div v-if="!dueList.length && !upcomingList.length" class="empty-state">
-        <div class="empty-icon">✅</div>
+        <div class="empty-icon"><CheckCircle :size="32" :stroke-width="1.5" /></div>
         <h3>All caught up!</h3>
         <p>No manufacturer follow-ups pending.</p>
       </div>
@@ -175,7 +175,7 @@
             :disabled="compose.sending || !compose.subject || !compose.body"
             class="btn btn-primary"
           >
-            {{ compose.sending ? 'Sending...' : '✉ Send' }}
+            {{ compose.sending ? 'Sending...' : 'Send' }}
           </button>
         </div>
       </div>
@@ -225,6 +225,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { supabase } from '../lib/supabase'
+import { Phone, CheckCircle } from 'lucide-vue-next'
 
 const SUPABASE_URL     = import.meta.env.VITE_SUPABASE_URL
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY

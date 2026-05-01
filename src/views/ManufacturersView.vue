@@ -4,7 +4,7 @@
       <h1>Manufacturers</h1>
       <div class="header-actions">
         <button @click="openFolderForm" class="btn-secondary">
-          📁 {{ showFolderForm ? 'Cancel Folder' : '+ New Folder' }}
+          <Folder :size="13" :stroke-width="1.5" /> {{ showFolderForm ? 'Cancel Folder' : '+ New Folder' }}
         </button>
         <button @click="openAddForm" class="btn-primary">
           {{ showForm ? 'Cancel' : '+ Add Manufacturer' }}
@@ -87,7 +87,7 @@
     </div>
 
     <div class="filters">
-      <input v-model="search" placeholder="🔍 Search..." class="search-input" />
+      <input v-model="search" placeholder="Search..." class="search-input" />
       <select v-model="filterFolder" class="filter-select">
         <option value="">All Folders</option>
         <option v-for="f in folders" :key="f.id" :value="f.id">{{ f.name }}</option>
@@ -115,14 +115,14 @@
         <div class="folder-header" @click="toggleFolder(folder.id)">
           <div class="folder-info-wrapper">
             <span class="expand-icon">{{ isExpanded(folder.id) ? '▼' : '▶' }}</span>
-            <h2 class="folder-title">📁 {{ folder.name }} 
+            <h2 class="folder-title"><Folder :size="15" :stroke-width="1.5" /> {{ folder.name }}
               <span v-if="folder.manufacturers.length === 0" class="empty-badge">(Empty)</span>
               <span v-else class="empty-badge">({{ folder.manufacturers.length }})</span>
             </h2>
           </div>
           <div class="folder-actions" @click.stop>
-            <button @click="editFolder(folder)" class="btn-action-icon btn-edit" title="Edit Folder">✏️</button>
-            <button @click="deleteFolder(folder.id)" class="btn-action-icon btn-delete" title="Delete Folder">🗑️</button>
+            <button @click="editFolder(folder)" class="btn-action-icon btn-edit" title="Edit Folder"><Pencil :size="13" :stroke-width="1.5" /></button>
+            <button @click="deleteFolder(folder.id)" class="btn-action-icon btn-delete" title="Delete Folder"><Trash2 :size="13" :stroke-width="1.5" /></button>
           </div>
         </div>
         
@@ -136,7 +136,7 @@
                   <div class="card-title-block">
                     <h3>{{ m.company_name }}</h3>
                     <div class="badges-row">
-                      <span class="country-badge">🌍 {{ m.country || 'Unknown' }}</span>
+                      <span class="country-badge"><Globe :size="11" :stroke-width="1.5" /> {{ m.country || 'Unknown' }}</span>
                       <span v-if="m.nda_signed" class="legal-badge nda">NDA</span>
                       <span v-if="m.mma_signed" class="legal-badge mma">MMA</span>
                     </div>
@@ -146,22 +146,22 @@
                 <div class="card-info-block">
                   <div class="contact-info">
                     <div class="info-row" v-if="m.contact_name">
-                      <span class="info-icon">👤</span><strong>{{ m.contact_name }}</strong>
+                      <span class="info-icon"><User :size="12" :stroke-width="1.5" /></span><strong>{{ m.contact_name }}</strong>
                     </div>
                     <div class="info-row" v-if="m.phone">
-                      <span class="info-icon">📞</span><a :href="'tel:'+m.phone">{{ m.phone }}</a>
+                      <span class="info-icon"><Phone :size="12" :stroke-width="1.5" /></span><a :href="'tel:'+m.phone">{{ m.phone }}</a>
                     </div>
                     <div class="info-row" v-if="m.email">
-                      <span class="info-icon">✉️</span><a :href="'mailto:'+m.email">{{ m.email }}</a>
+                      <span class="info-icon"><Mail :size="12" :stroke-width="1.5" /></span><a :href="'mailto:'+m.email">{{ m.email }}</a>
                     </div>
                     <div class="info-row" v-if="m.website">
-                      <span class="info-icon">🌐</span><a :href="m.website" target="_blank">Website</a>
+                      <span class="info-icon"><Globe :size="12" :stroke-width="1.5" /></span><a :href="m.website" target="_blank">Website</a>
                     </div>
                   </div>
 
                   <div class="tags-section">
                     <div class="info-row align-start" v-if="m.product_categories">
-                      <span class="info-icon mt-1">🏷️</span>
+                      <span class="info-icon mt-1"><Tag :size="12" :stroke-width="1.5" /></span>
                       <div class="tags-container">
                         <span v-for="tag in m.product_categories.split(',')" :key="tag" class="category-tag">
                           {{ tag.trim() }}
@@ -173,31 +173,31 @@
 
                 <div class="card-details-block">
                   <div class="info-row" v-if="m.certifications">
-                    <span class="info-icon">📜</span>
+                    <span class="info-icon"><FileText :size="12" :stroke-width="1.5" /></span>
                     <button @click="showCertsPopup(m)" class="btn-view-certs">
                       View {{ m.certifications.split(',').length }} Certs
                     </button>
                   </div>
                   
                   <div class="info-row notes-row" v-if="m.notes" @click="showNotesPopup(m.notes)" style="cursor: pointer;">
-                    <span class="info-icon">📝</span>
+                    <span class="info-icon"><Edit :size="12" :stroke-width="1.5" /></span>
                     <span class="truncate-text" :title="m.notes">{{ m.notes }}</span>
                   </div>
                     
                   <div v-if="m.followup_due_at && !m.followup_sent_at && !m.followup_manually_completed_at" class="followup-status-row mt-2">
-                    <span class="info-icon">📅</span>
+                    <span class="info-icon"><CalendarClock :size="12" :stroke-width="1.5" /></span>
                     <span :class="['followup-chip', followupChipClass(m)]">{{ followupChipLabel(m) }}</span>
-                    <button @click.stop="openFollowupModal(m)" class="btn-edit-followup" title="Edit date">✏️</button>
+                    <button @click.stop="openFollowupModal(m)" class="btn-edit-followup" title="Edit date"><Pencil :size="11" :stroke-width="1.5" /></button>
                   </div>
 
                   <div v-if="m.manufacturer_email_logs && m.manufacturer_email_logs.length > 0" class="email-history-preview mt-2">
                     <div class="reach-date" :class="{ 'overdue': isOverdue(m.manufacturer_email_logs[0].sent_at) }">
-                      <span class="log-icon">🕒</span> {{ m.manufacturer_email_logs[0].template_name }}: {{ new Date(m.manufacturer_email_logs[0].sent_at).toLocaleDateString('en-US', { day: '2-digit', month: 'short' }) }}
+                      <span class="log-icon"><Clock :size="11" :stroke-width="1.5" /></span> {{ m.manufacturer_email_logs[0].template_name }}: {{ new Date(m.manufacturer_email_logs[0].sent_at).toLocaleDateString('en-US', { day: '2-digit', month: 'short' }) }}
                       
                       <span v-if="m.manufacturer_email_logs[0].read_at" class="status-badge is-read" :title="'Read at: ' + new Date(m.manufacturer_email_logs[0].read_at).toLocaleString()">Read</span>
                       <span v-else class="status-badge is-sent" title="Sent (not read yet)">Sent</span>
                       
-                      <span v-if="isOverdue(m.manufacturer_email_logs[0].sent_at) && !m.manufacturer_email_logs[0].read_at" class="warning-icon" title="No response in more than 7 days">⚠️</span>
+                      <span v-if="isOverdue(m.manufacturer_email_logs[0].sent_at) && !m.manufacturer_email_logs[0].read_at" class="warning-icon" title="No response in more than 7 days"><AlertTriangle :size="11" :stroke-width="1.5" /></span>
                     </div>
 
                     <button v-if="m.manufacturer_email_logs.length > 1" @click="showEmailHistoryPopup(m)" class="btn-view-more mt-1">
@@ -208,14 +208,14 @@
 
                 <div class="card-actions-vertical">
                   <div class="action-top-row">
-                    <button @click="editManufacturer(m)" class="btn-action-icon btn-edit" title="Edit">✏️</button>
-                    <button @click="openLogContactModal(m)" class="btn-action-icon btn-log" title="Log Contact">📝</button>
-                    <button @click="openFollowupModal(m)" class="btn-action-icon btn-followup" title="Schedule Follow-up">📅</button>
-                    <button @click="deleteManufacturer(m.id)" class="btn-action-icon btn-delete" title="Delete">🗑️</button>
+                    <button @click="editManufacturer(m)" class="btn-action-icon btn-edit" title="Edit"><Pencil :size="13" :stroke-width="1.5" /></button>
+                    <button @click="openLogContactModal(m)" class="btn-action-icon btn-log" title="Log Contact"><ClipboardList :size="13" :stroke-width="1.5" /></button>
+                    <button @click="openFollowupModal(m)" class="btn-action-icon btn-followup" title="Schedule Follow-up"><CalendarClock :size="13" :stroke-width="1.5" /></button>
+                    <button @click="deleteManufacturer(m.id)" class="btn-action-icon btn-delete" title="Delete"><Trash2 :size="13" :stroke-width="1.5" /></button>
                   </div>
-                  <button v-if="m.email && !m.initial_reach_sent" @click="openInitialReachModal(m)" class="btn-action-full btn-initial-reach">🚀 REACH</button>
-                  <button v-if="m.initial_reach_sent && !m.initial_reach_responded_at" @click="markResponded(m)" class="btn-action-full btn-responded">✅ RESPONDED</button>
-                  <button v-if="m.email" @click="openEmailModal(m)" class="btn-action-full btn-email">✉️ EMAIL</button>
+                  <button v-if="m.email && !m.initial_reach_sent" @click="openInitialReachModal(m)" class="btn-action-full btn-initial-reach"><Send :size="12" :stroke-width="2" /> REACH</button>
+                  <button v-if="m.initial_reach_sent && !m.initial_reach_responded_at" @click="markResponded(m)" class="btn-action-full btn-responded"><CheckCircle :size="12" :stroke-width="2" /> RESPONDED</button>
+                  <button v-if="m.email" @click="openEmailModal(m)" class="btn-action-full btn-email"><Mail :size="12" :stroke-width="2" /> EMAIL</button>
                 </div>
 
               </div>
@@ -246,7 +246,7 @@
     <div v-if="notesPopup.show" class="modal-overlay" @click.self="notesPopup.show = false">
       <div class="modal max-w-500">
         <div class="modal-header">
-          <h2>📝 Notes</h2>
+          <h2>Notes</h2>
           <button @click="notesPopup.show = false" class="modal-close">✕</button>
         </div>
         <div class="modal-body" style="padding: 20px; max-height: 400px; overflow-y: auto;">
@@ -258,18 +258,18 @@
     <div v-if="emailHistoryPopup.show" class="modal-overlay" @click.self="emailHistoryPopup.show = false">
       <div class="modal max-w-500">
         <div class="modal-header">
-          <h2>🕒 Contact History</h2>
+          <h2>Contact History</h2>
           <button @click="emailHistoryPopup.show = false" class="modal-close">✕</button>
         </div>
         <div class="modal-body" style="padding: 10px 20px 20px; max-height: 400px; overflow-y: auto;">
           <p class="text-sm text-gray-400 mb-3">All records for <strong>{{ emailHistoryPopup.companyName }}</strong>:</p>
           <div v-for="log in emailHistoryPopup.list" :key="log.id || log.sent_at" class="reach-date full-width mb-2" :class="{ 'overdue': isOverdue(log.sent_at) }">
-            <span class="log-icon">🕒</span> {{ log.template_name }}: {{ new Date(log.sent_at).toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' }) }}
-            
+            <span class="log-icon"><Clock :size="11" :stroke-width="1.5" /></span> {{ log.template_name }}: {{ new Date(log.sent_at).toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' }) }}
+
             <span v-if="log.read_at" class="status-badge is-read" :title="'Read at: ' + new Date(log.read_at).toLocaleString()">Read</span>
             <span v-else class="status-badge is-sent" title="Sent (not read yet)">Sent</span>
-            
-            <span v-if="isOverdue(log.sent_at) && !log.read_at" class="warning-icon" title="No response in more than 7 days">⚠️</span>
+
+            <span v-if="isOverdue(log.sent_at) && !log.read_at" class="warning-icon" title="No response in more than 7 days"><AlertTriangle :size="11" :stroke-width="1.5" /></span>
           </div>
         </div>
       </div>
@@ -278,7 +278,7 @@
     <div v-if="logContactModal.show" class="modal-overlay" @click.self="logContactModal.show = false">
       <div class="modal">
         <div class="modal-header">
-          <h2>📝 Log Contact: {{ logContactModal.companyName }}</h2>
+          <h2>Log Contact: {{ logContactModal.companyName }}</h2>
           <button @click="logContactModal.show = false" class="modal-close">✕</button>
         </div>
         
@@ -304,7 +304,7 @@
     <div v-if="emailModal.show" class="modal-overlay" @click.self="emailModal.show = false">
       <div class="modal">
         <div class="modal-header">
-          <h2>{{ emailModal.isInitialReach ? '🚀 Edit & Send Initial Reach' : '✉️ Send Custom Email' }} to {{ emailModal.companyName }}</h2>
+          <h2>{{ emailModal.isInitialReach ? 'Edit & Send Initial Reach' : 'Send Custom Email' }} to {{ emailModal.companyName }}</h2>
           <button @click="emailModal.show = false" class="modal-close">✕</button>
         </div>
         <div class="modal-field">
@@ -336,7 +336,7 @@
         <div class="modal-actions mt-4">
           <button @click="emailModal.show = false" class="btn-secondary">CANCEL</button>
           <button @click="sendEmail" class="btn-primary" :disabled="emailModal.sending || (!emailModal.subject || !emailModal.body)">
-            {{ emailModal.sending ? 'SENDING...' : '🚀 SEND EMAIL' }}
+            {{ emailModal.sending ? 'SENDING...' : 'SEND EMAIL' }}
           </button>
         </div>
       </div>
@@ -348,7 +348,7 @@
   <div v-if="followupModal.show" class="modal-overlay" @click.self="followupModal.show = false">
     <div class="modal max-w-400">
       <div class="modal-header">
-        <h2>📅 Schedule Follow-up</h2>
+        <h2>Schedule Follow-up</h2>
         <button @click="followupModal.show = false" class="modal-close">✕</button>
       </div>
       <div class="modal-body-pad">
@@ -367,7 +367,7 @@
       </div>
       <div class="modal-actions-row">
         <button v-if="followupModal.manu?.followup_due_at" @click="clearFollowup" class="btn-secondary btn-sm-danger">
-          🗑 Clear
+          <Trash2 :size="13" :stroke-width="1.5" /> Clear
         </button>
         <div style="flex:1"></div>
         <button @click="followupModal.show = false" class="btn-secondary">Cancel</button>
@@ -381,6 +381,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { supabase } from '../lib/supabase'
+import { Folder, Globe, User, Phone, Mail, Tag, FileText, Edit, Pencil, Trash2, CalendarClock, Clock, AlertTriangle, Send, CheckCircle, ClipboardList } from 'lucide-vue-next'
 const SUPABASE_URL      = import.meta.env.VITE_SUPABASE_URL
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
 

@@ -11,32 +11,32 @@
 
       <nav class="navbar-menu">
         <router-link to="/manufacturers" class="nav-item" :class="{ active: isActive('/manufacturers') }">
-          🏭 Manufacturers
+          <Factory :size="14" :stroke-width="1.5" /><span>Manufacturers</span>
         </router-link>
         <router-link to="/projects" class="nav-item" :class="{ active: isActive('/projects') }">
-          📋 Projects
+          <ClipboardList :size="14" :stroke-width="1.5" /><span>Projects</span>
         </router-link>
         <router-link to="/sourcing" class="nav-item" :class="{ active: isActive('/sourcing') }">
-          🔍 Sourcing
+          <Search :size="14" :stroke-width="1.5" /><span>Sourcing</span>
         </router-link>
         <router-link to="/templates" class="nav-item" :class="{ active: isActive('/templates') }">
-          📧 Templates
+          <Mail :size="14" :stroke-width="1.5" /><span>Templates</span>
         </router-link>
         <router-link to="/calendar" class="nav-item" :class="{ active: isActive('/calendar') }">
-          📅 Calendar
+          <Calendar :size="14" :stroke-width="1.5" /><span>Calendar</span>
         </router-link>
         <router-link to="/events" class="nav-item" :class="{ active: isActive('/events') }">
-          🎪 Events
+          <PartyPopper :size="14" :stroke-width="1.5" /><span>Events</span>
         </router-link>
         <router-link to="/followups" class="nav-item" :class="{ active: isActive('/followups') }">
-          📞 Follow-ups
+          <Phone :size="14" :stroke-width="1.5" /><span>Follow-ups</span>
         </router-link>
       </nav>
 
       <div class="navbar-right">
         <div class="notifications-wrapper" v-click-outside="closeNotifs">
           <button @click="showNotifs = !showNotifs" class="btn-notif">
-            <span>🔔</span>
+            <Bell :size="16" :stroke-width="1.5" />
             <span v-if="unreadCount > 0" class="badge">{{ unreadCount }}</span>
           </button>
           <div v-if="showNotifs" class="notifs-dropdown">
@@ -57,9 +57,12 @@
           </div>
         </div>
         <button @click="toggleTheme" class="btn-theme">
-          {{ isDark ? '☀️' : '🌙' }}
+          <Sun v-if="isDark" :size="14" :stroke-width="1.5" />
+          <Moon v-else :size="14" :stroke-width="1.5" />
         </button>
-        <button @click="logout" class="btn-logout">⎋</button>
+        <button @click="logout" class="btn-logout">
+          <LogOut :size="16" :stroke-width="1.5" />
+        </button>
       </div>
     </header>
 
@@ -78,6 +81,7 @@ import { ref, onMounted, computed, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useThemeStore } from './stores/themeStore'
 import { supabase } from './lib/supabase'
+import { Factory, ClipboardList, Search, Mail, Calendar, PartyPopper, Phone, Bell, Sun, Moon, LogOut } from 'lucide-vue-next'
 
 const router = useRouter()
 const route = useRoute()
@@ -206,8 +210,8 @@ async function logout() {
 }
 
 .logo {
-  width: 32px;
-  height: 32px;
+  width: 28px;
+  height: 28px;
   border-radius: var(--r-2);
   object-fit: contain;
 }
@@ -231,7 +235,7 @@ async function logout() {
 .nav-item {
   display: flex;
   align-items: center;
-  gap: 0.4rem;
+  gap: 0.5rem;
   padding: 0.5rem 0.875rem;
   color: var(--text-muted);
   text-decoration: none;
@@ -253,7 +257,7 @@ async function logout() {
 .nav-item.active {
   color: var(--primary);
   border-bottom-color: var(--primary);
-  font-weight: 700;
+  font-weight: 600;
 }
 
 /* SECCIÓN DERECHA */
@@ -299,7 +303,7 @@ async function logout() {
   font-weight: 700;
   width: 15px;
   height: 15px;
-  border-radius: 50%;
+  border-radius: var(--r-1);
   display: flex;
   align-items: center;
   justify-content: center;

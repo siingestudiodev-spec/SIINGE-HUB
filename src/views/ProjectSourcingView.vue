@@ -30,12 +30,12 @@
         <div class="card-body border-b pb-3 mb-3">
           <div class="text-xs uppercase text-gray-500 font-semibold mb-2">Base Supplier Info</div>
           <div class="info-row" v-if="item.sourcing?.provider">
-            <span class="info-icon">🏭</span>
+            <span class="info-icon"><Factory :size="13" :stroke-width="1.5" /></span>
             <strong>Factory:</strong> 
             <button @click="viewFactoryDetails(item.sourcing)" class="factory-link-btn">{{ item.sourcing.provider }}</button>
           </div>
           <div class="info-row" v-if="item.sourcing?.country">
-            <span class="info-icon">🌍</span><strong>Country:</strong> {{ item.sourcing.country }}
+            <span class="info-icon"><Globe :size="13" :stroke-width="1.5" /></span><strong>Country:</strong> {{ item.sourcing.country }}
           </div>
         </div>
 
@@ -52,13 +52,13 @@
           <div class="info-row mt-2" v-if="item.color"><strong>Selected Color:</strong> {{ item.color }}</div>
           
           <div class="info-row mt-2" v-if="item.item_url">
-            <a :href="item.item_url" target="_blank" class="url-link">🔗 View Item URL</a>
+            <a :href="item.item_url" target="_blank" class="url-link"><ExternalLink :size="12" :stroke-width="1.5" /> View Item URL</a>
           </div>
-          <div class="info-row notes-row" v-if="item.project_notes">📝 {{ item.project_notes }}</div>
+          <div class="info-row notes-row" v-if="item.project_notes">{{ item.project_notes }}</div>
         </div>
 
         <div class="card-actions">
-          <button @click="openSourcingModal(item)" class="btn-edit-card">✏️ Edit</button>
+          <button @click="openSourcingModal(item)" class="btn-edit-card"><Pencil :size="13" :stroke-width="1.5" /> Edit</button>
           <button @click="removeMaterial(item.id)" class="btn-danger">Remove</button>
         </div>
       </div>
@@ -67,7 +67,7 @@
     <div v-if="showModal" class="modal-overlay" @click.self="closeModal">
       <div class="modal max-w-700">
         <div class="modal-header">
-          <h2>{{ editingId ? '✏️ Edit Material' : '📦 Material Specifications' }}</h2>
+          <h2>{{ editingId ? 'Edit Material' : 'Material Specifications' }}</h2>
           <button @click="closeModal" class="modal-close">✕</button>
         </div>
         <div class="modal-body">
@@ -106,12 +106,12 @@
     <div v-if="factoryModal.show" class="modal-overlay" @click.self="factoryModal.show = false">
       <div class="modal max-w-500">
         <div class="modal-header">
-          <h2>🏭 Factory Details</h2>
+          <h2><Factory :size="16" :stroke-width="1.5" /> Factory Details</h2>
           <button @click="factoryModal.show = false" class="modal-close">✕</button>
         </div>
         <div class="factory-detail-content" v-if="factoryModal.data">
           <h1 class="factory-name-title">{{ factoryModal.data.provider }}</h1>
-          <p class="factory-location-text">📍 {{ factoryModal.data.city }}, {{ factoryModal.data.country }}</p>
+          <p class="factory-location-text"><MapPin :size="13" :stroke-width="1.5" /> {{ factoryModal.data.city }}, {{ factoryModal.data.country }}</p>
           <div class="detail-section">
             <div class="detail-row" v-if="factoryModal.data.contact_name"><strong>Contact:</strong> {{ factoryModal.data.contact_name }}</div>
             <div class="detail-row" v-if="factoryModal.data.email"><strong>Email:</strong> {{ factoryModal.data.email }}</div>
@@ -130,6 +130,7 @@
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { supabase } from '../lib/supabase'
+import { Factory, Globe, ExternalLink, Pencil, MapPin } from 'lucide-vue-next'
 
 const route = useRoute()
 const router = useRouter()

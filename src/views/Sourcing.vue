@@ -2,7 +2,7 @@
   <div class="container">
     <div class="header">
       <div>
-        <h1>🧵 Sourcing</h1>
+        <h1>Sourcing</h1>
         <p class="subtitle">Raw material & input providers</p>
       </div>
       <button @click="openAddForm" class="btn-primary">+ Add Provider</button>
@@ -76,7 +76,7 @@
             <div class="card-location">{{ [p.city, p.country].filter(Boolean).join(', ') || '—' }}</div>
           </div>
           <div class="card-actions">
-            <button @click="editProvider(p)" class="btn-edit">✏️</button>
+            <button @click="editProvider(p)" class="btn-edit"><Pencil :size="13" :stroke-width="1.5" /></button>
             <button @click="deleteProvider(p.id)" class="btn-delete">✕</button>
           </div>
         </div>
@@ -86,11 +86,11 @@
         </div>
 
         <div class="card-info">
-          <div v-if="p.contact_name">👤 {{ p.contact_name }}</div>
-          <div v-if="p.phone">📞 {{ p.phone }}</div>
-          <div v-if="p.email">✉️ {{ p.email }}</div>
-          <div v-if="p.address">📍 {{ p.address }}</div>
-          <div v-if="p.website"><a :href="p.website" target="_blank">🌐 {{ p.website }}</a></div>
+          <div v-if="p.contact_name"><User :size="12" :stroke-width="1.5" /> {{ p.contact_name }}</div>
+          <div v-if="p.phone"><Phone :size="12" :stroke-width="1.5" /> {{ p.phone }}</div>
+          <div v-if="p.email">{{ p.email }}</div>
+          <div v-if="p.address"><MapPin :size="12" :stroke-width="1.5" /> {{ p.address }}</div>
+          <div v-if="p.website"><a :href="p.website" target="_blank"><Globe :size="12" :stroke-width="1.5" /> {{ p.website }}</a></div>
         </div>
 
         <div class="card-footer">
@@ -107,6 +107,7 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import { supabase } from '../lib/supabase'
+import { User, Phone, MapPin, Globe, Pencil } from 'lucide-vue-next'
 
 const providers = ref([])
 const loading = ref(true)

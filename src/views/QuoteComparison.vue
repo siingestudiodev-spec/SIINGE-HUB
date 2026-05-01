@@ -4,7 +4,7 @@
       <div>
         <router-link to="/projects" class="back">← Back to Projects</router-link>
         <h1>{{ projectName }}</h1>
-        <p class="subtitle" v-if="clientName">👤 {{ clientName }}</p>
+        <p class="subtitle" v-if="clientName"><User :size="13" :stroke-width="1.5" /> {{ clientName }}</p>
       </div>
       <div class="header-actions">
         <button @click="exportExcel" class="btn-export" v-if="quotes.length > 0">⬇ EXPORT EXCEL</button>
@@ -103,7 +103,7 @@
                 <div class="factory-avatar">{{ group.manufacturer.company_name?.charAt(0) }}</div>
                 <div>
                   <strong class="factory-name">{{ group.manufacturer.company_name }}</strong>
-                  <span class="factory-country">🌍 {{ group.manufacturer.country || 'Unknown' }}</span>
+                  <span class="factory-country"><Globe :size="12" :stroke-width="1.5" /> {{ group.manufacturer.country || 'Unknown' }}</span>
                 </div>
                 <button @click="addVariant(group.manufacturer.id)" class="btn-add-variant">+ Add Material Option</button>
               </div>
@@ -140,8 +140,8 @@
             <td class="notes-cell">{{ q.notes || '—' }}</td>
             <td class="text-right">
               <div class="table-actions">
-                <button @click="editQuote(q)" class="btn-icon btn-edit-icon" title="Edit Option">✏️</button>
-                <button @click="confirmDelete(q.id)" class="btn-icon btn-delete-icon" title="Delete Option">🗑️</button>
+                <button @click="editQuote(q)" class="btn-icon btn-edit-icon" title="Edit Option"><Pencil :size="13" :stroke-width="1.5" /></button>
+                <button @click="confirmDelete(q.id)" class="btn-icon btn-delete-icon" title="Delete Option"><Trash2 :size="13" :stroke-width="1.5" /></button>
               </div>
             </td>
           </tr>
@@ -165,6 +165,7 @@
 import { ref, onMounted, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { supabase } from '../lib/supabase'
+import { User, Globe, Pencil, Trash2 } from 'lucide-vue-next'
 
 const route = useRoute()
 const projectId = route.params.id

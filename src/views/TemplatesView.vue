@@ -9,20 +9,20 @@
 
     <div class="legal-documents-section">
       <div class="legal-header">
-        <h2>⚖️ Legal Documents</h2>
+        <h2>Legal Documents</h2>
         <p>Download your official SIINGE templates automatically stamped with today's date.</p>
       </div>
       <div class="legal-actions">
         <button @click="descargarDocumento('NDA')" class="btn-legal nda">
-          <span class="icon">📄</span>
+          <span class="icon"><FileText :size="20" :stroke-width="1.5" /></span>
           <div class="btn-text">
             <strong>Download NDA</strong>
             <span>Non-Disclosure Agreement</span>
           </div>
         </button>
-        
+
         <button @click="descargarDocumento('MMA')" class="btn-legal mma">
-          <span class="icon">📄</span>
+          <span class="icon"><FileText :size="20" :stroke-width="1.5" /></span>
           <div class="btn-text">
             <strong>Download MMA</strong>
             <span>Master Manufacturing Agreement</span>
@@ -46,7 +46,7 @@
     </div>
 
     <div class="section-title">
-      <h2>✉️ Saved Email Templates</h2>
+      <h2>Saved Email Templates</h2>
     </div>
 
     <div v-if="loading" class="loading">Loading...</div>
@@ -76,7 +76,8 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { supabase } from '../lib/supabase' 
+import { supabase } from '../lib/supabase'
+import { FileText } from 'lucide-vue-next'
 import { PDFDocument } from 'pdf-lib' // NUEVO: Importación para PDFs
 
 const templates = ref([])

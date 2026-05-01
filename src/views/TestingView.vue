@@ -93,7 +93,7 @@
       </button>
 
       <div v-if="success" class="success-box">
-        <p>✅ Document generated successfully!</p>
+        <p>Document generated successfully!</p>
         <p class="small">A copy has been saved to your downloads and synced to our secure drive.</p>
       </div>
     </div>

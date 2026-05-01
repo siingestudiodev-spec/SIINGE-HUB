@@ -1,11 +1,12 @@
 <template>
   <div class="login-wrapper">
+    <img src="/src/assets/siinge-mark.png" class="watermark" alt="" aria-hidden="true" />
     <div class="login-card">
       <div class="login-header">
         <img src="https://i.ibb.co/xK52ckkK/Whats-App-Image-2026-02-24-at-13-58-58-1.jpg" alt="SIINGE STUDIO" class="logo" />
-        <h1>SIINGE STUDIO</h1>
-        <p class="app-name">Manufacturers Hub</p>
-        <p class="subtitle">Sign in to your workspace</p>
+        <h1 class="display display--lg">SIINGE STUDIO</h1>
+        <p class="eyebrow" style="margin-top: 8px;">Manufacturers Hub</p>
+        <p class="eyebrow subtitle">Sign in to your workspace</p>
       </div>
 
       <div v-if="message" class="alert">{{ message }}</div>
@@ -20,7 +21,8 @@
           <input v-model="password" type="password" placeholder="••••••••" required />
         </div>
         <button type="submit" class="btn-login" :disabled="loading">
-          {{ loading ? 'Signing in...' : 'Sign In →' }}
+          <span>{{ loading ? 'Signing in...' : 'Sign In' }}</span>
+          <ArrowRight v-if="!loading" :size="14" :stroke-width="1.5" />
         </button>
       </form>
     </div>
@@ -31,6 +33,7 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { supabase } from '../lib/supabase'
+import { ArrowRight } from 'lucide-vue-next'
 
 const router = useRouter()
 const email = ref('')
@@ -70,29 +73,29 @@ async function handleLogin() {
 }
 .login-header { text-align: center; margin-bottom: 2rem; }
 .logo {
-  width: 72px;
-  height: 72px;
+  width: 96px;
+  height: 96px;
   object-fit: contain;
   border-radius: var(--r-2);
   margin-bottom: 1.25rem;
 }
 h1 {
-  font-size: var(--fs-13);
-  font-weight: 700;
-  color: var(--text-main);
-  letter-spacing: var(--tr-eyebrow);
-  text-transform: uppercase;
   margin: 0 0 0.25rem;
 }
-.app-name {
-  font-size: var(--fs-12);
-  font-weight: 600;
-  color: var(--primary);
-  letter-spacing: var(--tr-eyebrow);
-  text-transform: uppercase;
-  margin-bottom: 0.5rem;
+.subtitle {
+  margin-top: 0.35rem;
 }
-.subtitle { color: var(--text-muted); font-size: var(--fs-13); }
+.watermark {
+  position: fixed;
+  bottom: 2rem;
+  right: 2rem;
+  width: 160px;
+  height: 160px;
+  object-fit: contain;
+  opacity: 0.04;
+  pointer-events: none;
+  user-select: none;
+}
 .field { margin-bottom: var(--s-4); }
 label {
   display: block;
@@ -131,6 +134,10 @@ input:focus { outline: none; border-color: var(--text-main); }
   margin-top: var(--s-2);
   transition: opacity var(--dur-fast) var(--ease);
   font-family: var(--font-sans);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
 }
 .btn-login:hover { opacity: 0.88; }
 .btn-login:disabled { opacity: 0.45; cursor: not-allowed; }

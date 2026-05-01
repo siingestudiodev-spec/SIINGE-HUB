@@ -9,7 +9,7 @@
 
     <div class="filters-container">
       <div class="filters">
-        <input v-model="search" placeholder="🔍 Search by project or client..." class="search-input" />
+        <input v-model="search" placeholder="Search by project or client..." class="search-input" />
         <select v-model="filterStatus" class="filter-select">
           <option value="">All Stages</option>
           <option v-for="stage in projectStages" :key="stage" :value="stage">{{ stage }}</option>
@@ -19,8 +19,8 @@
       </div>
 
       <div class="view-toggle">
-        <button :class="{ active: currentView === 'list' }" @click="currentView = 'list'">📄 List</button>
-        <button :class="{ active: currentView === 'board' }" @click="currentView = 'board'">🏷️ Board</button>
+        <button :class="{ active: currentView === 'list' }" @click="currentView = 'list'"><List :size="13" :stroke-width="1.5" /> List</button>
+        <button :class="{ active: currentView === 'board' }" @click="currentView = 'board'"><LayoutGrid :size="13" :stroke-width="1.5" /> Board</button>
       </div>
     </div>
 
@@ -35,7 +35,7 @@
             <h3>{{ p.project_name }}</h3>
             <div class="badges-row">
               <span class="stage-badge" :style="{ color: getStageColor(p.status), borderColor: getStageColor(p.status) }">
-                📍 {{ p.status }}
+                {{ p.status }}
               </span>
               <span v-if="p.crm_stage" class="crm-badge">CRM · {{ p.crm_stage }}</span>
             </div>
@@ -44,27 +44,27 @@
 
         <div class="card-info-main">
           <div class="contact-info">
-            <div class="info-row" v-if="p.client_name"><span class="info-icon">👤</span><strong>{{ p.client_name }}</strong></div>
-            <div class="info-row text-muted"><span class="info-icon">📅</span> Created: {{ new Date(p.created_at).toLocaleDateString() }}</div>
+            <div class="info-row" v-if="p.client_name"><span class="info-icon"><User :size="12" :stroke-width="1.5" /></span><strong>{{ p.client_name }}</strong></div>
+            <div class="info-row text-muted"><span class="info-icon"><CalendarDays :size="12" :stroke-width="1.5" /></span> Created: {{ new Date(p.created_at).toLocaleDateString() }}</div>
           </div>
           <div class="info-row notes-row" v-if="p.description">
-            <span class="info-icon">📄</span><span class="truncate-text" :title="p.description">{{ p.description }}</span>
+            <span class="info-icon"><FileText :size="12" :stroke-width="1.5" /></span><span class="truncate-text" :title="p.description">{{ p.description }}</span>
           </div>
         </div>
 
         <div class="card-details-block">
           <div class="tools-grid">
-            <a v-if="p.tech_pack_url" :href="p.tech_pack_url" target="_blank" class="btn-tool techpack">📎 Tech Pack</a>
-            <router-link :to="'/projects/' + p.id + '/quotes'" class="btn-tool quotes">📊 Quotes</router-link>
-            <router-link :to="'/projects/' + p.id + '/sourcing'" class="btn-tool sourcing">📦 Sourcing</router-link>
+            <a v-if="p.tech_pack_url" :href="p.tech_pack_url" target="_blank" class="btn-tool techpack"><Paperclip :size="12" :stroke-width="1.5" /> Tech Pack</a>
+            <router-link :to="'/projects/' + p.id + '/quotes'" class="btn-tool quotes"><BarChart2 :size="12" :stroke-width="1.5" /> Quotes</router-link>
+            <router-link :to="'/projects/' + p.id + '/sourcing'" class="btn-tool sourcing"><Package :size="12" :stroke-width="1.5" /> Sourcing</router-link>
           </div>
         </div>
 
         <div class="card-actions-vertical">
-          <button @click="openTimeline(p)" class="btn-action-full btn-timeline">⏱️ TIMELINE</button>
+          <button @click="openTimeline(p)" class="btn-action-full btn-timeline"><Timer :size="12" :stroke-width="1.5" /> TIMELINE</button>
           <div class="action-top-row mt-2">
-            <button @click="editProject(p)" class="btn-action-icon btn-edit" title="Edit">✏️</button>
-            <button @click="deleteProject(p.id)" class="btn-action-icon btn-delete" title="Delete">🗑️</button>
+            <button @click="editProject(p)" class="btn-action-icon btn-edit" title="Edit"><Pencil :size="13" :stroke-width="1.5" /></button>
+            <button @click="deleteProject(p.id)" class="btn-action-icon btn-delete" title="Delete"><Trash2 :size="13" :stroke-width="1.5" /></button>
           </div>
         </div>
       </div>
@@ -83,7 +83,7 @@
               <div class="bc-avatar" :style="{ background: getStageGradient(p.status) }">{{ p.project_name?.charAt(0) }}</div>
               <div class="bc-title-wrap">
                 <h4>{{ p.project_name }}</h4>
-                <span class="bc-client" v-if="p.client_name">👤 {{ p.client_name }}</span>
+                <span class="bc-client" v-if="p.client_name"><User :size="11" :stroke-width="1.5" /> {{ p.client_name }}</span>
                 <span v-if="p.crm_stage" class="crm-badge" style="margin-top: 3px;">CRM · {{ p.crm_stage }}</span>
               </div>
             </div>
@@ -92,14 +92,14 @@
 
             <div class="bc-footer">
               <div class="bc-links">
-                <a v-if="p.tech_pack_url" :href="p.tech_pack_url" target="_blank" title="Tech Pack">📎</a>
-                <router-link :to="'/projects/' + p.id + '/quotes'" title="Quotes">📊</router-link>
-                <router-link :to="'/projects/' + p.id + '/sourcing'" title="Sourcing">📦</router-link>
+                <a v-if="p.tech_pack_url" :href="p.tech_pack_url" target="_blank" title="Tech Pack"><Paperclip :size="13" :stroke-width="1.5" /></a>
+                <router-link :to="'/projects/' + p.id + '/quotes'" title="Quotes"><BarChart2 :size="13" :stroke-width="1.5" /></router-link>
+                <router-link :to="'/projects/' + p.id + '/sourcing'" title="Sourcing"><Package :size="13" :stroke-width="1.5" /></router-link>
               </div>
               <div class="bc-actions">
-                <button @click="openTimeline(p)" class="btn-micro-tl" title="Timeline">⏱️</button>
-                <button @click="editProject(p)" class="btn-micro" title="Edit">✏️</button>
-                <button @click="deleteProject(p.id)" class="btn-micro del" title="Delete">🗑️</button>
+                <button @click="openTimeline(p)" class="btn-micro-tl" title="Timeline"><Timer :size="13" :stroke-width="1.5" /></button>
+                <button @click="editProject(p)" class="btn-micro" title="Edit"><Pencil :size="13" :stroke-width="1.5" /></button>
+                <button @click="deleteProject(p.id)" class="btn-micro del" title="Delete"><Trash2 :size="13" :stroke-width="1.5" /></button>
               </div>
             </div>
           </div>
@@ -179,7 +179,7 @@
               </div>
               <div class="task-empty-slots"></div>
               <div class="task-actions" @click.stop>
-                <button @click="openNotes(cat)" class="btn-note-micro" title="Notes">💬</button>
+                <button @click="openNotes(cat)" class="btn-note-micro" title="Notes"><MessageSquare :size="12" :stroke-width="1.5" /></button>
                 <button @click="addSubtask(cat.id)" class="btn-add-micro" title="Add Subtask">➕</button>
               </div>
             </div>
@@ -207,9 +207,9 @@
                   </template>
 
                   <div class="task-actions" @click.stop>
-                    <button @click="openNotes(sub)" class="btn-note-micro" title="Notes">💬</button>
+                    <button @click="openNotes(sub)" class="btn-note-micro" title="Notes"><MessageSquare :size="12" :stroke-width="1.5" /></button>
                     <button @click="addSubtask(sub.id)" class="btn-add-micro" title="Add Sub-subtask">➕</button>
-                    <button @click="deleteStage(sub.id)" class="btn-del-micro" title="Delete">🗑️</button>
+                    <button @click="deleteStage(sub.id)" class="btn-del-micro" title="Delete"><Trash2 :size="12" :stroke-width="1.5" /></button>
                   </div>
                 </div>
 
@@ -230,8 +230,8 @@
                       </select>
                     </div>
                     <div class="task-actions">
-                      <button @click="openNotes(subsub)" class="btn-note-micro" title="Notes">💬</button>
-                      <button @click="deleteStage(subsub.id)" class="btn-del-micro" title="Delete">🗑️</button>
+                      <button @click="openNotes(subsub)" class="btn-note-micro" title="Notes"><MessageSquare :size="12" :stroke-width="1.5" /></button>
+                      <button @click="deleteStage(subsub.id)" class="btn-del-micro" title="Delete"><Trash2 :size="12" :stroke-width="1.5" /></button>
                     </div>
                   </div>
                 </div>
@@ -252,7 +252,7 @@
     <div v-if="notesModal.show" class="modal-overlay z-high" @click.self="closeNotesModal">
       <div class="modal notes-modal">
         <div class="modal-header">
-          <h2>💬 Notes: {{ notesModal.stageName }}</h2>
+          <h2>Notes: {{ notesModal.stageName }}</h2>
           <button @click="closeNotesModal" class="modal-close">✕</button>
         </div>
         
@@ -303,6 +303,7 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { supabase } from '../lib/supabase'
+import { List, LayoutGrid, User, CalendarDays, FileText, Paperclip, BarChart2, Package, Timer, Pencil, Trash2, MessageSquare } from 'lucide-vue-next'
 
 const route = useRoute()
 const router = useRouter()

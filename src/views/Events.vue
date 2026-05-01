@@ -2,21 +2,21 @@
   <div class="container">
     <div class="header">
       <div>
-        <h1>📅 Events Manager</h1>
+        <h1>Events Manager</h1>
         <p class="subtitle">Manage worldwide textile trade shows & events</p>
       </div>
       <div class="header-actions">
         <div class="view-toggle">
           <button @click="currentView = 'list'" :class="{ active: currentView === 'list' }">
-            📄 List
+            <List :size="13" :stroke-width="1.5" /> List
           </button>
           <button @click="currentView = 'kanban'" :class="{ active: currentView === 'kanban' }">
-            📋 Kanban
+            <LayoutGrid :size="13" :stroke-width="1.5" /> Kanban
           </button>
         </div>
 
         <label class="btn-secondary import-label">
-          {{ importing ? '📥 Importing...' : '📥 Import Excel' }}
+          <Download :size="13" :stroke-width="1.5" /> {{ importing ? 'Importing...' : 'Import Excel' }}
           <input type="file" @change="handleImport" accept=".xlsx, .xls, .csv" hidden :disabled="importing" />
         </label>
         <button @click="openAddForm" class="btn-primary">+ Add Event</button>
@@ -70,26 +70,26 @@
         <div class="col-main">
           <div class="event-title-group">
             <strong class="event-title">{{ e.event_name }}</strong>
-            <span class="event-loc-sub">📍 {{ [e.city, e.country].filter(Boolean).join(', ') || 'Location not specified' }}</span>
+            <span class="event-loc-sub"><MapPin :size="11" :stroke-width="1.5" /> {{ [e.city, e.country].filter(Boolean).join(', ') || 'Location not specified' }}</span>
           </div>
           <div v-if="e.notes" class="event-desc-preview clickable-notes" @click="openNoteModal(e)">
             {{ e.notes }} <span class="read-more-text">(read more)</span>
           </div>
-          <a v-if="e.registration_url" :href="e.registration_url" target="_blank" class="btn-link-small">🔗 Register / Info</a>
+          <a v-if="e.registration_url" :href="e.registration_url" target="_blank" class="btn-link-small"><ExternalLink :size="11" :stroke-width="1.5" /> Register / Info</a>
         </div>
 
         <div class="col-date">
-          <span class="date-text">🗓 {{ formatDate(e.start_date) }}</span>
+          <span class="date-text"><Calendar :size="12" :stroke-width="1.5" /> {{ formatDate(e.start_date) }}</span>
           <span class="compact-duration">{{ e.duration_days }} day{{ e.duration_days > 1 ? 's' : '' }}</span>
         </div>
         
         <div class="col-status">
-          <span v-if="isPast(e.start_date, e.duration_days)" class="status-badge past">⛔ Passed</span>
-          <span v-else class="status-badge upcoming">⏳ In {{ daysUntil(e.start_date) }} days</span>
+          <span v-if="isPast(e.start_date, e.duration_days)" class="status-badge past">Passed</span>
+          <span v-else class="status-badge upcoming">In {{ daysUntil(e.start_date) }} days</span>
         </div>
         
         <div class="col-actions">
-          <button @click="editEvent(e)" class="btn-icon" title="Edit">✏️</button>
+          <button @click="editEvent(e)" class="btn-icon" title="Edit"><Pencil :size="13" :stroke-width="1.5" /></button>
           <button @click="deleteEvent(e.id)" class="btn-icon delete" title="Delete">✕</button>
         </div>
       </div>
@@ -115,19 +115,19 @@
             <div class="k-card-top">
               <div class="k-title-group">
                 <strong class="k-title">{{ e.event_name }}</strong>
-                <div class="k-location">📍 {{ [e.city, e.country].filter(Boolean).join(', ') || '—' }}</div>
+                <div class="k-location"><MapPin :size="11" :stroke-width="1.5" /> {{ [e.city, e.country].filter(Boolean).join(', ') || '—' }}</div>
               </div>
               <div class="k-actions">
-                <button @click="editEvent(e)" title="Edit">✏️</button>
+                <button @click="editEvent(e)" title="Edit"><Pencil :size="13" :stroke-width="1.5" /></button>
                 <button @click="deleteEvent(e.id)" class="del" title="Delete">✕</button>
               </div>
             </div>
             <div v-if="e.notes" class="k-notes clickable-notes" @click="openNoteModal(e)">
               {{ e.notes }} <span class="read-more-text">(read more)</span>
             </div>
-            <a v-if="e.registration_url" :href="e.registration_url" target="_blank" class="btn-link-small k-link">🔗 Register / Info</a>
+            <a v-if="e.registration_url" :href="e.registration_url" target="_blank" class="btn-link-small k-link"><ExternalLink :size="11" :stroke-width="1.5" /> Register / Info</a>
             <div class="k-dates">
-              <span>🗓 {{ formatDateShort(e.start_date) }}</span>
+              <span><Calendar :size="12" :stroke-width="1.5" /> {{ formatDateShort(e.start_date) }}</span>
               <span class="k-status" :class="isPast(e.start_date, e.duration_days) ? 'past' : 'upcoming'">
                 {{ isPast(e.start_date, e.duration_days) ? 'Passed' : daysUntil(e.start_date) + ' days left' }}
               </span>
@@ -148,7 +148,7 @@
         </div>
         <div class="modal-footer" v-if="selectedNoteEvent?.registration_url">
           <a :href="selectedNoteEvent?.registration_url" target="_blank" class="btn-primary btn-full-width">
-            🔗 Go to Registration / Official Info
+            Go to Registration / Official Info
           </a>
         </div>
       </div>
@@ -161,6 +161,7 @@
 import { ref, onMounted, computed } from 'vue'
 import { supabase } from '../lib/supabase'
 import * as XLSX from 'xlsx'
+import { List, LayoutGrid, Download, MapPin, ExternalLink, Calendar, Pencil } from 'lucide-vue-next'
 
 const events = ref([])
 const loading = ref(true)

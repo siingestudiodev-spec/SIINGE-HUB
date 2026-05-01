@@ -53,7 +53,7 @@
         </div>
         <div class="modal-footer" v-if="selectedEvent?.registration_url">
           <a :href="selectedEvent?.registration_url" target="_blank" class="btn-primary btn-full-width">
-            🔗 Go to Registration / Official Info
+            Go to Registration / Official Info
           </a>
         </div>
       </div>
@@ -138,7 +138,7 @@ function getItemMainText(item) {
 }
 
 function getItemSubText(item) {
-  return item.type === 'task' ? item.stage_name : `📌 ${item.country || 'Global'}`
+  return item.type === 'task' ? item.stage_name : `${item.country || 'Global'}`
 }
 
 function getItemTitle(item) {
