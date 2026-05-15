@@ -177,8 +177,8 @@
                     <div class="info-row align-start" v-if="m.product_categories">
                       <span class="info-icon mt-1"><Tag :size="12" :stroke-width="1.5" /></span>
                       <div class="tags-container">
-                        <span v-for="tag in m.product_categories.split(',')" :key="tag" class="category-tag">
-                          {{ tag.trim() }}
+                        <span v-for="tag in m.product_categories.split(',').map(t => t.trim())" :key="tag" class="category-tag">
+                          {{ tag }}
                         </span>
                       </div>
                     </div>
@@ -614,8 +614,8 @@ async function saveManufacturer() {
     phone: form.value.phone,
     email: form.value.email,
     website: form.value.website,
-    product_categories: selectedCategories.value.join(', '),
-    certifications: selectedCertifications.value.join(', '),
+    product_categories: selectedCategories.value.join(','),
+    certifications: selectedCertifications.value.join(','),
     notes: form.value.notes,
     nda_signed: form.value.nda_signed,
     mma_signed: form.value.mma_signed
@@ -1191,14 +1191,15 @@ input:focus, textarea:focus, select:focus {
   gap: 0.4rem; 
   flex: 1; 
 }
-.category-tag { 
-  background: rgba(99, 102, 241, 0.15); 
-  color: var(--primary); 
-  padding: 0.2rem 0.6rem; 
-  border-radius: 6px; 
-  font-size: 0.75rem; 
-  font-weight: 600; 
-  white-space: nowrap; 
+.category-tag {
+  background: var(--primary);
+  color: white;
+  padding: 0.35rem 0.8rem;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  white-space: nowrap;
+  display: inline-block;
 }
 
 .card-details-block {
