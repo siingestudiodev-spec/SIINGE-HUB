@@ -82,7 +82,7 @@
         </div>
 
         <div class="types-tags">
-          <span v-for="t in p.types" :key="t" class="type-tag">{{ t }}</span>
+          <span v-for="t in parseTypes(p.types)" :key="t" class="type-tag">{{ t }}</span>
         </div>
 
         <div class="card-info">
@@ -132,9 +132,23 @@ const availableCountries = computed(() => {
   return [...new Set(countries)].sort()
 })
 
+const parseTypes = (types) => {
+  if (Array.isArray(types)) return types
+  if (typeof types === 'string') {
+    try {
+      const parsed = JSON.parse(types)
+      return Array.isArray(parsed) ? parsed : []
+    } catch {
+      return types.split(',').map(t => t.trim())
+    }
+  }
+  return []
+}
+
 const filteredProviders = computed(() => {
   return providers.value.filter(p => {
-    const matchType = !filterType.value || (p.types && p.types.includes(filterType.value))
+    const types = parseTypes(p.types)
+    const matchType = !filterType.value || types.includes(filterType.value)
     const matchCountry = !filterCountry.value || p.country === filterCountry.value
     return matchType && matchCountry
   })
@@ -155,7 +169,7 @@ function editProvider(p) {
   editingId.value = p.id
   form.value = {
     provider: p.provider || '',
-    types: p.types ? [...p.types] : [],
+    types: parseTypes(p.types),
     country: p.country || '',
     city: p.city || '',
     contact_name: p.contact_name || '',
@@ -167,7 +181,6 @@ function editProvider(p) {
     notes: p.notes || ''
   }
   showForm.value = true
-  window.scrollTo({ top: 0, behavior: 'smooth' })
 }
 
 function cancelForm() {
@@ -186,10 +199,15 @@ async function fetchProviders() {
 async function saveProvider() {
   if (!form.value.provider) return alert('Provider name is required')
 
+  const payload = {
+    ...form.value,
+    types: form.value.types
+  }
+
   if (editingId.value) {
-    await supabase.from('sourcing').update({ ...form.value }).eq('id', editingId.value)
+    await supabase.from('sourcing').update(payload).eq('id', editingId.value)
   } else {
-    await supabase.from('sourcing').insert([{ ...form.value }])
+    await supabase.from('sourcing').insert([payload])
   }
 
   cancelForm()
@@ -251,7 +269,16 @@ textarea { resize: vertical; margin-top: 0.75rem; }
 .btn-edit:hover { background: rgba(79, 70, 229, 0.15); }
 
 .types-tags { display: flex; flex-wrap: wrap; gap: 0.4rem; }
-.type-tag { background: rgba(79, 70, 229, 0.1); color: var(--primary); padding: 0.2rem 0.6rem; border-radius: 20px; font-size: 0.78rem; font-weight: 500; }
+.types-tags { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.type-tag {
+  background: var(--primary);
+  color: white;
+  padding: 0.35rem 0.8rem;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  display: inline-block;
+}
 
 .card-info { font-size: 0.85rem; color: var(--text-body); line-height: 1.8; }
 .card-info a { color: var(--primary); text-decoration: none; }
