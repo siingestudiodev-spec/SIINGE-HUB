@@ -12,77 +12,91 @@
       </div>
     </div>
 
-    <div v-if="showFolderForm" class="form-card">
-      <h2>Create New Folder</h2>
-      <div class="form-grid">
-        <div class="input-group">
-          <input v-model="folderForm.name" placeholder="Folder Name *" />
+    <div v-if="showFolderForm" class="modal-overlay" @click.self="resetFolderForm">
+      <div class="modal">
+        <div class="modal-header">
+          <h2>Create New Folder</h2>
+          <button @click="resetFolderForm" class="modal-close">✕</button>
         </div>
-      </div>
-      <div class="form-actions mt-4">
-        <button @click="saveFolder" class="btn-primary">
-          CREATE FOLDER
-        </button>
-        <button @click="resetFolderForm" class="btn-secondary">Cancel</button>
+        <div class="modal-body">
+          <div class="form-grid">
+            <div class="input-group">
+              <input v-model="folderForm.name" placeholder="Folder Name *" />
+            </div>
+          </div>
+        </div>
+        <div class="modal-actions mt-4">
+          <button @click="saveFolder" class="btn-primary">
+            CREATE FOLDER
+          </button>
+          <button @click="resetFolderForm" class="btn-secondary">Cancel</button>
+        </div>
       </div>
     </div>
 
-    <div v-if="showForm" class="form-card">
-      <h2>{{ editing ? 'Edit Manufacturer' : 'New Manufacturer' }}</h2>
-      <div class="form-grid">
-        <div class="input-group"><input v-model="form.company_name" placeholder="Company Name *" /></div>
-        <div class="input-group">
-          <select v-model="form.folder_id">
-            <option :value="null">No Folder</option>
-            <option v-for="f in folders" :key="f.id" :value="f.id">{{ f.name }}</option>
-          </select>
+    <div v-if="showForm" class="modal-overlay" @click.self="resetForm">
+      <div class="modal modal-large">
+        <div class="modal-header">
+          <h2>{{ editing ? 'Edit Manufacturer' : 'New Manufacturer' }}</h2>
+          <button @click="resetForm" class="modal-close">✕</button>
         </div>
-        <div class="input-group"><input v-model="form.country" placeholder="Country" /></div>
-        <div class="input-group"><input v-model="form.contact_name" placeholder="Contact Name" /></div>
-        <div class="input-group"><input v-model="form.phone" placeholder="Phone" /></div>
-        <div class="input-group"><input v-model="form.email" placeholder="Email" /></div>
-        <div class="input-group"><input v-model="form.website" placeholder="Website" /></div>
-      </div>
+        <div class="modal-body modal-body-scroll">
+          <div class="form-grid">
+            <div class="input-group"><input v-model="form.company_name" placeholder="Company Name *" /></div>
+            <div class="input-group">
+              <select v-model="form.folder_id">
+                <option :value="null">No Folder</option>
+                <option v-for="f in folders" :key="f.id" :value="f.id">{{ f.name }}</option>
+              </select>
+            </div>
+            <div class="input-group"><input v-model="form.country" placeholder="Country" /></div>
+            <div class="input-group"><input v-model="form.contact_name" placeholder="Contact Name" /></div>
+            <div class="input-group"><input v-model="form.phone" placeholder="Phone" /></div>
+            <div class="input-group"><input v-model="form.email" placeholder="Email" /></div>
+            <div class="input-group"><input v-model="form.website" placeholder="Website" /></div>
+          </div>
 
-      <div class="categories-section mt-4">
-        <label class="section-label">Legal Status</label>
-        <div class="legal-grid">
-          <label class="legal-checkbox-item">
-            <input type="checkbox" v-model="form.nda_signed" />
-            <span>NDA Signed</span>
-          </label>
-          <label class="legal-checkbox-item">
-            <input type="checkbox" v-model="form.mma_signed" />
-            <span>MMA Signed</span>
-          </label>
+          <div class="categories-section mt-4">
+            <label class="section-label">Legal Status</label>
+            <div class="legal-grid">
+              <label class="legal-checkbox-item">
+                <input type="checkbox" v-model="form.nda_signed" />
+                <span>NDA Signed</span>
+              </label>
+              <label class="legal-checkbox-item">
+                <input type="checkbox" v-model="form.mma_signed" />
+                <span>MMA Signed</span>
+              </label>
+            </div>
+          </div>
+
+          <div class="categories-section mt-4">
+            <label class="section-label">Product Categories</label>
+            <div class="categories-grid">
+              <label v-for="cat in categoryOptions" :key="cat" class="category-checkbox">
+                <input type="checkbox" :value="cat" v-model="selectedCategories" />
+                <span>{{ cat }}</span>
+              </label>
+            </div>
+          </div>
+
+          <div class="categories-section mt-4">
+            <label class="section-label">Certifications</label>
+            <select v-model="selectedCertifications" multiple class="multi-select-custom">
+              <option v-for="cert in certOptions" :key="cert" :value="cert">{{ cert }}</option>
+            </select>
+            <p class="text-xs text-gray-400 mt-1">Hold Ctrl (or Cmd on Mac) to select multiple.</p>
+          </div>
+
+          <textarea v-model="form.notes" placeholder="Notes (Optional)" rows="3" class="mt-4"></textarea>
         </div>
-      </div>
 
-      <div class="categories-section mt-4">
-        <label class="section-label">Product Categories</label>
-        <div class="categories-grid">
-          <label v-for="cat in categoryOptions" :key="cat" class="category-checkbox">
-            <input type="checkbox" :value="cat" v-model="selectedCategories" />
-            <span>{{ cat }}</span>
-          </label>
+        <div class="modal-actions mt-4">
+          <button @click="saveManufacturer" class="btn-primary">
+            {{ editing ? 'UPDATE MANUFACTURER' : 'SAVE MANUFACTURER' }}
+          </button>
+          <button @click="resetForm" class="btn-secondary">Cancel</button>
         </div>
-      </div>
-
-      <div class="categories-section mt-4">
-        <label class="section-label">Certifications</label>
-        <select v-model="selectedCertifications" multiple class="multi-select-custom">
-          <option v-for="cert in certOptions" :key="cert" :value="cert">{{ cert }}</option>
-        </select>
-        <p class="text-xs text-gray-400 mt-1">Hold Ctrl (or Cmd on Mac) to select multiple.</p>
-      </div>
-
-      <textarea v-model="form.notes" placeholder="Notes (Optional)" rows="3" class="mt-4"></textarea>
-      
-      <div class="form-actions mt-4">
-        <button @click="saveManufacturer" class="btn-primary">
-          {{ editing ? 'UPDATE MANUFACTURER' : 'SAVE MANUFACTURER' }}
-        </button>
-        <button @click="resetForm" class="btn-secondary">Cancel</button>
       </div>
     </div>
 
@@ -651,7 +665,6 @@ function editFolder(f) {
   editFolderId.value = f.id
   editingFolder.value = true
   showFolderForm.value = true
-  window.scrollTo({ top: 0, behavior: 'smooth' })
 }
 
 async function deleteFolder(folderId) {
@@ -687,7 +700,6 @@ function editManufacturer(m) {
   editId.value = m.id
   editing.value = true
   showForm.value = true
-  window.scrollTo({ top: 0, behavior: 'smooth' })
 }
 
 function resetForm() {
@@ -954,24 +966,11 @@ h1 {
 }
 
 /* FORM & INPUTS */
-.form-card { 
-  background: var(--bg-card); 
-  padding: 2rem; 
-  border-radius: 16px; 
-  border: 1px solid var(--border-main); 
-  box-shadow: 0 10px 25px rgba(0,0,0,0.2); 
-  margin-bottom: 2.5rem; 
-}
-.form-card h2 { 
-  margin-top: 0; 
-  margin-bottom: 1.5rem; 
-  font-size: 1.25rem; 
-  color: var(--text-main);
-}
-.form-grid { 
-  display: grid; 
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); 
-  gap: 1rem; 
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1rem;
 }
 input, textarea, select { 
   width: 100%; 
@@ -1313,9 +1312,14 @@ input:focus, textarea:focus, select:focus {
 
 /* MODALES */
 .modal-overlay { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.8); z-index: 1000; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(4px); }
-.modal { background: var(--bg-card); border-radius: 20px; width: 90%; max-width: 600px; padding: 2rem; border: 1px solid var(--border-main); }
-.modal-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-light); padding-bottom: 1rem; margin-bottom: 1.5rem; }
+.modal { background: var(--bg-card); border-radius: 20px; width: 90%; max-width: 600px; border: 1px solid var(--border-main); display: flex; flex-direction: column; max-height: 90vh; }
+.modal-large { max-width: 800px; }
+.modal-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-light); padding: 2rem 2rem 1rem; flex-shrink: 0; }
+.modal-header h2 { margin: 0; font-size: 1.25rem; color: var(--text-main); }
 .modal-close { background: var(--bg-app); border: 1px solid var(--border-main); color: var(--text-muted); width: 32px; height: 32px; border-radius: 8px; cursor: pointer; display: flex; justify-content: center; align-items: center; font-weight: bold;}
+.modal-body { flex: 1; padding: 1.5rem 2rem; overflow-y: auto; }
+.modal-body-scroll { max-height: calc(90vh - 200px); }
+.modal-actions { display: flex; gap: 0.8rem; justify-content: flex-end; padding: 1.5rem 2rem; border-top: 1px solid var(--border-light); flex-shrink: 0; background: var(--bg-app); border-radius: 0 0 20px 20px; }
 .signature-notice { background: rgba(234, 179, 8, 0.1); color: var(--warning-text); padding: 0.5rem 0.8rem; border-radius: 8px; font-size: 0.85rem; border: 1px dashed var(--warning-text); }
 .cert-item { background: var(--bg-app); padding: 0.8rem 1rem; border-radius: 8px; margin-bottom: 0.5rem; color: var(--text-main); display: flex; gap: 0.6rem; }
 .modal-field { margin-bottom: 1.2rem; }
