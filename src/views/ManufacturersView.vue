@@ -1071,23 +1071,30 @@ input:focus, textarea:focus, select:focus {
 }
 
 /* FILTERS */
-.filters { 
-  display: flex; 
-  gap: 1rem; 
-  align-items: center; 
-  margin-bottom: 2rem; 
-  flex-wrap: wrap; 
-  background: var(--bg-card); 
-  padding: 1rem; 
-  border-radius: 12px; 
-  border: 1px solid var(--border-main); 
+.filters {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+  background: transparent;
+  padding: 0;
+  border-radius: 0;
+  border: none;
 }
-.search-input, .filter-select { 
-  background: var(--bg-app); 
+.search-input, .filter-select {
+  background: var(--bg-card);
   color: var(--text-main);
   border-color: var(--border-main);
+  padding: 0.55rem 0.85rem;
+  font-size: 0.9rem;
+  flex: 1;
+  min-width: 140px;
 }
-.results-count { font-size: 0.85rem; color: var(--text-muted); margin-left: auto; }
+.search-input { min-width: 200px; flex: 2; }
+.filter-select { min-width: 130px; }
+.results-count { font-size: 0.8rem; color: var(--text-muted); margin-left: auto; white-space: nowrap; }
+.btn-clear { padding: 0.55rem 0.85rem; font-size: 0.85rem; }
 
 /* LISTA */
 .list-container { 
