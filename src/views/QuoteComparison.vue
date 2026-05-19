@@ -241,28 +241,53 @@ function formatWeeks(value) {
 
 async function fetchData() {
   loading.value = true
-  const { data: project } = await supabase.from('projects').select('*').eq('id', projectId).single()
-  if (project) {
-    projectName.value = project.name || project.project_name
-    clientName.value = project.client_name
-  }
-  
-  const { data: q } = await supabase
-    .from('quotes')
-    .select('*, manufacturers(id, company_name, country)')
-    .eq('project_id', projectId)
-    .order('created_at', { ascending: true })
-  
-  quotes.value = (q || []).map(item => ({
-    ...item,
-    sample_lead_time_display: item.sample_lead_time_text || (item.sample_lead_time != null ? item.sample_lead_time.toString() : ''),
-    bulk_lead_time_display: item.bulk_lead_time_text || (item.bulk_lead_time != null ? item.bulk_lead_time.toString() : '')
-  }))
-  supportsLeadTimeText.value = q && q.length > 0 && ('sample_lead_time_text' in q[0])
+  try {
+    const { data: project, error: projErr } = await supabase.from('projects').select('*').eq('id', projectId).single()
+    if (projErr) console.error('Project fetch error:', projErr)
+    if (project) {
+      projectName.value = project.name || project.project_name
+      clientName.value = project.client_name
+    }
 
-  const { data: m } = await supabase.from('manufacturers').select('id, company_name').order('company_name')
-  manufacturers.value = m || []
-  loading.value = false
+    const { data: q, error: quotesErr } = await supabase
+      .from('quotes')
+      .select('*')
+      .eq('project_id', projectId)
+      .order('created_at', { ascending: true })
+
+    if (quotesErr) {
+      console.error('Quotes fetch error:', quotesErr)
+      showMsg('Error loading quotes: ' + quotesErr.message, 'error')
+    }
+
+    const { data: m, error: mfgErr } = await supabase.from('manufacturers').select('id, company_name, country').order('company_name')
+    if (mfgErr) console.error('Manufacturers fetch error:', mfgErr)
+    manufacturers.value = m || []
+
+    const mfgMap = {}
+    ;(m || []).forEach(mfg => { mfgMap[mfg.id] = mfg })
+
+    quotes.value = (q || []).map(item => {
+      let tiers = item.pricing_tiers
+      if (typeof tiers === 'string') {
+        try { tiers = JSON.parse(tiers) } catch { tiers = [] }
+      }
+      if (!Array.isArray(tiers)) tiers = []
+      return {
+        ...item,
+        pricing_tiers: tiers,
+        manufacturers: mfgMap[item.manufacturer_id] || null,
+        sample_lead_time_display: item.sample_lead_time_text || (item.sample_lead_time != null ? item.sample_lead_time.toString() : ''),
+        bulk_lead_time_display: item.bulk_lead_time_text || (item.bulk_lead_time != null ? item.bulk_lead_time.toString() : '')
+      }
+    })
+    supportsLeadTimeText.value = q && q.length > 0 && ('sample_lead_time_text' in q[0])
+  } catch (err) {
+    console.error('Unexpected fetchData error:', err)
+    showMsg('Unexpected error loading data: ' + err.message, 'error')
+  } finally {
+    loading.value = false
+  }
 }
 
 function openCreateForm() {
