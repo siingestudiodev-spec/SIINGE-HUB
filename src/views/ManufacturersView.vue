@@ -54,6 +54,7 @@
             <div class="input-group"><input v-model="form.phone" placeholder="Phone" /></div>
             <div class="input-group"><input v-model="form.email" placeholder="Email" /></div>
             <div class="input-group"><input v-model="form.website" placeholder="Website" /></div>
+            <div class="input-group"><input v-model="form.catalog_url" placeholder="Catalog Link (Google Drive)" /></div>
           </div>
 
           <div class="categories-section mt-4">
@@ -230,6 +231,7 @@
                   <button v-if="m.email && !m.initial_reach_sent" @click="openInitialReachModal(m)" class="btn-action-full btn-initial-reach"><Send :size="12" :stroke-width="2" /> REACH</button>
                   <button v-if="m.initial_reach_sent && !m.initial_reach_responded_at" @click="markResponded(m)" class="btn-action-full btn-responded"><CheckCircle :size="12" :stroke-width="2" /> RESPONDED</button>
                   <button v-if="m.email" @click="openEmailModal(m)" class="btn-action-full btn-email"><Mail :size="12" :stroke-width="2" /> EMAIL</button>
+                  <a v-if="m.catalog_url" :href="m.catalog_url" target="_blank" rel="noopener noreferrer" class="btn-action-full btn-catalog"><ExternalLink :size="12" :stroke-width="2" /> CATALOG</a>
                 </div>
 
               </div>
@@ -395,7 +397,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { supabase } from '../lib/supabase'
-import { Folder, Globe, User, Phone, Mail, Tag, FileText, Edit, Pencil, Trash2, CalendarClock, Clock, AlertTriangle, Send, CheckCircle, ClipboardList } from 'lucide-vue-next'
+import { Folder, Globe, User, Phone, Mail, Tag, FileText, Edit, Pencil, Trash2, CalendarClock, Clock, AlertTriangle, Send, CheckCircle, ClipboardList, ExternalLink } from 'lucide-vue-next'
 const SUPABASE_URL      = import.meta.env.VITE_SUPABASE_URL
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
 
@@ -417,9 +419,11 @@ const filterCategory = ref('')
 
 const expandedFolders = ref(new Set(['no-folder']))
 
+
 const categoryOptions = [
-  'Activewear', "Children's wear", 'Swimwear', 'Evening wear', 
-  'Streetwear', 'Launchwear', 'Intimate Apparel', 'Leather Good', 'Accessories'
+  'Activewear', "Children's Wear", 'Swimwear', 'Evening Wear',
+  'Streetwear', 'Loungewear', 'Intimate Apparel', 'Leather Goods', 'Accessories',
+  "Women's Wear", 'Workwear', 'Shapewear', 'Denim'
 ]
 const certOptions = [
   'OEKO-TEX STANDARD 100', 'ISO 45001', 'OCS100', 'UN Global Compact', 
@@ -614,6 +618,7 @@ async function saveManufacturer() {
     phone: form.value.phone,
     email: form.value.email,
     website: form.value.website,
+    catalog_url: form.value.catalog_url,
     product_categories: selectedCategories.value.join(','),
     certifications: selectedCertifications.value.join(','),
     notes: form.value.notes,
@@ -703,9 +708,9 @@ function editManufacturer(m) {
 }
 
 function resetForm() {
-  form.value = { 
-    company_name: '', country: '', contact_name: '', phone: '', 
-    email: '', website: '', product_categories: '', certifications: '', notes: '',
+  form.value = {
+    company_name: '', country: '', contact_name: '', phone: '',
+    email: '', website: '', catalog_url: '', product_categories: '', certifications: '', notes: '',
     nda_signed: false, mma_signed: false, folder_id: null
   }
   selectedCategories.value = []
@@ -876,10 +881,10 @@ function isOverdue(dateString) {
   return Math.floor((new Date() - new Date(dateString)) / (1000 * 60 * 60 * 24)) >= 7
 }
 
-onMounted(() => { 
+onMounted(() => {
   fetchManufacturers()
   fetchFolders()
-  fetchTemplates() 
+  fetchTemplates()
 })
 </script>
 
@@ -1301,6 +1306,7 @@ input:focus, textarea:focus, select:focus {
 .btn-email { background: var(--success-bg); color: var(--success-text); }
 .btn-responded { background: #d1fae5; color: #065f46; }
 .btn-followup:hover { border-color: #f59e0b; background: #fef3c7; }
+.btn-catalog { display: flex; align-items: center; justify-content: center; gap: 0.3rem; background: #eff6ff; color: #1d4ed8; text-decoration: none; }
 
 /* FOLLOW-UP CHIP */
 .followup-status-row { display: flex; align-items: center; gap: 0.4rem; }
