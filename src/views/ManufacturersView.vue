@@ -12,7 +12,7 @@
       </div>
     </div>
 
-    <div v-if="showFolderForm" class="modal-overlay" @click.self="resetFolderForm">
+    <div v-if="showFolderForm" class="modal-overlay" @keydown.escape="resetFolderForm" tabindex="0">
       <div class="modal">
         <div class="modal-header">
           <h2>Create New Folder</h2>
@@ -34,7 +34,7 @@
       </div>
     </div>
 
-    <div v-if="showForm" class="modal-overlay" @click.self="resetForm">
+    <div v-if="showForm" class="modal-overlay" @keydown.escape="resetForm" tabindex="0">
       <div class="modal modal-large">
         <div class="modal-header">
           <h2>{{ editing ? 'Edit Manufacturer' : 'New Manufacturer' }}</h2>
