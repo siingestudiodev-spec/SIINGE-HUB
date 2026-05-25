@@ -1046,22 +1046,23 @@ input:focus, textarea:focus, select:focus {
   letter-spacing: 0.05em; 
 }
 .categories-grid {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.3rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  gap: 0.5rem;
 }
 .category-checkbox {
   display: flex;
   align-items: center;
-  gap: 0.35rem;
+  justify-content: flex-start;
+  gap: 0.4rem;
   background: var(--bg-app);
-  padding: 0.35rem 0.6rem;
-  border-radius: 6px;
+  padding: 0.4rem 0.5rem;
+  border-radius: 5px;
   cursor: pointer;
-  font-size: 0.75rem; 
-  border: 1px solid var(--border-main); 
-  user-select: none; 
-  transition: all 0.2s; 
+  font-size: 0.7rem;
+  border: 1px solid var(--border-main);
+  user-select: none;
+  transition: all 0.2s;
   color: var(--text-body);
 }
 .category-checkbox:hover { background: var(--border-light); }
