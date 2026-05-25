@@ -710,7 +710,8 @@ function editManufacturer(m) {
 function resetForm() {
   form.value = {
     company_name: '', country: '', contact_name: '', phone: '',
-    email: '', website: '', catalog_url: '', product_categories: '', certifications: '', notes: '',
+    email: '', website: '', catalog_url: '', product_categories: '', certifications: '',
+    notes: 'MOQ: \nSLT: \nBulk: \n\n1. Certifications: \n2. Can provide traceability: \n3. QC: \n4. Allow Visits: ',
     nda_signed: false, mma_signed: false, folder_id: null
   }
   selectedCategories.value = []
@@ -1044,20 +1045,20 @@ input:focus, textarea:focus, select:focus {
   margin-bottom: 0.75rem; 
   letter-spacing: 0.05em; 
 }
-.categories-grid { 
-  display: flex; 
-  flex-wrap: wrap; 
-  gap: 0.5rem; 
+.categories-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
 }
-.category-checkbox { 
-  display: flex; 
-  align-items: center; 
-  gap: 0.5rem; 
-  background: var(--bg-app); 
-  padding: 0.5rem 0.8rem; 
-  border-radius: 8px; 
-  cursor: pointer; 
-  font-size: 0.85rem; 
+.category-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  background: var(--bg-app);
+  padding: 0.35rem 0.6rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.75rem; 
   border: 1px solid var(--border-main); 
   user-select: none; 
   transition: all 0.2s; 
