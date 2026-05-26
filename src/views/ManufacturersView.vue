@@ -152,8 +152,8 @@
                     <h3>{{ m.company_name }}</h3>
                     <div class="badges-row">
                       <span class="country-badge"><Globe :size="11" :stroke-width="1.5" /> {{ m.country || 'Unknown' }}</span>
-                      <span v-if="m.nda_signed" class="legal-badge nda">NDA</span>
-                      <span v-if="m.mma_signed" class="legal-badge mma">MMA</span>
+                      <span v-if="m.nda_signed" class="legal-badge nda">NDA ✓</span>
+                      <span v-if="m.mma_signed" class="legal-badge mma">MMA ✓</span>
                     </div>
                   </div>
                 </div>
@@ -209,7 +209,8 @@
                     <div class="reach-date" :class="{ 'overdue': isOverdue(m.manufacturer_email_logs[0].sent_at) }">
                       <span class="log-icon"><Clock :size="11" :stroke-width="1.5" /></span> {{ m.manufacturer_email_logs[0].template_name }}: {{ new Date(m.manufacturer_email_logs[0].sent_at).toLocaleDateString('en-US', { day: '2-digit', month: 'short' }) }}
                       
-                      <span v-if="m.manufacturer_email_logs[0].read_at" class="status-badge is-read" :title="'Read at: ' + new Date(m.manufacturer_email_logs[0].read_at).toLocaleString()">Read</span>
+                      <span v-if="isSigned(m.manufacturer_email_logs[0])" class="status-badge is-signed">Signed</span>
+                      <span v-else-if="m.manufacturer_email_logs[0].read_at" class="status-badge is-read" :title="'Read at: ' + new Date(m.manufacturer_email_logs[0].read_at).toLocaleString()">Read</span>
                       <span v-else class="status-badge is-sent" title="Sent (not read yet)">Sent</span>
                       
                       <span v-if="isOverdue(m.manufacturer_email_logs[0].sent_at) && !m.manufacturer_email_logs[0].read_at" class="warning-icon" title="No response in more than 7 days"><AlertTriangle :size="11" :stroke-width="1.5" /></span>
@@ -232,6 +233,7 @@
                   <button v-if="m.initial_reach_sent && !m.initial_reach_responded_at" @click="markResponded(m)" class="btn-action-full btn-responded"><CheckCircle :size="12" :stroke-width="2" /> RESPONDED</button>
                   <button v-if="m.email" @click="openEmailModal(m)" class="btn-action-full btn-email"><Mail :size="12" :stroke-width="2" /> EMAIL</button>
                   <a v-if="m.catalog_url" :href="m.catalog_url" target="_blank" rel="noopener noreferrer" class="btn-action-full btn-catalog"><ExternalLink :size="12" :stroke-width="2" /> CATALOG</a>
+                  <button v-if="m.email" @click="openSendDocumentsModal(m)" class="btn-action-full btn-documents"><FileCheck :size="12" :stroke-width="2" /> DOCUMENTS</button>
                 </div>
 
               </div>
@@ -282,7 +284,8 @@
           <div v-for="log in emailHistoryPopup.list" :key="log.id || log.sent_at" class="reach-date full-width mb-2" :class="{ 'overdue': isOverdue(log.sent_at) }">
             <span class="log-icon"><Clock :size="11" :stroke-width="1.5" /></span> {{ log.template_name }}: {{ new Date(log.sent_at).toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' }) }}
 
-            <span v-if="log.read_at" class="status-badge is-read" :title="'Read at: ' + new Date(log.read_at).toLocaleString()">Read</span>
+            <span v-if="isSigned(log)" class="status-badge is-signed">Signed</span>
+            <span v-else-if="log.read_at" class="status-badge is-read" :title="'Read at: ' + new Date(log.read_at).toLocaleString()">Read</span>
             <span v-else class="status-badge is-sent" title="Sent (not read yet)">Sent</span>
 
             <span v-if="isOverdue(log.sent_at) && !log.read_at" class="warning-icon" title="No response in more than 7 days"><AlertTriangle :size="11" :stroke-width="1.5" /></span>
@@ -392,12 +395,90 @@
     </div>
   </div>
 
+  <!-- SEND DOCUMENTS MODAL -->
+  <div v-if="sendDocumentsModal.show && sendDocumentsModal.manufacturer" class="modal-overlay" @click.self="closeSendDocumentsModal">
+    <div class="modal modal-large">
+      <div class="modal-header">
+        <h2>Send Documents — {{ sendDocumentsModal.manufacturer.company_name }}</h2>
+        <button @click="closeSendDocumentsModal" class="modal-close">✕</button>
+      </div>
+      <div class="modal-body">
+        <p style="color: var(--text-muted); font-size: 0.85rem; margin: 0 0 1rem;">
+          Sending to: <strong>{{ sendDocumentsModal.manufacturer.email }}</strong>
+        </p>
+
+        <!-- DOCUMENT SELECTION -->
+        <div class="sdm-section">
+          <label class="section-label">Documents to Send</label>
+          <div style="display: flex; flex-direction: column; gap: 0.6rem;">
+            <label class="sdm-option">
+              <input type="checkbox" v-model="sdmSelectedDocs" value="nda" />
+              <span>NDA — Non-Disclosure Agreement</span>
+            </label>
+            <label class="sdm-option">
+              <input type="checkbox" v-model="sdmSelectedDocs" value="mma" />
+              <span>MMA — Manufacturing Master Agreement</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- LANGUAGE -->
+        <div class="sdm-section">
+          <label class="section-label">Portal Language</label>
+          <div style="display: flex; gap: 1.5rem;">
+            <label style="display:flex; align-items:center; gap:0.4rem; cursor:pointer; font-size:0.85rem;">
+              <input type="radio" v-model="sdmLanguage" value="en" /> English
+            </label>
+            <label style="display:flex; align-items:center; gap:0.4rem; cursor:pointer; font-size:0.85rem;">
+              <input type="radio" v-model="sdmLanguage" value="es" /> Español
+            </label>
+          </div>
+        </div>
+
+        <!-- EMAIL TEMPLATE -->
+        <div class="sdm-section">
+          <label class="section-label">Email Message</label>
+          <select v-model="sdmTemplate" style="width:100%; padding: 0.6rem 0.9rem; font-size: 0.85rem; border: 1px solid var(--border-main); border-radius: 6px; background: var(--bg-app); color: var(--text-main);">
+            <option :value="null">Default message</option>
+            <option v-for="t in templatesList" :key="t.id" :value="t">{{ t.name }}</option>
+          </select>
+          <p style="font-size: 0.73rem; color: var(--text-muted); margin: 0.4rem 0 0;">
+            The signing link is added automatically at the end of the message.
+          </p>
+          <div v-if="sdmTemplate" class="sdm-preview">
+            <div class="sdm-preview-subject"><strong>Subject:</strong> {{ sdmPreviewSubject }}</div>
+            <div class="sdm-preview-body">{{ sdmPreviewBody }}</div>
+          </div>
+        </div>
+
+        <div v-if="sdmError" style="background: #fee2e2; border: 1px solid #fca5a5; border-radius: 6px; padding: 0.6rem 0.9rem; color: #991b1b; font-size: 0.8rem;">
+          {{ sdmError }}
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button @click="closeSendDocumentsModal" class="btn-secondary">Cancel</button>
+        <button @click="sendDocuments" :disabled="sdmSelectedDocs.length === 0 || sdmSending" class="btn-primary">
+          {{ sdmSending ? 'Sending...' : `Send ${sdmSelectedDocs.length || ''} Document${sdmSelectedDocs.length !== 1 ? 's' : ''}` }}
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- DOCUMENT STATUS MODAL -->
+  <DocumentStatusModal
+    :show="docStatusModal.show"
+    :document="docStatusModal.document"
+    :document-type="docStatusModal.documentType"
+    @close="closeDocumentStatusModal"
+  />
+
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { supabase } from '../lib/supabase'
-import { Folder, Globe, User, Phone, Mail, Tag, FileText, Edit, Pencil, Trash2, CalendarClock, Clock, AlertTriangle, Send, CheckCircle, ClipboardList, ExternalLink } from 'lucide-vue-next'
+import { Folder, Globe, User, Phone, Mail, Tag, FileText, Edit, Pencil, Trash2, CalendarClock, Clock, AlertTriangle, Send, CheckCircle, ClipboardList, ExternalLink, FileCheck } from 'lucide-vue-next'
+import DocumentStatusModal from '../components/DocumentStatusModal.vue'
 const SUPABASE_URL      = import.meta.env.VITE_SUPABASE_URL
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
 
@@ -436,6 +517,23 @@ const selectedCertifications = ref([])
 const certPopup = ref({ show: false, list: [] })
 const notesPopup = ref({ show: false, text: '' })
 const followupModal = ref({ show: false, manu: null, date: '', notes: '' })
+const sendDocumentsModal = ref({ show: false, manufacturer: null })
+const docStatusModal = ref({ show: false, document: null, documentType: null })
+const sdmSelectedDocs = ref([])
+const sdmLanguage = ref('en')
+const sdmTemplate = ref(null)
+const sdmSending = ref(false)
+const sdmError = ref(null)
+
+const PLACEHOLDER = '{{company_name}}'
+const sdmPreviewSubject = computed(() => {
+  if (!sdmTemplate.value || !sendDocumentsModal.value.manufacturer) return ''
+  return (sdmTemplate.value.subject || '').split(PLACEHOLDER).join(sendDocumentsModal.value.manufacturer.company_name)
+})
+const sdmPreviewBody = computed(() => {
+  if (!sdmTemplate.value || !sendDocumentsModal.value.manufacturer) return ''
+  return (sdmTemplate.value.body || '').split(PLACEHOLDER).join(sendDocumentsModal.value.manufacturer.company_name)
+})
 
 const todayDate = new Date().toISOString().split('T')[0]
 
@@ -871,15 +969,162 @@ async function sendEmail() {
 }
 
 async function deleteManufacturer(id) {
-  if (confirm('Are you sure you want to delete this manufacturer?')) { 
+  if (confirm('Are you sure you want to delete this manufacturer?')) {
     await supabase.from('manufacturers').delete().eq('id', id)
-    fetchManufacturers() 
+    fetchManufacturers()
   }
+}
+
+function openSendDocumentsModal(manufacturer) {
+  sdmSelectedDocs.value = []
+  sdmLanguage.value = 'en'
+  sdmTemplate.value = null
+  sdmError.value = null
+  sendDocumentsModal.value.manufacturer = manufacturer
+  sendDocumentsModal.value.show = true
+}
+
+function closeSendDocumentsModal() {
+  sendDocumentsModal.value.show = false
+  sendDocumentsModal.value.manufacturer = null
+}
+
+async function sendDocuments() {
+  if (sdmSelectedDocs.value.length === 0) {
+    sdmError.value = 'Please select at least one document'
+    return
+  }
+  sdmSending.value = true
+  sdmError.value = null
+  try {
+    const { generateDocumentToken } = await import('../lib/documentSigning.js')
+    const company = sendDocumentsModal.value.manufacturer.company_name
+    const tpl = sdmTemplate.value
+
+    // Generate tokens for all documents
+    const documentLinks = []
+    for (const docType of sdmSelectedDocs.value) {
+      const { token, token_expires_at } = await generateDocumentToken(
+        sendDocumentsModal.value.manufacturer.id,
+        docType
+      )
+      const portalUrl = `${window.location.origin}/portal/sign?token=${token}&lang=${sdmLanguage.value}`
+      documentLinks.push({
+        type: docType.toUpperCase(),
+        url: portalUrl,
+        expires: token_expires_at
+      })
+    }
+
+    // Build links HTML with correct language
+    const btnLabel = (type) => sdmLanguage.value === 'es'
+      ? `Revisar y Firmar ${type}`
+      : `Review & Sign ${type}`
+
+    const linksHtml = documentLinks.map(doc =>
+      `<div style="margin: 1rem 0;"><a href="${doc.url}" style="background-color: #6366f1; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; display: inline-block; font-weight: 600;">${btnLabel(doc.type)}</a></div>`
+    ).join('')
+
+    const expiresDate = new Date(documentLinks[0].expires).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    })
+
+    // Build custom body with all links
+    let emailBody = tpl ? tpl.body?.replace(/\{\{company_name\}\}/g, company) : null
+    if (emailBody) {
+      emailBody += `\n\n${linksHtml}`
+    } else {
+      emailBody = `
+        <p>Hi ${company},</p>
+        <p>We would like you to review and sign the following documents:</p>
+        <p style="font-weight: 600; margin: 1rem 0;">${documentLinks.map(d => d.type).join(' & ')}</p>
+        <p>Please click the button(s) below to access the secure signing portal:</p>
+        ${linksHtml}
+        <p style="color: #666; font-size: 14px;"><strong>Links expire:</strong> ${expiresDate}</p>
+        <p>If you have any questions, please reach out to us.</p>
+        <p>Best regards,<br><strong>SIINGE STUDIO</strong><br><a href="https://www.siinge.studio" style="color: #6366f1;">www.siinge.studio</a></p>
+      `
+    }
+
+    const customSubject = tpl ? tpl.subject?.replace(/\{\{company_name\}\}/g, company) : `${documentLinks.map(d => d.type).join(' & ')} Signing Request — SIINGE STUDIO`
+
+    // Send single email with all documents
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/send-signing-link`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        manufacturer_email: sendDocumentsModal.value.manufacturer.email,
+        manufacturer_name: company,
+        document_type: sdmSelectedDocs.value.join('/'),
+        portal_url: documentLinks[0].url,
+        expires_at: documentLinks[0].expires,
+        custom_subject: customSubject,
+        custom_body: emailBody,
+      }),
+    })
+    if (!res.ok) throw new Error('Failed to send documents')
+
+    // Log each sent document
+    const sentAt = new Date().toISOString()
+    for (const docType of sdmSelectedDocs.value) {
+      await supabase.from('manufacturer_email_logs').insert([{
+        manufacturer_id: sendDocumentsModal.value.manufacturer.id,
+        template_name: `${docType.toUpperCase()} sent for signature`,
+        sent_at: sentAt,
+      }])
+    }
+
+    alert(`${sdmSelectedDocs.value.map(d => d.toUpperCase()).join(' & ')} sent successfully!`)
+    fetchManufacturers()
+    closeSendDocumentsModal()
+  } catch (err) {
+    sdmError.value = err.message || 'Failed to send documents'
+  } finally {
+    sdmSending.value = false
+  }
+}
+
+async function openDocumentStatusModal(manufacturer, documentType) {
+  try {
+    const { data } = await supabase
+      .from('manufacturer_documents')
+      .select('*')
+      .eq('manufacturer_id', manufacturer.id)
+      .eq('document_type', documentType)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single()
+
+    docStatusModal.value.document = data
+    docStatusModal.value.documentType = documentType
+    docStatusModal.value.show = true
+  } catch (err) {
+    console.error('Error fetching document status:', err)
+    // If no document found, still show modal with "not signed" state
+    docStatusModal.value.document = null
+    docStatusModal.value.documentType = documentType
+    docStatusModal.value.show = true
+  }
+}
+
+function closeDocumentStatusModal() {
+  docStatusModal.value.show = false
+  docStatusModal.value.document = null
+  docStatusModal.value.documentType = null
 }
 
 function isOverdue(dateString) {
   if (!dateString) return false
   return Math.floor((new Date() - new Date(dateString)) / (1000 * 60 * 60 * 24)) >= 7
+}
+
+function isSigned(log) {
+  return log.template_name?.toLowerCase().includes('signed by')
 }
 
 onMounted(() => {
@@ -1036,14 +1281,14 @@ input:focus, textarea:focus, select:focus {
 .mb-3 { margin-bottom: 1rem; }
 .text-sm { font-size: 0.85rem; }
 
-.section-label { 
-  display: block; 
-  font-size: 0.8rem; 
-  font-weight: 700; 
-  color: var(--text-muted); 
-  text-transform: uppercase; 
-  margin-bottom: 0.75rem; 
-  letter-spacing: 0.05em; 
+.section-label {
+  display: block;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  margin-bottom: 0.35rem;
+  letter-spacing: 0.05em;
 }
 .categories-grid {
   display: grid;
@@ -1268,8 +1513,9 @@ input:focus, textarea:focus, select:focus {
   letter-spacing: 0.05em;
   cursor: help;
 }
-.is-sent { background: rgba(0,0,0,0.1); color: var(--text-muted); border: 1px solid var(--border-main);}
-.is-read { background: rgba(59, 130, 246, 0.15); color: #3b82f6; border: 1px solid rgba(59, 130, 246, 0.3);}
+.is-sent   { background: rgba(0,0,0,0.1); color: var(--text-muted); border: 1px solid var(--border-main); }
+.is-read   { background: rgba(59, 130, 246, 0.15); color: #3b82f6; border: 1px solid rgba(59, 130, 246, 0.3); }
+.is-signed { background: rgba(34, 197, 94, 0.15); color: #16a34a; border: 1px solid rgba(34, 197, 94, 0.3); }
 .overdue { background-color: var(--danger-bg); color: var(--danger-text); border: 1px solid rgba(251, 113, 133, 0.3);}
 .check-icon-green { font-size: 0.8rem; margin-right: 0.4rem;}
 
@@ -1309,6 +1555,17 @@ input:focus, textarea:focus, select:focus {
 .btn-responded { background: #d1fae5; color: #065f46; }
 .btn-followup:hover { border-color: #f59e0b; background: #fef3c7; }
 .btn-catalog { display: flex; align-items: center; justify-content: center; gap: 0.3rem; background: #eff6ff; color: #1d4ed8; text-decoration: none; }
+.btn-documents { background: #fef3c7; color: #92400e; }
+
+/* SEND DOCUMENTS MODAL */
+.sdm-section { margin-bottom: 0.8rem; }
+.sdm-option { display: flex; align-items: center; gap: 0.6rem; cursor: pointer; padding: 0.4rem 0; border: none; background: none; }
+.sdm-option:hover { opacity: 0.8; }
+.sdm-option input[type="checkbox"] { cursor: pointer; width: 18px; height: 18px; }
+.sdm-option span { color: var(--text-main); font-weight: 500; font-size: 0.85rem; }
+.sdm-preview { margin-top: 0.5rem; padding: 0.7rem; background: var(--bg-app); border: 1px solid var(--border-light); border-radius: 6px; max-height: 150px; overflow-y: auto; }
+.sdm-preview-subject { font-size: 0.8rem; color: var(--text-main); margin-bottom: 0.4rem; font-weight: 600; }
+.sdm-preview-body { font-size: 0.75rem; color: var(--text-muted); white-space: pre-wrap; line-height: 1.4; }
 
 /* FOLLOW-UP CHIP */
 .followup-status-row { display: flex; align-items: center; gap: 0.4rem; }
@@ -1329,22 +1586,22 @@ input:focus, textarea:focus, select:focus {
 /* MODALES */
 .modal-overlay { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.8); z-index: 1000; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(4px); }
 .modal { background: var(--bg-card); border-radius: 20px; width: 90%; max-width: 600px; border: 1px solid var(--border-main); display: flex; flex-direction: column; max-height: 90vh; }
-.modal-large { max-width: 800px; }
-.modal-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-light); padding: 2rem 2rem 1rem; flex-shrink: 0; }
-.modal-header h2 { margin: 0; font-size: 1.25rem; color: var(--text-main); }
+.modal-large { max-width: 520px; }
+.modal-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-light); padding: 1.2rem 1.5rem 0.7rem; flex-shrink: 0; }
+.modal-header h2 { margin: 0; font-size: 1.1rem; color: var(--text-main); }
 .modal-close { background: var(--bg-app); border: 1px solid var(--border-main); color: var(--text-muted); width: 32px; height: 32px; border-radius: 8px; cursor: pointer; display: flex; justify-content: center; align-items: center; font-weight: bold;}
-.modal-body { flex: 1; padding: 1.5rem 2rem; overflow-y: auto; }
+.modal-body { flex: 1; padding: 1rem 1.5rem; overflow-y: auto; }
 .modal-body-scroll { max-height: calc(90vh - 200px); }
-.modal-actions { display: flex; gap: 0.8rem; justify-content: flex-end; padding: 1.5rem 2rem; border-top: 1px solid var(--border-light); flex-shrink: 0; background: var(--bg-app); border-radius: 0 0 20px 20px; }
+.modal-actions { display: flex; gap: 0.8rem; justify-content: flex-end; padding: 1rem 1.5rem; border-top: 1px solid var(--border-light); flex-shrink: 0; background: var(--bg-app); border-radius: 0 0 20px 20px; }
 .signature-notice { background: rgba(234, 179, 8, 0.1); color: var(--warning-text); padding: 0.5rem 0.8rem; border-radius: 8px; font-size: 0.85rem; border: 1px dashed var(--warning-text); }
 .cert-item { background: var(--bg-app); padding: 0.8rem 1rem; border-radius: 8px; margin-bottom: 0.5rem; color: var(--text-main); display: flex; gap: 0.6rem; }
 .modal-field { margin-bottom: 1.2rem; }
 .modal-field label { display: block; font-size: 0.8rem; font-weight: 700; color: var(--text-muted); margin-bottom: 0.4rem; text-transform: uppercase; letter-spacing: 0.05em;}
 
 /* GLOBAL BUTTONS */
-.btn-primary { background: var(--primary); color: white; border: none; padding: 0.7rem 1.5rem; border-radius: 10px; cursor: pointer; font-weight: 700; }
+.btn-primary { background: var(--primary); color: white; border: none; padding: 0.6rem 1.2rem; border-radius: 8px; cursor: pointer; font-weight: 700; font-size: 0.9rem; }
 .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
-.btn-secondary { background: var(--border-light); color: var(--text-main); border: none; padding: 0.7rem 1.5rem; border-radius: 10px; cursor: pointer; font-weight: 600; }
+.btn-secondary { background: var(--border-light); color: var(--text-main); border: none; padding: 0.6rem 1.2rem; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 0.9rem; }
 .btn-clear { background: var(--border-light); color: var(--text-muted); border: none; padding: 0.7rem 1rem; border-radius: 8px; cursor: pointer; }
 .loading, .empty { text-align: center; padding: 3rem; color: var(--text-muted); }
 

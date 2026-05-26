@@ -11,6 +11,7 @@ import Events from '../views/Events.vue'
 import CalendarView from '../views/CalendarView.vue' 
 import TestingView from '../views/TestingView.vue'
 import FollowUpsView from '../views/FollowUpsView.vue'
+import PortalSignView from '../views/PortalSignView.vue'
 
 const routes = [
   { path: '/login', component: LoginView },
@@ -61,9 +62,9 @@ const routes = [
     meta: { requiresAuth: true }
   },
   {
-    // RUTA AISLADA PÚBLICA PARA FIRMAS
-    path: '/contracts',
-    component: TestingView,
+    // PORTAL PÚBLICO PARA FIRMAR DOCUMENTOS
+    path: '/portal/sign',
+    component: PortalSignView,
     meta: { requiresAuth: false, hideNavbar: true }
   }
 ]
