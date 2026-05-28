@@ -347,6 +347,24 @@ async function submitSignature() {
     // Send confirmation email with download link
     await generateAndSendSignedPDF()
 
+    // Notify SIINGE team
+    fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/notify-document-signed`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        document_type: documentType.value,
+        document_id: document.value.id,
+        manufacturer_id: document.value.manufacturerId,
+        manufacturer_name: document.value.companyName,
+        company_name: formData.value.companyName,
+        signer_name: formData.value.signerName,
+        signer_email: document.value.companyEmail,
+      }),
+    }).catch(() => {})
+
     submitted.value = true
   } catch (err) {
     console.error('Error saving signature:', err)

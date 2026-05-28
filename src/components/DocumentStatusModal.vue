@@ -95,10 +95,7 @@ async function downloadPdf() {
       .from('signed_documents')
       .createSignedUrl(path, 3600)
     if (error || !data?.signedUrl) throw new Error('Could not generate download link')
-    const a = document.createElement('a')
-    a.href = data.signedUrl
-    a.download = `${props.documentType.toUpperCase()}_signed.pdf`
-    a.click()
+    window.open(data.signedUrl, '_blank')
   } catch (err) {
     alert('Error generating download link: ' + err.message)
   } finally {
