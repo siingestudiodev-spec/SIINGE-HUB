@@ -45,13 +45,22 @@
 
       <div class="modal-actions">
         <button @click="close" class="btn-secondary">Close</button>
+        <button
+          v-if="document && document.is_used"
+          @click="downloadPdf"
+          :disabled="downloading"
+          class="btn-download"
+        >
+          {{ downloading ? 'Generating...' : '↓ Download PDF' }}
+        </button>
       </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { ref } from 'vue'
+import { supabase } from '../lib/supabase'
 
 const props = defineProps({
   show: Boolean,
@@ -60,6 +69,7 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['close'])
+const downloading = ref(false)
 
 function close() {
   emit('close')
@@ -74,6 +84,26 @@ function formatDate(dateString) {
     hour: '2-digit',
     minute: '2-digit',
   })
+}
+
+async function downloadPdf() {
+  if (!props.document?.id || !props.document?.manufacturer_id) return
+  downloading.value = true
+  try {
+    const path = `${props.document.manufacturer_id}/${props.documentType}_${props.document.id}.pdf`
+    const { data, error } = await supabase.storage
+      .from('signed_documents')
+      .createSignedUrl(path, 3600)
+    if (error || !data?.signedUrl) throw new Error('Could not generate download link')
+    const a = document.createElement('a')
+    a.href = data.signedUrl
+    a.download = `${props.documentType.toUpperCase()}_signed.pdf`
+    a.click()
+  } catch (err) {
+    alert('Error generating download link: ' + err.message)
+  } finally {
+    downloading.value = false
+  }
 }
 </script>
 
@@ -241,5 +271,20 @@ function formatDate(dateString) {
   border: none;
   background: var(--border-light);
   color: var(--text-main);
+}
+
+.btn-download {
+  padding: 0.7rem 1.5rem;
+  border-radius: 10px;
+  cursor: pointer;
+  font-weight: 700;
+  border: none;
+  background: #22c55e;
+  color: white;
+}
+
+.btn-download:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 </style>

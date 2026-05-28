@@ -322,6 +322,13 @@ async function submitSignature() {
       }
     )
 
+    // Mark NDA/MMA as signed on the manufacturer record
+    const signedField = documentType.value === 'nda' ? 'nda_signed' : 'mma_signed'
+    await supabase
+      .from('manufacturers')
+      .update({ [signedField]: true })
+      .eq('id', document.value.manufacturerId)
+
     // Log the signing event
     await supabase.from('manufacturer_email_logs').insert([{
       manufacturer_id: document.value.manufacturerId,
