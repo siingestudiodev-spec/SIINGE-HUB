@@ -124,7 +124,7 @@ serve(async (req: Request) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        from: 'SIINGE Hub <noreply@siinge.studio>',
+        from: 'SIINGE Hub <production@siinge.studio>',
         to: ['production@siinge.studio'],
         subject: `📋 ${count} follow-up${plural ? 's' : ''} pending — SIINGE Hub`,
         html,
