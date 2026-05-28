@@ -98,6 +98,7 @@ async function sendDocument() {
         document_type: props.documentType,
         portal_url: portalUrl,
         expires_at: token_expires_at,
+        manufacturer_id: props.manufacturer.id,
       }),
     })
 

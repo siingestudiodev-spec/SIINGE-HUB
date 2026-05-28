@@ -12,7 +12,12 @@ serve(async (req: Request) => {
     return new Response('ok', { headers: corsHeaders })
   }
 
+  const supabase = createClient(
+    Deno.env.get('SUPABASE_URL') ?? '',
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+  )
   const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY') ?? ''
+  const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? ''
 
   try {
     const {
@@ -23,6 +28,7 @@ serve(async (req: Request) => {
       expires_at,
       custom_subject,
       custom_body,
+      manufacturer_id,
     } = await req.json()
 
     if (!manufacturer_email || !document_type || !portal_url) {
@@ -51,6 +57,21 @@ serve(async (req: Request) => {
         <strong>Link expires:</strong> ${expiresDate}
       </p>`
 
+    // Create tracking log entry if manufacturer_id is provided
+    let pixelTag = ''
+    if (manufacturer_id) {
+      const { data: logEntry } = await supabase
+        .from('manufacturer_email_logs')
+        .insert([{ manufacturer_id, template_name: `${docTypeFormatted} Signing Request`, sent_at: new Date().toISOString() }])
+        .select()
+        .single()
+
+      if (logEntry) {
+        const trackingUrl = `${SUPABASE_URL}/functions/v1/track-email?id=${logEntry.id}`
+        pixelTag = `<img src="${trackingUrl}" width="1" height="1" style="display:none !important;" />`
+      }
+    }
+
     let html
     if (custom_body) {
       // custom_body already contains the sign buttons — don't append another one
@@ -58,6 +79,7 @@ serve(async (req: Request) => {
         <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
           ${custom_body.replace(/\n/g, '<br>')}
         </div>
+        ${pixelTag}
       `
     } else {
       // Default message
@@ -78,6 +100,7 @@ serve(async (req: Request) => {
           <a href="https://www.siinge.studio" style="color: #6366f1;">www.siinge.studio</a>
           </p>
         </div>
+        ${pixelTag}
       `
     }
 
@@ -89,7 +112,7 @@ serve(async (req: Request) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        from: 'SIINGE Studio <noreply@siinge.studio>',
+        from: 'Luis Domínguez — SIINGE <production@siinge.studio>',
         to: [manufacturer_email],
         subject: custom_subject || `${docTypeFormatted} Signing Request — SIINGE STUDIO`,
         html,

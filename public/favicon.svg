@@ -1,7 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
   <!-- Blue background -->
-  <rect width="200" height="200" fill="#3B82F6" rx="45"/>
+  <rect width="200" height="200" fill="#1a5fd4" rx="45"/>
 
-  <!-- HUB text - bold, white, centered -->
-  <text x="100" y="115" font-family="Arial, sans-serif" font-size="75" font-weight="900" fill="white" text-anchor="middle" dominant-baseline="middle">HUB</text>
+  <!-- CRM text - bold, white, centered -->
+  <text x="100" y="100" font-family="Arial Black, Arial, sans-serif" font-size="80" font-weight="900" fill="white" text-anchor="middle" dominant-baseline="central" letter-spacing="-3">CRM</text>
 </svg>

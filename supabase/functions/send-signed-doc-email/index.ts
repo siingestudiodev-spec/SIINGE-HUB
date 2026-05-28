@@ -75,6 +75,19 @@ serve(async (req: Request) => {
       day: 'numeric',
     })
 
+    // Create tracking log entry
+    let pixelTag = ''
+    const { data: logEntry } = await supabase
+      .from('manufacturer_email_logs')
+      .insert([{ manufacturer_id: document.manufacturer_id, template_name: `${docTypeFormatted} Signed Confirmation`, sent_at: new Date().toISOString() }])
+      .select()
+      .single()
+
+    if (logEntry) {
+      const trackingUrl = `${SUPABASE_URL}/functions/v1/track-email?id=${logEntry.id}`
+      pixelTag = `<img src="${trackingUrl}" width="1" height="1" style="display:none !important;" />`
+    }
+
     // Build email HTML with download parameter
     const downloadLink = signedUrl?.data?.signedUrl ? `<p><a href="${signedUrl.data.signedUrl}?download" download style="color:#2563eb;text-decoration:underline;">Download your signed copy</a></p>` : ''
 
@@ -104,6 +117,7 @@ serve(async (req: Request) => {
         <a href="https://www.siinge.studio" style="color: #2563eb;">www.siinge.studio</a>
         </p>
       </div>
+      ${pixelTag}
     `
 
     // Send via Resend to signer
@@ -114,7 +128,7 @@ serve(async (req: Request) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        from: 'SIINGE Studio <noreply@siinge.studio>',
+        from: 'Luis Domínguez — SIINGE <production@siinge.studio>',
         to: [signer_email],
         subject: `${docTypeFormatted} Signed Successfully — SIINGE STUDIO`,
         html,

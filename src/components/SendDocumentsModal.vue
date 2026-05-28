@@ -107,6 +107,7 @@ async function sendDocuments() {
             portal_url: portalUrl,
             expires_at: token_expires_at,
             language: selectedLanguage.value,
+            manufacturer_id: props.manufacturer.id,
           }),
         }
       )

@@ -1065,6 +1065,7 @@ async function sendDocuments() {
         expires_at: documentLinks[0].expires,
         custom_subject: customSubject,
         custom_body: emailBody,
+        manufacturer_id: sendDocumentsModal.value.manufacturer.id,
       }),
     })
     if (!res.ok) throw new Error('Failed to send documents')
