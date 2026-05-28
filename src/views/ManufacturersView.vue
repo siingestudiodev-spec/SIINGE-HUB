@@ -442,13 +442,32 @@
             <option :value="null">Default message</option>
             <option v-for="t in templatesList" :key="t.id" :value="t">{{ t.name }}</option>
           </select>
-          <p style="font-size: 0.73rem; color: var(--text-muted); margin: 0.4rem 0 0;">
+
+          <div v-if="sdmTemplate" style="margin-top: 0.75rem; display: flex; flex-direction: column; gap: 0.5rem;">
+            <div>
+              <label style="font-size: 0.75rem; color: var(--text-muted); display:block; margin-bottom:0.25rem;">Subject</label>
+              <input
+                v-model="sdmEditableSubject"
+                type="text"
+                style="width:100%; padding: 0.5rem 0.75rem; font-size: 0.85rem; border: 1px solid var(--border-main); border-radius: 6px; background: var(--bg-app); color: var(--text-main); box-sizing: border-box;"
+              />
+            </div>
+            <div>
+              <label style="font-size: 0.75rem; color: var(--text-muted); display:block; margin-bottom:0.25rem;">Body</label>
+              <textarea
+                v-model="sdmEditableBody"
+                rows="8"
+                style="width:100%; padding: 0.5rem 0.75rem; font-size: 0.85rem; border: 1px solid var(--border-main); border-radius: 6px; background: var(--bg-app); color: var(--text-main); resize: vertical; font-family: inherit; box-sizing: border-box;"
+              />
+            </div>
+            <p style="font-size: 0.72rem; color: var(--text-muted); margin: 0;">
+              The signing link button is added automatically at the end.
+            </p>
+          </div>
+
+          <p v-else style="font-size: 0.73rem; color: var(--text-muted); margin: 0.4rem 0 0;">
             The signing link is added automatically at the end of the message.
           </p>
-          <div v-if="sdmTemplate" class="sdm-preview">
-            <div class="sdm-preview-subject"><strong>Subject:</strong> {{ sdmPreviewSubject }}</div>
-            <div class="sdm-preview-body">{{ sdmPreviewBody }}</div>
-          </div>
         </div>
 
         <div v-if="sdmError" style="background: #fee2e2; border: 1px solid #fca5a5; border-radius: 6px; padding: 0.6rem 0.9rem; color: #991b1b; font-size: 0.8rem;">
@@ -475,7 +494,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { supabase } from '../lib/supabase'
 import { Folder, Globe, User, Phone, Mail, Tag, FileText, Edit, Pencil, Trash2, CalendarClock, Clock, AlertTriangle, Send, CheckCircle, ClipboardList, ExternalLink, FileCheck } from 'lucide-vue-next'
 import DocumentStatusModal from '../components/DocumentStatusModal.vue'
@@ -524,6 +543,19 @@ const sdmLanguage = ref('en')
 const sdmTemplate = ref(null)
 const sdmSending = ref(false)
 const sdmError = ref(null)
+const sdmEditableSubject = ref('')
+const sdmEditableBody = ref('')
+
+watch(sdmTemplate, (tpl) => {
+  const company = sendDocumentsModal.value.manufacturer?.company_name ?? ''
+  if (tpl) {
+    sdmEditableSubject.value = (tpl.subject || '').replace(/\{\{company_name\}\}/g, company)
+    sdmEditableBody.value = (tpl.body || '').replace(/\{\{company_name\}\}/g, company)
+  } else {
+    sdmEditableSubject.value = ''
+    sdmEditableBody.value = ''
+  }
+})
 
 const PLACEHOLDER = '{{company_name}}'
 const sdmPreviewSubject = computed(() => {
@@ -985,6 +1017,8 @@ function openSendDocumentsModal(manufacturer) {
   sdmLanguage.value = 'en'
   sdmTemplate.value = null
   sdmError.value = null
+  sdmEditableSubject.value = ''
+  sdmEditableBody.value = ''
   sendDocumentsModal.value.manufacturer = manufacturer
   sendDocumentsModal.value.show = true
 }
@@ -1037,9 +1071,9 @@ async function sendDocuments() {
     })
 
     // Build custom body with all links
-    let emailBody = tpl ? tpl.body?.replace(/\{\{company_name\}\}/g, company) : null
-    if (emailBody) {
-      emailBody += `\n\n${linksHtml}`
+    let emailBody = null
+    if (tpl) {
+      emailBody = sdmEditableBody.value + `\n\n${linksHtml}`
     } else {
       emailBody = `
         <p>Hi ${company},</p>
@@ -1053,7 +1087,9 @@ async function sendDocuments() {
       `
     }
 
-    const customSubject = tpl ? tpl.subject?.replace(/\{\{company_name\}\}/g, company) : `${documentLinks.map(d => d.type).join(' & ')} Signing Request — SIINGE STUDIO`
+    const customSubject = tpl
+      ? (sdmEditableSubject.value || `${documentLinks.map(d => d.type).join(' & ')} Signing Request — SIINGE STUDIO`)
+      : `${documentLinks.map(d => d.type).join(' & ')} Signing Request — SIINGE STUDIO`
 
     // Send single email with all documents
     const res = await fetch(`${SUPABASE_URL}/functions/v1/send-signing-link`, {
