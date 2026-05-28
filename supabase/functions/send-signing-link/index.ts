@@ -69,12 +69,17 @@ serve(async (req: Request) => {
       if (logEntry) logEntryId = String(logEntry.id)
     }
 
+    const pixelTag = logEntryId
+      ? `<img src="${SUPABASE_URL}/functions/v1/track-email?id=${logEntryId}" width="1" height="1" style="display:none !important;" />`
+      : ''
+
     let html
     if (custom_body) {
       html = `
         <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
           ${custom_body.replace(/\n/g, '<br>')}
         </div>
+        ${pixelTag}
       `
     } else {
       html = `
@@ -94,6 +99,7 @@ serve(async (req: Request) => {
           <a href="https://www.siinge.studio" style="color: #6366f1;">www.siinge.studio</a>
           </p>
         </div>
+        ${pixelTag}
       `
     }
 
@@ -109,6 +115,7 @@ serve(async (req: Request) => {
         to: [manufacturer_email],
         subject: custom_subject || `${docTypeFormatted} Signing Request — SIINGE STUDIO`,
         html,
+        open_tracking: true,
         ...(logEntryId ? { tags: [{ name: 'log_id', value: logEntryId }] } : {}),
       }),
     })

@@ -363,6 +363,7 @@ async function generateAndSendSignedPDF() {
         signer_email: document.value.companyEmail,
         signer_name: formData.value.signerName,
         company_name: formData.value.companyName,
+        language: lang.value,
       }),
     })
 

@@ -117,6 +117,7 @@ ${signature}`
         to: [manu.email],
         subject,
         html,
+        open_tracking: true,
         tags: [{ name: 'log_id', value: String(logEntry.id) }],
       }),
     })

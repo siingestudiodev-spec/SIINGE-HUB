@@ -14,18 +14,28 @@ serve(async (req: Request) => {
 
   try {
     const event = await req.json()
+    console.log('resend-webhook event:', JSON.stringify(event))
 
     if (event.type !== 'email.opened') {
-      return new Response(JSON.stringify({ skipped: true }), {
+      return new Response(JSON.stringify({ skipped: event.type }), {
         headers: { 'Content-Type': 'application/json' },
       })
     }
 
-    const tags: { name: string; value: string }[] = event.data?.tags ?? []
-    const logTag = tags.find(t => t.name === 'log_id')
+    const rawTags = event.data?.tags
 
-    if (!logTag?.value) {
-      return new Response(JSON.stringify({ skipped: true, reason: 'no log_id tag' }), {
+    // Resend can send tags as array [{name, value}] or object {key: value}
+    let logId: string | null = null
+    if (Array.isArray(rawTags)) {
+      logId = rawTags.find((t: any) => t.name === 'log_id')?.value ?? null
+    } else if (rawTags && typeof rawTags === 'object') {
+      logId = rawTags['log_id'] ?? null
+    }
+
+    console.log('log_id resolved:', logId)
+
+    if (!logId) {
+      return new Response(JSON.stringify({ skipped: true, reason: 'no log_id tag', tags: rawTags }), {
         headers: { 'Content-Type': 'application/json' },
       })
     }
@@ -33,12 +43,14 @@ serve(async (req: Request) => {
     const { error } = await supabase
       .from('manufacturer_email_logs')
       .update({ read_at: new Date().toISOString() })
-      .eq('id', logTag.value)
+      .eq('id', logId)
       .is('read_at', null)
 
     if (error) throw error
 
-    return new Response(JSON.stringify({ ok: true }), {
+    console.log('read_at updated for log_id:', logId)
+
+    return new Response(JSON.stringify({ ok: true, log_id: logId }), {
       headers: { 'Content-Type': 'application/json' },
     })
 

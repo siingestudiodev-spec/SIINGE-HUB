@@ -25,7 +25,10 @@ serve(async (req: Request) => {
       document_type,
       signer_email,
       company_name,
+      language = 'en',
     } = await req.json()
+
+    const es = language === 'es'
 
     console.log('📧 Received request with:', { document_id, document_type, signer_email, company_name })
 
@@ -69,7 +72,8 @@ serve(async (req: Request) => {
     }
 
     const docTypeFormatted = document_type.toUpperCase()
-    const signedDate = new Date(document.signed_date).toLocaleDateString('en-US', {
+    const locale = es ? 'es-ES' : 'en-US'
+    const signedDate = new Date(document.signed_date).toLocaleDateString(locale, {
       year: 'numeric',
       month: 'long',
       day: 'numeric',
@@ -85,36 +89,56 @@ serve(async (req: Request) => {
 
     if (logEntry) logEntryId = String(logEntry.id)
 
+    const pixelTag = logEntryId
+      ? `<img src="${SUPABASE_URL}/functions/v1/track-email?id=${logEntryId}" width="1" height="1" style="display:none !important;" />`
+      : ''
+
     // Build email HTML with download parameter
-    const downloadLink = signedUrl?.data?.signedUrl ? `<p><a href="${signedUrl.data.signedUrl}?download" download style="color:#2563eb;text-decoration:underline;">Download your signed copy</a></p>` : ''
+    const downloadLink = signedUrl?.data?.signedUrl
+      ? `<p><a href="${signedUrl.data.signedUrl}?download" download style="color:#2563eb;text-decoration:underline;">${es ? 'Descargar tu copia firmada' : 'Download your signed copy'}</a></p>`
+      : ''
 
     const html = `
       <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
-        <p>Hi ${company_name},</p>
+        <p>${es ? `Hola ${company_name},` : `Hi ${company_name},`}</p>
 
-        <p>Thank you for signing the <strong>${docTypeFormatted}</strong>.</p>
+        <p>${es
+          ? `Gracias por firmar el documento <strong>${docTypeFormatted}</strong>.`
+          : `Thank you for signing the <strong>${docTypeFormatted}</strong>.`
+        }</p>
 
-        <p>Your document has been received and processed. A copy has been securely stored for your records.</p>
+        <p>${es
+          ? 'Tu documento ha sido recibido y procesado. Una copia ha sido almacenada de forma segura.'
+          : 'Your document has been received and processed. A copy has been securely stored for your records.'
+        }</p>
 
         ${downloadLink}
 
         <p style="color: #666; font-size: 14px; margin-top: 2rem;">
-          <strong>Document Details:</strong><br>
-          Type: ${docTypeFormatted}<br>
-          Signed: ${signedDate}<br>
-          Signer: ${signer_email}
+          <strong>${es ? 'Detalles del documento:' : 'Document Details:'}</strong><br>
+          ${es ? 'Tipo' : 'Type'}: ${docTypeFormatted}<br>
+          ${es ? 'Firmado' : 'Signed'}: ${signedDate}<br>
+          ${es ? 'Firmante' : 'Signer'}: ${signer_email}
         </p>
 
         <p style="color: #999; font-size: 12px; margin-top: 2rem;">
-          If you did not sign this document or have questions, please contact us immediately.
+          ${es
+            ? 'Si no firmaste este documento o tienes preguntas, contáctanos de inmediato.'
+            : 'If you did not sign this document or have questions, please contact us immediately.'
+          }
         </p>
 
-        <p>Best regards,<br>
+        <p>${es ? 'Saludos,' : 'Best regards,'}<br>
         <strong>SIINGE STUDIO</strong><br>
         <a href="https://www.siinge.studio" style="color: #2563eb;">www.siinge.studio</a>
         </p>
       </div>
+      ${pixelTag}
     `
+
+    const subject = es
+      ? `${docTypeFormatted} Firmado Exitosamente — SIINGE STUDIO`
+      : `${docTypeFormatted} Signed Successfully — SIINGE STUDIO`
 
     // Send via Resend to signer
     const resendRes = await fetch('https://api.resend.com/emails', {
@@ -126,8 +150,9 @@ serve(async (req: Request) => {
       body: JSON.stringify({
         from: 'SIINGE Studio <production@siinge.studio>',
         to: [signer_email],
-        subject: `${docTypeFormatted} Signed Successfully — SIINGE STUDIO`,
+        subject,
         html,
+        open_tracking: true,
         ...(logEntryId ? { tags: [{ name: 'log_id', value: logEntryId }] } : {}),
       }),
     })
