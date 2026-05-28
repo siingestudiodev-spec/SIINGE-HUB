@@ -58,7 +58,7 @@ serve(async (req: Request) => {
       </p>`
 
     // Create tracking log entry if manufacturer_id is provided
-    let pixelTag = ''
+    let logEntryId: string | null = null
     if (manufacturer_id) {
       const { data: logEntry } = await supabase
         .from('manufacturer_email_logs')
@@ -66,23 +66,17 @@ serve(async (req: Request) => {
         .select()
         .single()
 
-      if (logEntry) {
-        const trackingUrl = `${SUPABASE_URL}/functions/v1/track-email?id=${logEntry.id}`
-        pixelTag = `<img src="${trackingUrl}" width="1" height="1" style="display:none !important;" />`
-      }
+      if (logEntry) logEntryId = String(logEntry.id)
     }
 
     let html
     if (custom_body) {
-      // custom_body already contains the sign buttons — don't append another one
       html = `
         <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
           ${custom_body.replace(/\n/g, '<br>')}
         </div>
-        ${pixelTag}
       `
     } else {
-      // Default message
       html = `
         <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
           <p>Hi ${manufacturer_name},</p>
@@ -100,7 +94,6 @@ serve(async (req: Request) => {
           <a href="https://www.siinge.studio" style="color: #6366f1;">www.siinge.studio</a>
           </p>
         </div>
-        ${pixelTag}
       `
     }
 
@@ -112,10 +105,11 @@ serve(async (req: Request) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        from: 'Luis Domínguez — SIINGE <production@siinge.studio>',
+        from: 'SIINGE Studio <production@siinge.studio>',
         to: [manufacturer_email],
         subject: custom_subject || `${docTypeFormatted} Signing Request — SIINGE STUDIO`,
         html,
+        ...(logEntryId ? { tags: [{ name: 'log_id', value: logEntryId }] } : {}),
       }),
     })
 

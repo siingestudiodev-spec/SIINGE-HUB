@@ -113,10 +113,11 @@ ${signature}`
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        from: 'Luis Domínguez — SIINGE <production@siinge.studio>',
+        from: 'SIINGE Studio <production@siinge.studio>',
         to: [manu.email],
         subject,
         html,
+        tags: [{ name: 'log_id', value: String(logEntry.id) }],
       }),
     })
 
