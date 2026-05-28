@@ -152,8 +152,8 @@
                     <h3>{{ m.company_name }}</h3>
                     <div class="badges-row">
                       <span class="country-badge"><Globe :size="11" :stroke-width="1.5" /> {{ m.country || 'Unknown' }}</span>
-                      <span v-if="m.nda_signed" class="legal-badge nda">NDA ✓</span>
-                      <span v-if="m.mma_signed" class="legal-badge mma">MMA ✓</span>
+                      <span v-if="m.nda_signed" class="legal-badge nda" style="cursor:pointer;" @click.stop="openDocumentStatusModal(m, 'nda')">NDA ✓ ↓</span>
+                      <span v-if="m.mma_signed" class="legal-badge mma" style="cursor:pointer;" @click.stop="openDocumentStatusModal(m, 'mma')">MMA ✓ ↓</span>
                     </div>
                   </div>
                 </div>
