@@ -697,10 +697,15 @@ function showNotesPopup(notes) {
   notesPopup.value.show = true
 }
 
-function showEmailHistoryPopup(m) {
-  emailHistoryPopup.value.list = m.manufacturer_email_logs
+async function showEmailHistoryPopup(m) {
   emailHistoryPopup.value.companyName = m.company_name
   emailHistoryPopup.value.show = true
+  const { data } = await supabase
+    .from('manufacturer_email_logs')
+    .select('id, template_name, sent_at, read_at')
+    .eq('manufacturer_id', m.id)
+    .order('sent_at', { ascending: false })
+  emailHistoryPopup.value.list = data ?? m.manufacturer_email_logs
 }
 
 async function saveManufacturer() {
