@@ -129,10 +129,11 @@ serve(async (req) => {
 
     // Step 1: fetch main page
     const mainHtml = await fetchPage(url)
-    if (!mainHtml) throw new Error('Could not fetch the page')
+    if (!mainHtml && !extra_info) throw new Error('Could not fetch the page. Try pasting the contact info manually in the extra info field.')
+
 
     // Step 2: find real contact/about links from the navigation
-    const contactLinks = findContactLinks(mainHtml, origin)
+    const contactLinks = mainHtml ? findContactLinks(mainHtml, origin) : []
 
     // Step 3: fetch those pages in parallel
     const extraPages = await Promise.all(contactLinks.map(fetchPage))
@@ -142,7 +143,6 @@ serve(async (req) => {
     const rawEmails = extractEmails(allHtml)
 
     const mainStripped = stripHtml(mainHtml)
-    // Take first 3000 chars (header/intro) + last 2000 chars (footer where contact info usually is)
     const mainText = mainStripped.length > 5000
       ? mainStripped.slice(0, 3000) + '\n...\n' + mainStripped.slice(-2000)
       : mainStripped
