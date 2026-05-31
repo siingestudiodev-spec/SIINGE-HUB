@@ -60,12 +60,21 @@
                 <option v-for="f in folders" :key="f.id" :value="f.id">{{ f.name }}</option>
               </select>
             </div>
+            <div class="input-group" style="grid-column: 1 / -1;">
+              <textarea
+                v-model="urlExtractModal.extra_info"
+                placeholder="Extra info (optional) — pega aquí datos que encontraste en la página: email, teléfono, contacto, etc."
+                rows="3"
+                :disabled="urlExtractModal.loading"
+                style="width: 100%; resize: vertical; font-family: inherit; font-size: 0.85rem;"
+              />
+            </div>
           </div>
           <p v-if="urlExtractModal.error" style="color: #ef4444; font-size: 0.82rem; margin-top: 0.75rem;">
             {{ urlExtractModal.error }}
           </p>
           <p style="font-size: 0.78rem; color: var(--text-muted); margin-top: 0.75rem;">
-            Claude will read the page and fill in the manufacturer form automatically. You can review and edit before saving.
+            La IA leerá la página y llenará el formulario automáticamente. Puedes revisar y editar antes de guardar.
           </p>
         </div>
         <div class="modal-actions mt-4">
@@ -677,7 +686,7 @@ async function markResponded(m) {
   fetchManufacturers()
 }
 
-const urlExtractModal = ref({ show: false, url: '', folder_id: null, loading: false, error: '' })
+const urlExtractModal = ref({ show: false, url: '', folder_id: null, loading: false, error: '', extra_info: '' })
 
 const emailHistoryPopup = ref({ show: false, list: [], companyName: '' })
 
@@ -953,7 +962,7 @@ async function extractFromUrl() {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
       },
-      body: JSON.stringify({ url }),
+      body: JSON.stringify({ url, extra_info: urlExtractModal.value.extra_info || '' }),
     })
 
     const data = await res.json()

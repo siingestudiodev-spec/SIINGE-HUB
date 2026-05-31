@@ -122,7 +122,7 @@ serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
 
   try {
-    const { url } = await req.json()
+    const { url, extra_info } = await req.json()
     if (!url) throw new Error('URL is required')
 
     const origin = new URL(url).origin
@@ -141,7 +141,11 @@ serve(async (req) => {
     const allHtml = mainHtml + extraPages.join('')
     const rawEmails = extractEmails(allHtml)
 
-    const mainText  = stripHtml(mainHtml).slice(0, 4000)
+    const mainStripped = stripHtml(mainHtml)
+    // Take first 3000 chars (header/intro) + last 2000 chars (footer where contact info usually is)
+    const mainText = mainStripped.length > 5000
+      ? mainStripped.slice(0, 3000) + '\n...\n' + mainStripped.slice(-2000)
+      : mainStripped
     const extraText = stripHtml(extraPages.join('\n')).slice(0, 5000)
     const combinedText = [mainText, extraText].filter(Boolean).join('\n\n---\n\n')
 
@@ -152,7 +156,7 @@ Pages fetched: main page${contactLinks.length > 0 ? ` + ${contactLinks.join(', '
 Content:
 ${combinedText}
 
-${rawEmails.length > 0 ? `Emails found in HTML: ${rawEmails.join(', ')}` : ''}
+${rawEmails.length > 0 ? `Emails found in HTML: ${rawEmails.join(', ')}` : ''}${extra_info ? `\n\nExtra info provided manually by the user (use this if the page content is missing it):\n${extra_info}` : ''}
 
 Return ONLY a valid JSON object (no markdown, no explanation):
 {
