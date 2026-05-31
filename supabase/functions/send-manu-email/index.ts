@@ -115,6 +115,7 @@ ${signature}`
       body: JSON.stringify({
         from: 'SIINGE Studio <production@siinge.studio>',
         to: [manu.email],
+        cc: ['production@siinge.studio'],
         subject,
         html,
         open_tracking: true,

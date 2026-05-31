@@ -6,6 +6,9 @@
         <button @click="openFolderForm" class="btn-secondary">
           <Folder :size="13" :stroke-width="1.5" /> {{ showFolderForm ? 'Cancel Folder' : '+ New Folder' }}
         </button>
+        <button @click="openUrlExtractModal" class="btn-secondary">
+          <Globe :size="13" :stroke-width="1.5" /> From URL
+        </button>
         <button @click="openAddForm" class="btn-primary">
           {{ showForm ? 'Cancel' : '+ Add Manufacturer' }}
         </button>
@@ -30,6 +33,46 @@
             CREATE FOLDER
           </button>
           <button @click="resetFolderForm" class="btn-secondary">Cancel</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- URL EXTRACTION MODAL -->
+    <div v-if="urlExtractModal.show" class="modal-overlay" @keydown.escape="closeUrlExtractModal" tabindex="0">
+      <div class="modal">
+        <div class="modal-header">
+          <h2>Add Manufacturer from URL</h2>
+          <button @click="closeUrlExtractModal" class="modal-close">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-grid">
+            <div class="input-group" style="grid-column: 1 / -1;">
+              <input
+                v-model="urlExtractModal.url"
+                placeholder="https://manufacturer-website.com"
+                @keydown.enter="extractFromUrl"
+                :disabled="urlExtractModal.loading"
+              />
+            </div>
+            <div class="input-group" style="grid-column: 1 / -1;">
+              <select v-model="urlExtractModal.folder_id" :disabled="urlExtractModal.loading">
+                <option :value="null">No Folder</option>
+                <option v-for="f in folders" :key="f.id" :value="f.id">{{ f.name }}</option>
+              </select>
+            </div>
+          </div>
+          <p v-if="urlExtractModal.error" style="color: #ef4444; font-size: 0.82rem; margin-top: 0.75rem;">
+            {{ urlExtractModal.error }}
+          </p>
+          <p style="font-size: 0.78rem; color: var(--text-muted); margin-top: 0.75rem;">
+            Claude will read the page and fill in the manufacturer form automatically. You can review and edit before saving.
+          </p>
+        </div>
+        <div class="modal-actions mt-4">
+          <button @click="extractFromUrl" class="btn-primary" :disabled="!urlExtractModal.url || urlExtractModal.loading">
+            {{ urlExtractModal.loading ? 'Extracting...' : 'Extract & Fill Form' }}
+          </button>
+          <button @click="closeUrlExtractModal" class="btn-secondary">Cancel</button>
         </div>
       </div>
     </div>
@@ -634,6 +677,8 @@ async function markResponded(m) {
   fetchManufacturers()
 }
 
+const urlExtractModal = ref({ show: false, url: '', folder_id: null, loading: false, error: '' })
+
 const emailHistoryPopup = ref({ show: false, list: [], companyName: '' })
 
 const logContactModal = ref({
@@ -885,6 +930,56 @@ function openAddForm() {
   }
   resetForm()
   showForm.value = true
+}
+
+function openUrlExtractModal() {
+  urlExtractModal.value = { show: true, url: '', folder_id: null, loading: false, error: '' }
+}
+
+function closeUrlExtractModal() {
+  urlExtractModal.value.show = false
+}
+
+async function extractFromUrl() {
+  const url = urlExtractModal.value.url.trim()
+  if (!url) return
+  urlExtractModal.value.loading = true
+  urlExtractModal.value.error = ''
+
+  try {
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/extract-manufacturer-from-url`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+      },
+      body: JSON.stringify({ url }),
+    })
+
+    const data = await res.json()
+    if (!res.ok || data.error) throw new Error(data.error ?? 'Extraction failed')
+
+    // Pre-fill the manufacturer form
+    resetForm()
+    form.value.company_name = data.company_name ?? ''
+    form.value.country      = data.country ?? ''
+    form.value.contact_name = data.contact_name ?? ''
+    form.value.phone        = data.phone ?? ''
+    form.value.email        = data.email ?? ''
+    form.value.website      = (() => { try { return new URL(url).origin } catch { return url } })()
+    form.value.notes        = data.notes ?? form.value.notes
+    form.value.folder_id    = urlExtractModal.value.folder_id
+
+    selectedCategories.value    = Array.isArray(data.product_categories) ? data.product_categories : []
+    selectedCertifications.value = Array.isArray(data.certifications) ? data.certifications : []
+
+    urlExtractModal.value.show = false
+    showForm.value = true
+  } catch (err) {
+    urlExtractModal.value.error = err.message
+  } finally {
+    urlExtractModal.value.loading = false
+  }
 }
 
 function clearFilters() { 
