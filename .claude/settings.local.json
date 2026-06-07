@@ -13,7 +13,9 @@
       "Bash(vercel logs *)",
       "Bash(vercel env *)",
       "Bash(npx eslint *)",
-      "Bash(npx vue-tsc *)"
+      "Bash(npx vue-tsc *)",
+      "Bash(\\\\.md)",
+      "Bash(schema\")"
     ]
   }
 }

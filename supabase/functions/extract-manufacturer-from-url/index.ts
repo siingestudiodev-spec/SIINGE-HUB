@@ -9,7 +9,7 @@ const corsHeaders = {
 const GROQ_API_KEY = Deno.env.get('GROQ_API_KEY')
 
 const CATEGORY_OPTIONS = [
-  'Activewear', "Children's Wear", 'Swimwear', 'Evening Wear',
+  'Activewear', 'Bridal', "Children's Wear", 'Swimwear', 'Evening Wear',
   'Streetwear', 'Loungewear', 'Intimate Apparel', 'Leather Goods', 'Accessories',
   "Women's Wear", 'Workwear', 'Shapewear', 'Denim', 'Knit/Crochet'
 ]

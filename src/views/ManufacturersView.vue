@@ -573,9 +573,9 @@ const expandedFolders = ref(new Set(['no-folder']))
 
 
 const categoryOptions = [
-  'Activewear', "Children's Wear", 'Swimwear', 'Evening Wear',
-  'Streetwear', 'Loungewear', 'Intimate Apparel', 'Leather Goods', 'Accessories',
-  "Women's Wear", 'Workwear', 'Shapewear', 'Denim', 'Knit/Crochet'
+  'Accessories', 'Activewear', 'Blanks', 'Bridal', "Children's Wear",
+  'Denim', 'Evening Wear', 'Intimate Apparel', 'Knit/Crochet', 'Leather Goods',
+  'Loungewear', 'Shapewear', 'Streetwear', 'Swimwear', "Women's Wear", 'Workwear'
 ]
 const certOptions = [
   'OEKO-TEX STANDARD 100', 'ISO 45001', 'OCS100', 'UN Global Compact', 

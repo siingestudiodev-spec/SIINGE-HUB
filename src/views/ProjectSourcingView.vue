@@ -58,6 +58,12 @@
         </div>
 
         <div class="card-actions">
+          <a v-if="item.sourcing?.catalogue_url" :href="item.sourcing.catalogue_url" target="_blank" class="btn-catalogue">
+            <BookOpen :size="13" :stroke-width="1.5" /> Catalogue
+          </a>
+          <button v-else-if="item.sourcing" @click="viewFactoryDetails(item.sourcing)" class="btn-catalogue btn-catalogue-empty">
+            <BookOpen :size="13" :stroke-width="1.5" /> Add Catalogue
+          </button>
           <button @click="openSourcingModal(item)" class="btn-edit-card"><Pencil :size="13" :stroke-width="1.5" /> Edit</button>
           <button @click="removeMaterial(item.id)" class="btn-danger">Remove</button>
         </div>
@@ -117,6 +123,16 @@
             <div class="detail-row" v-if="factoryModal.data.email"><strong>Email:</strong> {{ factoryModal.data.email }}</div>
             <div class="detail-row" v-if="factoryModal.data.phone"><strong>Phone:</strong> {{ factoryModal.data.phone }}</div>
           </div>
+          <div class="detail-section" style="margin-top: 1rem; border-top: 1px solid #f3f4f6; padding-top: 1rem;">
+            <div class="detail-row"><strong>Catalogue URL</strong></div>
+            <div style="display: flex; gap: 0.5rem; margin-top: 0.4rem;">
+              <input v-model="factoryModal.data.catalogue_url" placeholder="https://..." style="flex:1;" />
+              <button @click="saveCatalogueUrl" class="btn-primary" style="white-space:nowrap;">Save</button>
+            </div>
+            <a v-if="factoryModal.data.catalogue_url" :href="factoryModal.data.catalogue_url" target="_blank" class="url-link catalogue-link" style="margin-top: 0.5rem; display: inline-flex; align-items: center; gap: 4px;">
+              <BookOpen :size="12" :stroke-width="1.5" /> Open Catalogue
+            </a>
+          </div>
         </div>
         <div class="modal-actions">
           <button @click="factoryModal.show = false" class="btn-primary">Close</button>
@@ -130,7 +146,7 @@
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { supabase } from '../lib/supabase'
-import { Factory, Globe, ExternalLink, Pencil, MapPin } from 'lucide-vue-next'
+import { Factory, Globe, ExternalLink, Pencil, MapPin, BookOpen } from 'lucide-vue-next'
 
 const route = useRoute()
 const router = useRouter()
@@ -164,7 +180,13 @@ async function fetchFullSourcingList() {
   fullSourcingList.value = data || []
 }
 
-function viewFactoryDetails(sourcingData) { factoryModal.value.data = sourcingData; factoryModal.value.show = true }
+function viewFactoryDetails(sourcingData) { factoryModal.value.data = { ...sourcingData }; factoryModal.value.show = true }
+
+async function saveCatalogueUrl() {
+  const { id, catalogue_url } = factoryModal.value.data
+  await supabase.from('sourcing').update({ catalogue_url: catalogue_url || null }).eq('id', id)
+  await fetchProjectMaterials()
+}
 
 // MODIFICADO: Solo cambia el status, no agrega fecha
 async function toggleApproval(item) {
@@ -257,6 +279,10 @@ h1 { font-size: 2rem; font-weight: 700; color: #1a1a2e; margin: 0; }
 .info-icon { flex-shrink: 0; }
 .mt-2 { margin-top: 0.5rem; }
 .url-link { color: #4f46e5; font-weight: 600; text-decoration: none; font-size: 0.85rem; }
+.catalogue-link { color: #0284c7; display: inline-flex; align-items: center; gap: 4px; }
+.btn-catalogue { display: inline-flex; align-items: center; gap: 4px; background: #eff6ff; color: #0284c7; border: none; padding: 0.4rem 0.8rem; border-radius: 8px; cursor: pointer; font-size: 0.85rem; font-weight: 600; text-decoration: none; }
+.btn-catalogue:hover { background: #dbeafe; }
+.btn-catalogue-empty { background: #f8fafc; color: #94a3b8; border: 1px dashed #cbd5e1; }
 .notes-row { color: #9ca3af !important; font-style: italic; margin-top: 0.5rem; }
 .border-b { border-bottom: 1px solid #f3f4f6; }
 .pb-3 { padding-bottom: 0.75rem; }

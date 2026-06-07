@@ -55,13 +55,16 @@
         <div class="card-details-block">
           <div class="tools-grid">
             <a v-if="p.tech_pack_url" :href="p.tech_pack_url" target="_blank" class="btn-tool techpack"><Paperclip :size="12" :stroke-width="1.5" /> Tech Pack</a>
-            <router-link :to="'/projects/' + p.id + '/quotes'" class="btn-tool quotes"><BarChart2 :size="12" :stroke-width="1.5" /> Quotes</router-link>
+            <button @click="openDrive(p)" class="btn-tool drive"><FolderOpen :size="12" :stroke-width="1.5" /> Drive</button>
+<router-link :to="'/projects/' + p.id + '/quotes'" class="btn-tool quotes"><BarChart2 :size="12" :stroke-width="1.5" /> Quotes</router-link>
             <router-link :to="'/projects/' + p.id + '/sourcing'" class="btn-tool sourcing"><Package :size="12" :stroke-width="1.5" /> Sourcing</router-link>
           </div>
         </div>
 
         <div class="card-actions-vertical">
           <button @click="openTimeline(p)" class="btn-action-full btn-timeline"><Timer :size="12" :stroke-width="1.5" /> TIMELINE</button>
+          <button @click="openCrmDates(p)" class="btn-action-full btn-crmdates mt-1"><CalendarDays :size="12" :stroke-width="1.5" /> CRM DATES</button>
+          <button @click="openShipments(p)" class="btn-action-full btn-shipments mt-1"><Truck :size="12" :stroke-width="1.5" /> SHIPMENTS</button>
           <div class="action-top-row mt-2">
             <button @click="editProject(p)" class="btn-action-icon btn-edit" title="Edit"><Pencil :size="13" :stroke-width="1.5" /></button>
             <button @click="deleteProject(p.id)" class="btn-action-icon btn-delete" title="Delete"><Trash2 :size="13" :stroke-width="1.5" /></button>
@@ -93,11 +96,14 @@
             <div class="bc-footer">
               <div class="bc-links">
                 <a v-if="p.tech_pack_url" :href="p.tech_pack_url" target="_blank" title="Tech Pack"><Paperclip :size="13" :stroke-width="1.5" /></a>
-                <router-link :to="'/projects/' + p.id + '/quotes'" title="Quotes"><BarChart2 :size="13" :stroke-width="1.5" /></router-link>
+                <button @click="openDrive(p)" title="Drive Folders" style="background:rgba(34,197,94,0.12);border:1px solid rgba(34,197,94,0.3);color:#22c55e;border-radius:6px;padding:0.3rem 0.5rem;cursor:pointer;"><FolderOpen :size="13" :stroke-width="1.5" /></button>
+<router-link :to="'/projects/' + p.id + '/quotes'" title="Quotes"><BarChart2 :size="13" :stroke-width="1.5" /></router-link>
                 <router-link :to="'/projects/' + p.id + '/sourcing'" title="Sourcing"><Package :size="13" :stroke-width="1.5" /></router-link>
               </div>
               <div class="bc-actions">
+                <button @click="openCrmDates(p)" class="btn-micro-tl" title="CRM Dates" style="background:rgba(20,184,166,0.12);border-color:rgba(20,184,166,0.3);color:#0f766e;"><CalendarDays :size="13" :stroke-width="1.5" /></button>
                 <button @click="openTimeline(p)" class="btn-micro-tl" title="Timeline"><Timer :size="13" :stroke-width="1.5" /></button>
+                <button @click="openShipments(p)" class="btn-micro-tl" title="Shipments" style="background:rgba(59,130,246,0.12);border-color:rgba(59,130,246,0.3);color:#3b82f6;"><Truck :size="13" :stroke-width="1.5" /></button>
                 <button @click="editProject(p)" class="btn-micro" title="Edit"><Pencil :size="13" :stroke-width="1.5" /></button>
                 <button @click="deleteProject(p.id)" class="btn-micro del" title="Delete"><Trash2 :size="13" :stroke-width="1.5" /></button>
               </div>
@@ -154,7 +160,7 @@
         <div class="modal-header">
           <h2>⏱️ Timeline: {{ timelineModal.projectName }}</h2>
           <div class="header-actions">
-            <button @click="forceResetTimeline" class="btn-reset-template">⚠️ Load ClickUp Template</button>
+            <button @click="forceResetTimeline" class="btn-reset-template">⚠️ Reset Timeline</button>
             <button @click="closeTimeline" class="modal-close">✕</button>
           </div>
         </div>
@@ -296,6 +302,155 @@
       </div>
     </div>
 
+    <!-- CRM Due Dates Modal -->
+    <div v-if="crmDatesModal.show" class="modal-overlay" @click.self="crmDatesModal.show = false">
+      <div class="modal form-modal" style="max-width:420px;">
+        <div class="modal-header">
+          <h2 style="font-size:1rem;">CRM Dates — {{ crmDatesModal.projectName }}</h2>
+          <button @click="crmDatesModal.show = false" class="modal-close">✕</button>
+        </div>
+        <div v-if="crmDatesModal.loading" style="text-align:center;padding:2rem;color:var(--text-muted);font-style:italic;">Loading...</div>
+        <div v-else-if="crmDatesModal.dates.length === 0" style="text-align:center;padding:2rem;color:var(--text-muted);font-style:italic;">No due dates set in CRM yet.</div>
+        <div v-else style="display:flex;flex-direction:column;gap:0;border:1px solid var(--border-main);border-radius:8px;overflow:hidden;margin-top:0.5rem;">
+          <div v-for="(d, idx) in crmDatesModal.dates" :key="d.label"
+            style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;"
+            :style="idx < crmDatesModal.dates.length - 1 ? 'border-bottom:1px solid var(--border-light);' : ''"
+          >
+            <span style="font-size:0.78rem;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted);">{{ d.label }}</span>
+            <span style="font-size:0.82rem;font-weight:700;font-family:monospace;" :style="{ color: d.color }">{{ d.date }}</span>
+          </div>
+        </div>
+        <div class="modal-actions mt-4">
+          <button @click="crmDatesModal.show = false" class="btn-secondary">Close</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Drive Folders Modal -->
+    <div v-if="driveModal.show" class="modal-overlay" @click.self="driveModal.show = false">
+      <div class="modal form-modal" style="max-width:460px;">
+        <div class="modal-header">
+          <h2 style="font-size:1rem;display:flex;align-items:center;gap:0.5rem;"><FolderOpen :size="16" :stroke-width="1.5" /> Drive — {{ driveModal.projectName }}</h2>
+          <button @click="driveModal.show = false" class="modal-close">✕</button>
+        </div>
+
+        <div v-if="driveModal.loading" style="text-align:center;padding:2rem;color:var(--text-muted);font-style:italic;">Loading...</div>
+
+        <div v-else>
+          <div v-if="driveModal.folders.length === 0 && !driveModal.showForm" style="text-align:center;padding:1.5rem;color:var(--text-muted);font-style:italic;border:1px dashed var(--border-main);border-radius:8px;margin-bottom:1rem;">
+            No folders yet.
+          </div>
+
+          <div v-else-if="driveModal.folders.length > 0" style="display:flex;flex-direction:column;gap:0;border:1px solid var(--border-main);border-radius:8px;overflow:hidden;margin-bottom:1rem;">
+            <div v-for="(f, idx) in driveModal.folders" :key="f.id"
+              style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;"
+              :style="idx < driveModal.folders.length - 1 ? 'border-bottom:1px solid var(--border-light);' : ''"
+            >
+              <a :href="f.url" target="_blank" style="display:flex;align-items:center;gap:0.5rem;text-decoration:none;color:var(--text-main);"
+                onmouseover="this.querySelector('span').style.textDecoration='underline'" onmouseout="this.querySelector('span').style.textDecoration='none'">
+                <FolderOpen :size="14" :stroke-width="1.5" style="color:#22c55e;flex-shrink:0;" />
+                <span style="font-size:0.88rem;font-weight:600;">{{ f.name }}</span>
+                <span style="font-size:0.72rem;color:#22c55e;">↗</span>
+              </a>
+              <button @click="deleteDriveFolder(f.id)" style="background:transparent;border:none;color:var(--text-muted);cursor:pointer;padding:0.2rem;border-radius:4px;font-size:0.75rem;opacity:0.6;" title="Delete" onmouseover="this.style.opacity='1';this.style.color='#fb7185'" onmouseout="this.style.opacity='0.6';this.style.color='var(--text-muted)'">✕</button>
+            </div>
+          </div>
+
+          <div v-if="!driveModal.showForm" style="display:flex;justify-content:center;">
+            <button @click="driveModal.showForm = true" class="btn-primary" style="font-size:0.82rem;padding:0.5rem 1.2rem;">+ Add Folder</button>
+          </div>
+
+          <div v-if="driveModal.showForm" style="border:1px solid var(--border-main);border-radius:10px;padding:1rem;display:flex;flex-direction:column;gap:0.8rem;">
+            <div class="input-group" style="margin-bottom:0;">
+              <label>Name *</label>
+              <input v-model="driveModal.form.name" placeholder="e.g. Acme Corp — Season 2025" style="width:100%;padding:0.6rem 1rem;background:var(--bg-app);color:var(--text-main);border:1px solid var(--border-main);border-radius:8px;font-family:inherit;font-size:0.9rem;" />
+            </div>
+            <div class="input-group" style="margin-bottom:0;">
+              <label>Drive URL *</label>
+              <input v-model="driveModal.form.url" placeholder="https://drive.google.com/drive/folders/..." style="width:100%;padding:0.6rem 1rem;background:var(--bg-app);color:var(--text-main);border:1px solid var(--border-main);border-radius:8px;font-family:inherit;font-size:0.9rem;" />
+            </div>
+            <div style="display:flex;gap:0.5rem;justify-content:flex-end;margin-top:0.3rem;">
+              <button @click="driveModal.showForm = false" class="btn-secondary">Cancel</button>
+              <button @click="addDriveFolder" class="btn-primary" :disabled="driveModal.saving" style="font-size:0.85rem;">
+                {{ driveModal.saving ? 'Saving...' : 'Save' }}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Shipments Modal -->
+    <div v-if="shipmentsModal.show" class="modal-overlay" @click.self="shipmentsModal.show = false">
+      <div class="modal form-modal" style="max-width:480px;">
+        <div class="modal-header">
+          <h2 style="font-size:1rem;display:flex;align-items:center;gap:0.5rem;"><Truck :size="16" :stroke-width="1.5" /> Shipments — {{ shipmentsModal.projectName }}</h2>
+          <button @click="shipmentsModal.show = false" class="modal-close">✕</button>
+        </div>
+
+        <div v-if="shipmentsModal.loading" style="text-align:center;padding:2rem;color:var(--text-muted);font-style:italic;">Loading...</div>
+
+        <div v-else>
+          <div v-if="shipmentsModal.shipments.length === 0 && !shipmentsModal.showForm" style="text-align:center;padding:1.5rem;color:var(--text-muted);font-style:italic;border:1px dashed var(--border-main);border-radius:8px;margin-bottom:1rem;">
+            No shipments yet.
+          </div>
+
+          <div v-else-if="shipmentsModal.shipments.length > 0" style="display:flex;flex-direction:column;gap:0;border:1px solid var(--border-main);border-radius:8px;overflow:hidden;margin-bottom:1rem;">
+            <div v-for="(s, idx) in shipmentsModal.shipments" :key="s.id"
+              style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;"
+              :style="idx < shipmentsModal.shipments.length - 1 ? 'border-bottom:1px solid var(--border-light);' : ''"
+            >
+              <div style="display:flex;flex-direction:column;gap:2px;">
+                <div style="display:flex;align-items:center;gap:0.5rem;">
+                  <span style="font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted);">{{ s.carrier || 'SHIPMENT' }}</span>
+                  <a v-if="getTrackingUrl(s.carrier, s.tracking_number)" :href="getTrackingUrl(s.carrier, s.tracking_number)" target="_blank"
+                    style="font-size:0.88rem;font-weight:700;font-family:monospace;color:#3b82f6;text-decoration:none;"
+                    onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'"
+                  >{{ s.tracking_number }} ↗</a>
+                  <span v-else style="font-size:0.88rem;font-weight:700;font-family:monospace;color:var(--text-main);">{{ s.tracking_number }}</span>
+                </div>
+                <span v-if="s.description" style="font-size:0.75rem;color:var(--text-muted);">{{ s.description }}</span>
+              </div>
+              <button @click="deleteShipment(s.id)" style="background:transparent;border:none;color:var(--text-muted);cursor:pointer;padding:0.2rem;border-radius:4px;font-size:0.75rem;opacity:0.6;" title="Delete" onmouseover="this.style.opacity='1';this.style.color='#fb7185'" onmouseout="this.style.opacity='0.6';this.style.color='var(--text-muted)'">✕</button>
+            </div>
+          </div>
+
+          <div v-if="!shipmentsModal.showForm" style="display:flex;justify-content:center;">
+            <button @click="shipmentsModal.showForm = true" class="btn-primary" style="font-size:0.82rem;padding:0.5rem 1.2rem;">+ Add Tracking</button>
+          </div>
+
+          <div v-if="shipmentsModal.showForm" style="border:1px solid var(--border-main);border-radius:10px;padding:1rem;display:flex;flex-direction:column;gap:0.8rem;">
+            <div class="input-group" style="margin-bottom:0;">
+              <label>Carrier</label>
+              <select v-model="shipmentsModal.form.carrier" style="width:100%;padding:0.6rem 1rem;background:var(--bg-app);color:var(--text-main);border:1px solid var(--border-main);border-radius:8px;font-family:inherit;font-size:0.9rem;">
+                <option value="">Select carrier...</option>
+                <option value="DHL">DHL</option>
+                <option value="FedEx">FedEx</option>
+                <option value="UPS">UPS</option>
+                <option value="USPS">USPS</option>
+                <option value="17TRACK">17TRACK (International)</option>
+                <option value="Other">Other (no link)</option>
+              </select>
+            </div>
+            <div class="input-group" style="margin-bottom:0;">
+              <label>Tracking Number *</label>
+              <input v-model="shipmentsModal.form.tracking_number" placeholder="e.g. 1Z999AA10123456784" style="width:100%;padding:0.6rem 1rem;background:var(--bg-app);color:var(--text-main);border:1px solid var(--border-main);border-radius:8px;font-family:monospace;font-size:0.9rem;" />
+            </div>
+            <div class="input-group" style="margin-bottom:0;">
+              <label>Description (optional)</label>
+              <input v-model="shipmentsModal.form.description" placeholder="e.g. Bulk fabric — Shanghai" style="width:100%;padding:0.6rem 1rem;background:var(--bg-app);color:var(--text-main);border:1px solid var(--border-main);border-radius:8px;font-family:inherit;font-size:0.9rem;" />
+            </div>
+            <div style="display:flex;gap:0.5rem;justify-content:flex-end;margin-top:0.3rem;">
+              <button @click="shipmentsModal.showForm = false" class="btn-secondary">Cancel</button>
+              <button @click="addShipment" class="btn-primary" :disabled="shipmentsModal.saving" style="font-size:0.85rem;">
+                {{ shipmentsModal.saving ? 'Saving...' : 'Save' }}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
   </div>
 </template>
 
@@ -303,7 +458,25 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { supabase } from '../lib/supabase'
-import { List, LayoutGrid, User, CalendarDays, FileText, Paperclip, BarChart2, Package, Timer, Pencil, Trash2, MessageSquare } from 'lucide-vue-next'
+import { crmSupabase } from '../lib/crmClient'
+import { List, LayoutGrid, User, CalendarDays, FileText, Paperclip, BarChart2, Package, Timer, Pencil, Trash2, MessageSquare, Truck, FolderOpen } from 'lucide-vue-next'
+
+const CRM_DUE_LABELS = {
+  due_date: 'Main Due Date',
+  deliverable_trend_analysis_due: 'Trend Analysis',
+  deliverable_design_due: 'Apparel Design',
+  deliverable_branding_due: 'Branding/Packaging',
+  deliverable_tech_pack_due: 'Tech Pack',
+  deliverable_manu_quotes_due: 'Manu Quotes',
+  deliverable_initial_sample_due: 'Initial Sample',
+  deliverable_approved_sample_due: 'Approved Sample',
+  deliverable_size_range_due: 'Size Range Approval',
+  deliverable_bulk_due: 'Bulk Due',
+  deliverable_product_analysis_due: 'Product Analysis',
+  deliverable_in_house_patternmaking_due: 'In House Patternmaking',
+  deliverable_in_house_proto_due: 'In House Proto',
+  deliverable_in_house_manufacturing_due: 'In House Mfg',
+}
 
 const route = useRoute()
 const router = useRouter()
@@ -334,6 +507,127 @@ const currentView = ref('board')
 const form = ref({ project_name: '', client_name: '', description: '', status: projectStages[0], tech_pack_url: '' })
 
 const timelineModal = ref({ show: false, loading: false, saving: false, projectId: null, projectName: '', stages: [] })
+const crmDatesModal = ref({ show: false, projectName: '', loading: false, dates: [] })
+const driveModal = ref({ show: false, loading: false, saving: false, projectId: null, projectName: '', folders: [], showForm: false, form: { name: '', url: '' } })
+
+async function openDrive(p) {
+  driveModal.value = { show: true, loading: true, saving: false, projectId: p.id, projectName: p.project_name, folders: [], showForm: false, form: { name: '', url: '' } }
+  const { data } = await supabase.from('project_drive_folders').select('*').eq('project_id', p.id).order('created_at', { ascending: true })
+  driveModal.value.folders = data || []
+  driveModal.value.loading = false
+}
+
+async function addDriveFolder() {
+  if (!driveModal.value.form.name.trim() || !driveModal.value.form.url.trim()) return alert('Name and URL are required')
+  driveModal.value.saving = true
+  const { data, error } = await supabase.from('project_drive_folders').insert([{
+    project_id: driveModal.value.projectId,
+    name: driveModal.value.form.name.trim(),
+    url: driveModal.value.form.url.trim(),
+  }]).select().single()
+  if (!error) {
+    driveModal.value.folders.push(data)
+    driveModal.value.form = { name: '', url: '' }
+    driveModal.value.showForm = false
+  } else { alert('Error: ' + error.message) }
+  driveModal.value.saving = false
+}
+
+async function deleteDriveFolder(id) {
+  if (!confirm('Remove this folder?')) return
+  await supabase.from('project_drive_folders').delete().eq('id', id)
+  driveModal.value.folders = driveModal.value.folders.filter(f => f.id !== id)
+}
+
+const shipmentsModal = ref({ show: false, loading: false, saving: false, projectId: null, projectName: '', shipments: [], showForm: false, form: { carrier: '', tracking_number: '', description: '' } })
+
+const CARRIER_URLS = {
+  DHL: (n) => `https://www.dhl.com/en/express/tracking.html?AWB=${n}`,
+  FedEx: (n) => `https://www.fedex.com/fedextrack/?trknbr=${n}`,
+  UPS: (n) => `https://www.ups.com/track?tracknum=${n}`,
+  USPS: (n) => `https://tools.usps.com/go/TrackConfirmAction?tLabels=${n}`,
+  '17TRACK': (n) => `https://t.17track.net/en#nums=${n}`,
+}
+
+function getTrackingUrl(carrier, trackingNumber) {
+  const fn = CARRIER_URLS[carrier]
+  return fn ? fn(encodeURIComponent(trackingNumber)) : null
+}
+
+async function openShipments(p) {
+  shipmentsModal.value = { show: true, loading: true, saving: false, projectId: p.id, projectName: p.project_name, shipments: [], showForm: false, form: { carrier: '', tracking_number: '', description: '' } }
+  const { data } = await supabase.from('project_shipments').select('*').eq('project_id', p.id).order('created_at', { ascending: false })
+  shipmentsModal.value.shipments = data || []
+  shipmentsModal.value.loading = false
+}
+
+async function addShipment() {
+  if (!shipmentsModal.value.form.tracking_number.trim()) return alert('Tracking number is required')
+  shipmentsModal.value.saving = true
+  const { data, error } = await supabase.from('project_shipments').insert([{
+    project_id: shipmentsModal.value.projectId,
+    carrier: shipmentsModal.value.form.carrier || null,
+    tracking_number: shipmentsModal.value.form.tracking_number.trim(),
+    description: shipmentsModal.value.form.description.trim() || null,
+  }]).select().single()
+  if (!error) {
+    shipmentsModal.value.shipments.unshift(data)
+    shipmentsModal.value.form = { carrier: '', tracking_number: '', description: '' }
+    shipmentsModal.value.showForm = false
+  } else { alert('Error: ' + error.message) }
+  shipmentsModal.value.saving = false
+}
+
+async function deleteShipment(id) {
+  if (!confirm('Remove this tracking number?')) return
+  await supabase.from('project_shipments').delete().eq('id', id)
+  shipmentsModal.value.shipments = shipmentsModal.value.shipments.filter(s => s.id !== id)
+}
+
+async function openCrmDates(p) {
+  crmDatesModal.value = { show: true, projectName: p.project_name, loading: true, dates: [] }
+  const fields = `id, ${Object.keys(CRM_DUE_LABELS).join(', ')}`
+  let data = null
+
+  // Try 1: crm_project_id field
+  if (p.crm_project_id) {
+    const { data: d } = await crmSupabase.from('projects').select(fields).eq('id', p.crm_project_id).maybeSingle()
+    data = d
+  }
+  // Try 2: same UUID (synced via addToHub)
+  if (!data) {
+    const { data: d } = await crmSupabase.from('projects').select(fields).eq('id', p.id).maybeSingle()
+    data = d
+  }
+  // Try 3: match by title — fetch all matches, pick the one with most due dates set
+  if (!data && p.project_name) {
+    const { data: rows } = await crmSupabase.from('projects').select(fields).ilike('title', `%${p.project_name}%`)
+    if (rows && rows.length > 0) {
+      const dueDateFields = Object.keys(CRM_DUE_LABELS)
+      data = rows.sort((a, b) =>
+        dueDateFields.filter(f => b[f]).length - dueDateFields.filter(f => a[f]).length
+      )[0]
+    }
+  }
+
+  const today = new Date(); today.setHours(0,0,0,0)
+  if (data) {
+    crmDatesModal.value.dates = Object.entries(CRM_DUE_LABELS)
+      .filter(([field]) => data[field])
+      .map(([field, label]) => {
+        const date = new Date(data[field] + 'T12:00:00')
+        const diff = Math.ceil((date - today) / (1000 * 60 * 60 * 24))
+        return {
+          label,
+          date: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+          diff,
+          color: diff < 0 ? '#ef4444' : diff === 0 ? '#f59e0b' : diff <= 7 ? '#f97316' : 'var(--text-body)',
+        }
+      })
+      .sort((a, b) => a.diff - b.diff)
+  }
+  crmDatesModal.value.loading = false
+}
 const expanded = ref([])
 
 // NOTAS Y MENCIONES
@@ -529,7 +823,13 @@ async function seedDefaultTree(projectId) {
   await supabase.from('project_stages').insert(allStagesToInsert)
 }
 
-async function reloadTimelineData(projectId) { const { data } = await supabase.from('project_stages').select('*').eq('project_id', projectId); timelineModal.value.stages = data || [] }
+async function reloadTimelineData(projectId) {
+  const { data } = await supabase.from('project_stages').select('*').eq('project_id', projectId)
+  timelineModal.value.stages = (data || []).map(s => ({
+    ...s,
+    notes: Array.isArray(s.notes) ? s.notes : (s.notes ? JSON.parse(s.notes) : [])
+  }))
+}
 
 async function openTimeline(p) {
   timelineModal.value.show = true; timelineModal.value.projectName = p.project_name; timelineModal.value.projectId = p.id; timelineModal.value.loading = true; expanded.value = []
@@ -606,6 +906,7 @@ h1 { font-size: 2rem; margin: 0; }
 .tools-grid { display: flex; flex-direction: column; gap: 0.5rem; }
 .btn-tool { padding: 0.5rem 0.8rem; border-radius: 8px; text-decoration: none; font-size: 0.8rem; font-weight: 600; border: 1px solid var(--border-main); color: var(--text-main); background: var(--bg-app); cursor: pointer; text-align: center;}
 .btn-tool.techpack:hover { border-color: #a855f7; color: #a855f7; }
+.btn-tool.drive:hover { border-color: #22c55e; color: #22c55e; }
 .btn-tool.quotes:hover { border-color: var(--success-text); color: var(--success-text); }
 .btn-tool.sourcing:hover { border-color: var(--warning-text); color: var(--warning-text); }
 .card-actions-vertical { background: rgba(0,0,0,0.15); border-left: 1px solid var(--border-main); padding: 1.5rem 1rem; display: flex; flex-direction: column; gap: 0.6rem; min-width: 140px; justify-content: center; }
@@ -616,6 +917,10 @@ h1 { font-size: 2rem; margin: 0; }
 .btn-action-full { width: 100%; padding: 0.6rem; border-radius: 8px; font-size: 0.75rem; font-weight: 800; border: none; cursor: pointer; text-transform: uppercase; transition: filter 0.2s; }
 .btn-timeline { background: var(--primary); color: white; }
 .btn-timeline:hover { filter: brightness(1.1); }
+.btn-crmdates { background: rgba(20,184,166,0.15); color: #0f766e; border: 1px solid rgba(20,184,166,0.3); }
+.btn-crmdates:hover { filter: brightness(0.95); }
+.btn-shipments { background: rgba(59,130,246,0.12); color: #2563eb; border: 1px solid rgba(59,130,246,0.3); }
+.btn-shipments:hover { filter: brightness(0.95); }
 
 /* VISTA 2: TABLERO KANBAN */
 .board-container { display: flex; gap: 1rem; overflow-x: auto; padding-bottom: 1rem; align-items: flex-start; scrollbar-width: thin; scrollbar-color: var(--border-main) var(--bg-app); }

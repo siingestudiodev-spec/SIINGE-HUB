@@ -32,6 +32,7 @@
         <input v-model="form.email" placeholder="Email" />
         <input v-model="form.address" placeholder="Address" />
         <input v-model="form.website" placeholder="Website" />
+        <input v-model="form.catalogue_url" placeholder="Catalogue URL" class="full-row" />
       </div>
 
       <div class="types-section">
@@ -98,21 +99,103 @@
             <span v-for="n in 5" :key="n" class="star" :class="{ active: n <= p.reliability }">★</span>
           </div>
           <div v-if="p.notes" class="card-notes">{{ p.notes }}</div>
+          <a v-if="p.catalogue_url" :href="p.catalogue_url" target="_blank" class="btn-catalogue">
+            <BookOpen :size="13" :stroke-width="1.5" /> Catalogue
+          </a>
+          <div class="card-email-actions">
+            <button @click="openEmailModal(p)" class="btn-email-action" :disabled="!p.email">
+              ✉ Send Email
+            </button>
+            <button @click="openLogModal(p)" class="btn-log-action">📋 Log Contact</button>
+            <button v-if="emailLogs[p.id]?.length" @click="openHistoryPopup(p)" class="btn-history">
+              {{ emailLogs[p.id].length }} log{{ emailLogs[p.id].length !== 1 ? 's' : '' }}
+            </button>
+          </div>
         </div>
       </div>
     </div>
+    <!-- Email modal -->
+    <div v-if="emailModal.show" class="modal-overlay" @click.self="emailModal.show = false">
+      <div class="modal-box">
+        <div class="modal-box-header">
+          <h2>Email: {{ emailModal.providerName }}</h2>
+          <button @click="emailModal.show = false" class="modal-close-btn">✕</button>
+        </div>
+        <div class="modal-box-body">
+          <input v-model="emailModal.subject" placeholder="Subject *" class="modal-input" />
+          <textarea v-model="emailModal.body" placeholder="Message body *" rows="8" class="modal-textarea"></textarea>
+          <p v-if="emailModal.error" style="color:#ef4444;font-size:0.82rem;">{{ emailModal.error }}</p>
+        </div>
+        <div class="modal-box-actions">
+          <button @click="emailModal.show = false" class="btn-secondary">Cancel</button>
+          <button @click="sendEmail" :disabled="!emailModal.subject || !emailModal.body || emailModal.sending" class="btn-primary">
+            {{ emailModal.sending ? 'Sending...' : 'Send Email' }}
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Log contact modal -->
+    <div v-if="logModal.show" class="modal-overlay" @click.self="logModal.show = false">
+      <div class="modal-box" style="max-width:420px;">
+        <div class="modal-box-header">
+          <h2>Log Contact: {{ logModal.providerName }}</h2>
+          <button @click="logModal.show = false" class="modal-close-btn">✕</button>
+        </div>
+        <div class="modal-box-body">
+          <input type="date" v-model="logModal.date" class="modal-input" />
+          <input v-model="logModal.note" placeholder="Note / Action (e.g. Sent samples, Called to discuss MOQ...)" class="modal-input" style="margin-top:0.75rem;" />
+        </div>
+        <div class="modal-box-actions">
+          <button @click="logModal.show = false" class="btn-secondary">Cancel</button>
+          <button @click="saveLog" :disabled="!logModal.note.trim() || !logModal.date" class="btn-primary">Save Log</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- History popup -->
+    <div v-if="historyPopup.show" class="modal-overlay" @click.self="historyPopup.show = false">
+      <div class="modal-box" style="max-width:500px;">
+        <div class="modal-box-header">
+          <h2>Contact History: {{ historyPopup.providerName }}</h2>
+          <button @click="historyPopup.show = false" class="modal-close-btn">✕</button>
+        </div>
+        <div class="modal-box-body" style="max-height:400px;overflow-y:auto;">
+          <div v-if="!historyPopup.list.length" style="color:var(--text-muted);font-size:0.88rem;">No logs yet.</div>
+          <div v-for="log in historyPopup.list" :key="log.id" class="history-item">
+            <div class="history-note">{{ log.template_name }}</div>
+            <div class="history-meta">
+              {{ log.sent_at ? new Date(log.sent_at).toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' }) : '—' }}
+              <span v-if="log.read_at" class="read-badge">✓ Read</span>
+            </div>
+          </div>
+        </div>
+        <div class="modal-box-actions">
+          <button @click="historyPopup.show = false" class="btn-primary">Close</button>
+        </div>
+      </div>
+    </div>
+
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import { supabase } from '../lib/supabase'
-import { User, Phone, MapPin, Globe, Pencil } from 'lucide-vue-next'
+import { User, Phone, MapPin, Globe, Pencil, BookOpen } from 'lucide-vue-next'
+
+const SUPABASE_URL      = import.meta.env.VITE_SUPABASE_URL
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
 
 const providers = ref([])
 const loading = ref(true)
 const showForm = ref(false)
 const editingId = ref(null)
+const emailLogs = ref({})
+
+const emailModal = ref({ show: false, providerId: null, providerName: '', subject: '', body: '', sending: false, error: '' })
+const logModal   = ref({ show: false, providerId: null, providerName: '', note: '', date: new Date().toISOString().split('T')[0] })
+const historyPopup = ref({ show: false, providerName: '', list: [] })
 
 const filterType = ref('')
 const filterCountry = ref('')
@@ -122,7 +205,7 @@ const typeOptions = ['Yarns', 'Fabrics', 'Tags', 'Packaging', 'Stickers', 'Trims
 const emptyForm = () => ({
   provider: '', types: [], country: '', city: '',
   contact_name: '', phone: '', email: '',
-  address: '', website: '', reliability: 0, notes: ''
+  address: '', website: '', catalogue_url: '', reliability: 0, notes: ''
 })
 
 const form = ref(emptyForm())
@@ -177,6 +260,7 @@ function editProvider(p) {
     email: p.email || '',
     address: p.address || '',
     website: p.website || '',
+    catalogue_url: p.catalogue_url || '',
     reliability: p.reliability || 0,
     notes: p.notes || ''
   }
@@ -194,6 +278,55 @@ async function fetchProviders() {
   const { data } = await supabase.from('sourcing').select('*').order('provider')
   providers.value = data || []
   loading.value = false
+  fetchAllLogs()
+}
+
+async function fetchAllLogs() {
+  const { data } = await supabase.from('sourcing_email_logs').select('id, sourcing_id, template_name, sent_at, read_at').order('sent_at', { ascending: false })
+  const map = {}
+  if (data) data.forEach(l => { if (!map[l.sourcing_id]) map[l.sourcing_id] = []; map[l.sourcing_id].push(l) })
+  emailLogs.value = map
+}
+
+function openEmailModal(p) {
+  emailModal.value = { show: true, providerId: p.id, providerName: p.provider, subject: '', body: '', sending: false, error: '' }
+}
+
+function openLogModal(p) {
+  logModal.value = { show: true, providerId: p.id, providerName: p.provider, note: '', date: new Date().toISOString().split('T')[0] }
+}
+
+function openHistoryPopup(p) {
+  historyPopup.value = { show: true, providerName: p.provider, list: emailLogs.value[p.id] || [] }
+}
+
+async function sendEmail() {
+  if (!emailModal.value.subject || !emailModal.value.body) return
+  emailModal.value.sending = true
+  emailModal.value.error = ''
+  try {
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/send-sourcing-email`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` },
+      body: JSON.stringify({ sourcing_id: emailModal.value.providerId, subject: emailModal.value.subject, body: emailModal.value.body, template_name: emailModal.value.subject })
+    })
+    const data = await res.json()
+    if (!res.ok || data.error) throw new Error(data.error ?? 'Send failed')
+    emailModal.value.show = false
+    fetchAllLogs()
+  } catch (err) {
+    emailModal.value.error = err.message
+  } finally {
+    emailModal.value.sending = false
+  }
+}
+
+async function saveLog() {
+  if (!logModal.value.note.trim()) return
+  const sentAt = new Date(logModal.value.date + 'T12:00:00').toISOString()
+  await supabase.from('sourcing_email_logs').insert([{ sourcing_id: logModal.value.providerId, template_name: logModal.value.note.trim(), sent_at: sentAt }])
+  logModal.value.show = false
+  fetchAllLogs()
 }
 
 async function saveProvider() {
@@ -286,6 +419,35 @@ textarea { resize: vertical; margin-top: 0.75rem; }
 
 .card-footer { display: flex; flex-direction: column; gap: 0.5rem; }
 .card-notes { font-size: 0.82rem; color: var(--text-muted); font-style: italic; }
+.btn-catalogue { display: inline-flex; align-items: center; gap: 5px; background: #eff6ff; color: #0284c7; border: none; padding: 0.35rem 0.75rem; border-radius: 8px; cursor: pointer; font-size: 0.82rem; font-weight: 600; text-decoration: none; width: fit-content; }
+.btn-catalogue:hover { background: #dbeafe; }
+
+.card-email-actions { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px solid var(--border-light); }
+.btn-email-action { background: #eef2ff; color: #4f46e5; border: none; padding: 0.3rem 0.65rem; border-radius: 6px; cursor: pointer; font-size: 0.78rem; font-weight: 600; }
+.btn-email-action:hover { background: #e0e7ff; }
+.btn-email-action:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn-log-action { background: var(--border-light); color: var(--text-body); border: none; padding: 0.3rem 0.65rem; border-radius: 6px; cursor: pointer; font-size: 0.78rem; font-weight: 600; }
+.btn-log-action:hover { background: var(--border-main); }
+.btn-history { background: transparent; color: var(--text-muted); border: 1px solid var(--border-main); padding: 0.3rem 0.65rem; border-radius: 6px; cursor: pointer; font-size: 0.78rem; margin-left: auto; }
+.btn-history:hover { color: var(--text-main); border-color: var(--text-main); }
+
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 200; display: flex; align-items: center; justify-content: center; padding: 1rem; }
+.modal-box { background: var(--bg-card); border-radius: 16px; width: 100%; max-width: 600px; max-height: 90vh; display: flex; flex-direction: column; overflow: hidden; border: 1px solid var(--border-main); }
+.modal-box-header { display: flex; justify-content: space-between; align-items: center; padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--border-main); }
+.modal-box-header h2 { font-size: 1.05rem; font-weight: 700; color: var(--text-main); margin: 0; }
+.modal-close-btn { background: none; border: none; font-size: 1.1rem; cursor: pointer; color: var(--text-muted); padding: 4px 8px; border-radius: 6px; }
+.modal-close-btn:hover { background: var(--border-light); color: var(--text-main); }
+.modal-box-body { padding: 1.25rem 1.5rem; display: flex; flex-direction: column; gap: 0.75rem; overflow-y: auto; flex: 1; }
+.modal-input { width: 100%; padding: 0.65rem 1rem; border: 1.5px solid var(--border-main); border-radius: 10px; font-size: 0.92rem; color: var(--text-main); background: var(--bg-card); font-family: inherit; box-sizing: border-box; }
+.modal-input:focus { outline: none; border-color: var(--primary); }
+.modal-textarea { width: 100%; padding: 0.65rem 1rem; border: 1.5px solid var(--border-main); border-radius: 10px; font-size: 0.92rem; color: var(--text-main); background: var(--bg-card); font-family: inherit; resize: vertical; box-sizing: border-box; }
+.modal-textarea:focus { outline: none; border-color: var(--primary); }
+.modal-box-actions { display: flex; gap: 0.75rem; justify-content: flex-end; padding: 1rem 1.5rem; border-top: 1px solid var(--border-main); }
+
+.history-item { padding: 0.6rem 0; border-bottom: 1px solid var(--border-light); }
+.history-note { font-size: 0.88rem; color: var(--text-main); font-weight: 500; }
+.history-meta { font-size: 0.78rem; color: var(--text-muted); margin-top: 2px; display: flex; align-items: center; gap: 0.5rem; }
+.read-badge { background: #dcfce7; color: #16a34a; padding: 1px 6px; border-radius: 4px; font-size: 0.72rem; font-weight: 600; }
 
 .btn-primary { background: var(--primary); color: white; border: none; padding: 0.65rem 1.3rem; border-radius: 10px; cursor: pointer; font-size: 0.92rem; font-weight: 600; font-family: 'Poppins', sans-serif; transition: opacity 0.15s, transform 0.15s; }
 .btn-primary:hover { opacity: 0.9; transform: translateY(-1px); }
