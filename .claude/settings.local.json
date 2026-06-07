@@ -15,7 +15,10 @@
       "Bash(npx eslint *)",
       "Bash(npx vue-tsc *)",
       "Bash(\\\\.md)",
-      "Bash(schema\")"
+      "Bash(schema\")",
+      "Bash(git rm *)",
+      "Bash(git commit *)",
+      "Bash(git push *)"
     ]
   }
 }

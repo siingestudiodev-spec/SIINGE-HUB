@@ -94,16 +94,15 @@
             <div class="bc-body" v-if="p.description"><p class="truncate-text">{{ p.description }}</p></div>
 
             <div class="bc-footer">
-              <div class="bc-links">
-                <a v-if="p.tech_pack_url" :href="p.tech_pack_url" target="_blank" title="Tech Pack"><Paperclip :size="13" :stroke-width="1.5" /></a>
-                <button @click="openDrive(p)" title="Drive Folders" style="background:rgba(34,197,94,0.12);border:1px solid rgba(34,197,94,0.3);color:#22c55e;border-radius:6px;padding:0.3rem 0.5rem;cursor:pointer;"><FolderOpen :size="13" :stroke-width="1.5" /></button>
-<router-link :to="'/projects/' + p.id + '/quotes'" title="Quotes"><BarChart2 :size="13" :stroke-width="1.5" /></router-link>
-                <router-link :to="'/projects/' + p.id + '/sourcing'" title="Sourcing"><Package :size="13" :stroke-width="1.5" /></router-link>
-              </div>
-              <div class="bc-actions">
-                <button @click="openCrmDates(p)" class="btn-micro-tl" title="CRM Dates" style="background:rgba(20,184,166,0.12);border-color:rgba(20,184,166,0.3);color:#0f766e;"><CalendarDays :size="13" :stroke-width="1.5" /></button>
-                <button @click="openTimeline(p)" class="btn-micro-tl" title="Timeline"><Timer :size="13" :stroke-width="1.5" /></button>
-                <button @click="openShipments(p)" class="btn-micro-tl" title="Shipments" style="background:rgba(59,130,246,0.12);border-color:rgba(59,130,246,0.3);color:#3b82f6;"><Truck :size="13" :stroke-width="1.5" /></button>
+              <div class="bc-date"><CalendarDays :size="11" :stroke-width="1.5" /> {{ new Date(p.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) }}</div>
+              <div class="bc-actions-hover">
+                <a v-if="p.tech_pack_url" :href="p.tech_pack_url" target="_blank" class="btn-micro" title="Tech Pack"><Paperclip :size="13" :stroke-width="1.5" /></a>
+                <button @click="openDrive(p)" class="btn-micro" title="Drive Folders" style="color:#22c55e;"><FolderOpen :size="13" :stroke-width="1.5" /></button>
+                <router-link :to="'/projects/' + p.id + '/quotes'" class="btn-micro" title="Quotes"><BarChart2 :size="13" :stroke-width="1.5" /></router-link>
+                <router-link :to="'/projects/' + p.id + '/sourcing'" class="btn-micro" title="Sourcing"><Package :size="13" :stroke-width="1.5" /></router-link>
+                <button @click="openCrmDates(p)" class="btn-micro" title="CRM Dates" style="color:#0f766e;"><CalendarDays :size="13" :stroke-width="1.5" /></button>
+                <button @click="openTimeline(p)" class="btn-micro" title="Timeline" style="color:var(--primary);"><Timer :size="13" :stroke-width="1.5" /></button>
+                <button @click="openShipments(p)" class="btn-micro" title="Shipments" style="color:#3b82f6;"><Truck :size="13" :stroke-width="1.5" /></button>
                 <button @click="editProject(p)" class="btn-micro" title="Edit"><Pencil :size="13" :stroke-width="1.5" /></button>
                 <button @click="deleteProject(p.id)" class="btn-micro del" title="Delete"><Trash2 :size="13" :stroke-width="1.5" /></button>
               </div>
@@ -941,11 +940,10 @@ h1 { font-size: 2rem; margin: 0; }
 .bc-title-wrap h4 { margin: 0; font-size: 0.95rem; line-height: 1.2;}
 .bc-client { font-size: 0.7rem; color: var(--text-muted); background: rgba(255,255,255,0.05); padding: 0.1rem 0.4rem; border-radius: 4px; display: inline-block; margin-top: 0.2rem;}
 .bc-body p { margin: 0; font-size: 0.8rem; color: var(--text-muted); }
-.bc-footer { display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border-main); padding-top: 0.8rem; margin-top: 0.2rem;}
-.bc-links { display: flex; gap: 0.4rem; }
-.bc-links a { background: var(--bg-card); border: 1px solid var(--border-main); padding: 0.3rem 0.5rem; border-radius: 6px; text-decoration: none; font-size: 0.8rem; transition: 0.2s;}
-.bc-links a:hover { background: var(--border-light); }
-.bc-actions { display: flex; gap: 0.3rem; }
+.bc-footer { display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border-main); padding-top: 0.6rem; margin-top: 0.2rem; min-height: 28px; }
+.bc-date { font-size: 0.7rem; color: var(--text-muted); display: flex; align-items: center; gap: 0.3rem; }
+.bc-actions-hover { display: flex; gap: 0.2rem; opacity: 0; transition: opacity 0.15s; pointer-events: none; }
+.board-card:hover .bc-actions-hover { opacity: 1; pointer-events: all; }
 .btn-micro { background: transparent; border: none; color: var(--text-muted); cursor: pointer; padding: 0.2rem; border-radius: 4px;}
 .btn-micro:hover { background: var(--border-light); color: var(--text-main);}
 .btn-micro.del:hover { color: var(--danger-text); background: var(--danger-bg);}
