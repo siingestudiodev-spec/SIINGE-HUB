@@ -1010,24 +1010,21 @@ function openInitialReachModal(m) {
   const categoryText = m.product_categories ? m.product_categories : 'various apparel categories'
   const subject = 'Manufacturing Partnership Inquiry | SIINGE STUDIO'
   
-  const body = `Hi ${m.company_name},
+  const body = `Hi ${m.contact_name || m.company_name},
 
-My name is Luis and I manage Product Operations at SIINGE STUDIO, a US-based apparel development and production partner supporting brands across ${categoryText}.
+My name is Luis and I manage Product Operations at SIINGE STUDIO, a US-based apparel design and development studio supporting brands across a wide range of apparel categories.
 
-We currently oversee multiple development programs simultaneously and are selectively expanding our manufacturing network to support upcoming production cycles. Your facility came to our attention as a potential long-term partner.
+We are currently expanding our manufacturing network and came across your company as a potential partner. Based on what we've seen, we believe there may be an opportunity for us to work together on future development and production programs.
 
-Before moving into deeper alignment, could you share a brief overview of:
+At SIINGE, we support brands through product development, sourcing, production management, and quality assurance, working closely with manufacturing partners to ensure smooth execution and long-term collaboration.
 
-• Primary product categories and technical strengths
-• Typical program size or MOQ range
-• Whether you support material sourcing or operate CMT
-• Approximate sample lead times
+We would love to learn more about your capabilities, product categories, production capacity, and how your team typically works with international clients.
 
-At SIINGE, we operate within a structured partnership framework designed to maintain clarity across development timelines, communication workflows, and ethical manufacturing standards, with an emphasis on responsible sourcing and sustainable design methods where applicable. 
+Would you be available for a brief introductory call in the coming days to explore how we might work together?
 
-Once alignment is confirmed, our onboarding process includes a mutual NDA and Manufacturing Master Agreement to standardize expectations across projects.
+Looking forward to hearing from you.
 
-If there appears to be mutual fit, we would be glad to continue over email or schedule a short introductory call to learn more about your current capabilities and production focus.`
+Best regards.`
 
   emailModal.value = { 
     show: true, 
