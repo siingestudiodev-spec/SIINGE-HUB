@@ -282,7 +282,9 @@
                     <button @click="deleteManufacturer(m.id)" class="btn-action-icon btn-delete" title="Delete"><Trash2 :size="13" :stroke-width="1.5" /></button>
                   </div>
                   <button v-if="m.email && !m.initial_reach_sent" @click="openInitialReachModal(m)" class="btn-action-full btn-initial-reach"><Send :size="12" :stroke-width="2" /> REACH</button>
-                  <button v-if="m.initial_reach_sent && !m.initial_reach_responded_at" @click="markResponded(m)" class="btn-action-full btn-responded"><CheckCircle :size="12" :stroke-width="2" /> RESPONDED</button>
+                  <span v-if="m.initial_reach_sent && !m.initial_reach_responded_at && !getInitialReachLog(m)?.read_at" class="btn-action-full btn-pending">PENDING</span>
+                  <span v-if="m.initial_reach_sent && !m.initial_reach_responded_at && getInitialReachLog(m)?.read_at" class="btn-action-full btn-read" :title="'Read: ' + new Date(getInitialReachLog(m).read_at).toLocaleString()">READ ✓</span>
+                  <button v-if="m.initial_reach_sent && !m.initial_reach_responded_at" @click="markResponded(m)" class="btn-action-full btn-responded" style="font-size:0.65rem;padding:0.3rem;"><CheckCircle :size="11" :stroke-width="2" /> RESPONDED</button>
                   <button v-if="m.email" @click="openEmailModal(m)" class="btn-action-full btn-email"><Mail :size="12" :stroke-width="2" /> EMAIL</button>
                   <a v-if="m.catalog_url" :href="m.catalog_url" target="_blank" rel="noopener noreferrer" class="btn-action-full btn-catalog"><ExternalLink :size="12" :stroke-width="2" /> CATALOG</a>
                   <button v-if="m.email" @click="openSendDocumentsModal(m)" class="btn-action-full btn-documents"><FileCheck :size="12" :stroke-width="2" /> DOCUMENTS</button>
@@ -672,6 +674,11 @@ async function clearFollowup() {
   }).eq('id', followupModal.value.manu.id)
   followupModal.value.show = false
   fetchManufacturers()
+}
+
+function getInitialReachLog(m) {
+  if (!m.manufacturer_email_logs) return null
+  return m.manufacturer_email_logs.find(l => l.template_name === 'Initial Reach') ?? null
 }
 
 async function markResponded(m) {
@@ -1694,6 +1701,8 @@ input:focus, textarea:focus, select:focus {
 .btn-action-icon { background: var(--bg-app); border: 1px solid var(--border-main); border-radius: 6px; padding: 0.4rem; cursor: pointer; flex: 1; display: flex; justify-content: center; align-items: center; transition: 0.2s; }
 .btn-action-full { width: 100%; padding: 0.6rem; border-radius: 8px; font-size: 0.75rem; font-weight: 800; border: none; cursor: pointer; text-transform: uppercase; transition: filter 0.2s; }
 .btn-initial-reach { background: var(--primary); color: white; }
+.btn-pending { background: rgba(234,179,8,0.12); color: #a16207; border: 1px solid rgba(234,179,8,0.3); font-size: 0.72rem; font-weight: 800; text-align: center; letter-spacing: 0.05em; cursor: default; }
+.btn-read { background: rgba(34,197,94,0.12); color: #15803d; border: 1px solid rgba(34,197,94,0.3); font-size: 0.72rem; font-weight: 800; text-align: center; letter-spacing: 0.05em; cursor: default; }
 .btn-email { background: var(--success-bg); color: var(--success-text); }
 .btn-responded { background: #d1fae5; color: #065f46; }
 .btn-followup:hover { border-color: #f59e0b; background: #fef3c7; }
