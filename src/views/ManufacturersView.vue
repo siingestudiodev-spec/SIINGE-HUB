@@ -384,7 +384,12 @@
           <label>To</label>
           <input v-model="emailModal.to" />
         </div>
-        
+
+        <div class="modal-field">
+          <label>CC</label>
+          <input v-model="emailModal.cc" placeholder="email@example.com" />
+        </div>
+
         <div class="modal-field" v-if="!emailModal.isInitialReach">
           <label>Select Template</label>
           <select v-model="emailModal.selectedTemplate" @change="applyTemplate">
@@ -1005,12 +1010,12 @@ function clearFilters() {
   filterCategory.value = '' 
 }
 
-function openEmailModal(m) { 
-  emailModal.value = { 
-    show: true, to: m.email, subject: '', body: '', sending: false, 
-    success: false, error: '', manufacturerId: m.id, companyName: m.company_name, 
-    selectedTemplate: '', isInitialReach: false 
-  } 
+function openEmailModal(m) {
+  emailModal.value = {
+    show: true, to: m.email, cc: '', subject: '', body: '', sending: false,
+    success: false, error: '', manufacturerId: m.id, companyName: m.company_name,
+    selectedTemplate: '', isInitialReach: false
+  }
 }
 
 function openInitialReachModal(m) {
@@ -1044,7 +1049,8 @@ Best regards.`
     manufacturerId: m.id, 
     companyName: m.company_name, 
     selectedTemplate: '',
-    isInitialReach: true 
+    isInitialReach: true,
+    cc: '',
   }
 }
 
@@ -1097,6 +1103,7 @@ async function sendEmail() {
         body:             emailModal.value.body,
         template_name:    templateName,
         is_initial_reach: emailModal.value.isInitialReach,
+        cc:               emailModal.value.cc?.trim() || null,
       }),
     })
 

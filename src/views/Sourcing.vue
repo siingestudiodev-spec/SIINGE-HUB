@@ -123,6 +123,7 @@
         </div>
         <div class="modal-box-body">
           <input v-model="emailModal.subject" placeholder="Subject *" class="modal-input" />
+          <input v-model="emailModal.cc" placeholder="CC (optional)" class="modal-input" style="margin-bottom:0.5rem;" />
           <textarea v-model="emailModal.body" placeholder="Message body *" rows="8" class="modal-textarea"></textarea>
           <p v-if="emailModal.error" style="color:#ef4444;font-size:0.82rem;">{{ emailModal.error }}</p>
         </div>
@@ -193,7 +194,7 @@ const showForm = ref(false)
 const editingId = ref(null)
 const emailLogs = ref({})
 
-const emailModal = ref({ show: false, providerId: null, providerName: '', subject: '', body: '', sending: false, error: '' })
+const emailModal = ref({ show: false, providerId: null, providerName: '', subject: '', body: '', cc: '', sending: false, error: '' })
 const logModal   = ref({ show: false, providerId: null, providerName: '', note: '', date: new Date().toISOString().split('T')[0] })
 const historyPopup = ref({ show: false, providerName: '', list: [] })
 
@@ -289,7 +290,7 @@ async function fetchAllLogs() {
 }
 
 function openEmailModal(p) {
-  emailModal.value = { show: true, providerId: p.id, providerName: p.provider, subject: '', body: '', sending: false, error: '' }
+  emailModal.value = { show: true, providerId: p.id, providerName: p.provider, subject: '', body: '', cc: '', sending: false, error: '' }
 }
 
 function openLogModal(p) {
@@ -308,7 +309,7 @@ async function sendEmail() {
     const res = await fetch(`${SUPABASE_URL}/functions/v1/send-sourcing-email`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` },
-      body: JSON.stringify({ sourcing_id: emailModal.value.providerId, subject: emailModal.value.subject, body: emailModal.value.body, template_name: emailModal.value.subject })
+      body: JSON.stringify({ sourcing_id: emailModal.value.providerId, subject: emailModal.value.subject, body: emailModal.value.body, template_name: emailModal.value.subject, cc: emailModal.value.cc?.trim() || null })
     })
     const data = await res.json()
     if (!res.ok || data.error) throw new Error(data.error ?? 'Send failed')

@@ -57,7 +57,7 @@ serve(async (req) => {
   const SUPABASE_URL   = Deno.env.get('SUPABASE_URL') ?? ''
 
   try {
-    const { sourcing_id, subject, body, template_name = 'Custom Email' } = await req.json()
+    const { sourcing_id, subject, body, template_name = 'Custom Email', cc = null } = await req.json()
 
     if (!sourcing_id || !subject || !body)
       return new Response(JSON.stringify({ error: 'sourcing_id, subject and body are required' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
@@ -99,7 +99,7 @@ ${signature}`
       body: JSON.stringify({
         from: 'SIINGE Studio <production@siinge.studio>',
         to: [provider.email],
-        cc: ['production@siinge.studio'],
+        ...(cc ? { cc: [cc] } : {}),
         subject,
         html,
         open_tracking: true,

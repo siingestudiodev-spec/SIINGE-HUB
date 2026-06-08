@@ -66,6 +66,7 @@ serve(async (req: Request) => {
       template_name    = 'Custom Email',
       is_initial_reach = false,
       is_followup      = false,
+      cc               = null,
     } = await req.json()
 
     if (!manufacturer_id || !subject || !body) {
@@ -115,7 +116,7 @@ ${signature}`
       body: JSON.stringify({
         from: 'SIINGE Studio <production@siinge.studio>',
         to: [manu.email],
-        cc: ['production@siinge.studio'],
+        ...(cc ? { cc: [cc] } : {}),
         subject,
         html,
         open_tracking: true,
