@@ -84,7 +84,7 @@
               <option v-for="s in fullSourcingList" :key="s.id" :value="s.id">{{ s.provider }} ({{ s.country }})</option>
             </select>
           </div>
-          <div v-if="form.sourcing_id" class="project-details-section">
+          <div class="project-details-section">
             <label class="section-label">2. Technical Data</label>
             <div class="form-grid">
               <div class="modal-field"><label>Placement *</label><input v-model="form.placement" /></div>
@@ -102,7 +102,7 @@
         </div>
         <div class="modal-actions">
           <button @click="closeModal" class="btn-secondary">Cancel</button>
-          <button @click="saveMaterial" class="btn-primary" :disabled="!form.sourcing_id || !form.placement || saving">
+          <button @click="saveMaterial" class="btn-primary" :disabled="saving">
             {{ editingId ? 'Update Material' : 'Save Material' }}
           </button>
         </div>
@@ -203,7 +203,7 @@ async function toggleApproval(item) {
 }
 
 async function saveMaterial() {
-  if (!form.value.sourcing_id || !form.value.placement) return
+  if (saving.value) return
   saving.value = true
   const payload = { ...form.value }
   delete payload.sourcing // Limpiar antes de enviar

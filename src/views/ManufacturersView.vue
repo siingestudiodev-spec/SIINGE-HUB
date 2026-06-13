@@ -390,10 +390,10 @@
           <input v-model="emailModal.cc" placeholder="email@example.com" />
         </div>
 
-        <div class="modal-field" v-if="!emailModal.isInitialReach">
-          <label>Select Template</label>
+        <div class="modal-field">
+          <label>Select Template (optional)</label>
           <select v-model="emailModal.selectedTemplate" @change="applyTemplate">
-            <option value="">-- Choose a template --</option>
+            <option value="">-- Use default --</option>
             <option v-for="t in templatesList" :key="t.id" :value="t">{{ t.name }}</option>
           </select>
         </div>
@@ -687,11 +687,13 @@ function getInitialReachLog(m) {
 }
 
 async function markResponded(m) {
+  const in7days = new Date()
+  in7days.setDate(in7days.getDate() + 7)
   await supabase.from('manufacturers').update({
     initial_reach_responded_at: new Date().toISOString(),
-    followup_due_at: new Date().toISOString(),
-    followup_type: 'call',
-    followup_notes: 'Schedule intro call — they responded to initial reach',
+    followup_due_at: in7days.toISOString(),
+    followup_type: 'email',
+    followup_notes: 'Send follow-up — they responded to initial reach',
     followup_sent_at: null,
     followup_manually_completed_at: null,
   }).eq('id', m.id)
