@@ -70,7 +70,7 @@
       </div>
     </div>
 
-    <div v-if="showModal" class="modal-overlay" @click.self="closeModal">
+    <div v-if="showModal" class="modal-overlay">
       <div class="modal max-w-700">
         <div class="modal-header">
           <h2 class="title">{{ editingId ? 'Edit Material' : 'Material Specifications' }}</h2>
@@ -109,7 +109,7 @@
       </div>
     </div>
 
-    <div v-if="factoryModal.show" class="modal-overlay" @click.self="factoryModal.show = false">
+    <div v-if="factoryModal.show" class="modal-overlay">
       <div class="modal max-w-500">
         <div class="modal-header">
           <h2 class="title"><Factory :size="16" :stroke-width="1.5" /> Factory Details</h2>
@@ -206,12 +206,15 @@ async function saveMaterial() {
   if (saving.value) return
   saving.value = true
   const payload = { ...form.value }
-  delete payload.sourcing // Limpiar antes de enviar
+  delete payload.sourcing
+  if (!payload.sourcing_id) payload.sourcing_id = null
 
   if (editingId.value) {
-    await supabase.from('project_materials').update(payload).eq('id', editingId.value)
+    const { error } = await supabase.from('project_materials').update(payload).eq('id', editingId.value)
+    if (error) { alert('Error updating: ' + error.message); saving.value = false; return }
   } else {
-    await supabase.from('project_materials').insert([{ project_id: projectId, ...payload }])
+    const { error } = await supabase.from('project_materials').insert([{ project_id: projectId, ...payload }])
+    if (error) { alert('Error saving: ' + error.message); saving.value = false; return }
   }
   await fetchProjectMaterials(); closeModal();
   saving.value = false
