@@ -1250,22 +1250,34 @@ async function sendDocuments() {
 
 async function openDocumentStatusModal(manufacturer, documentType) {
   try {
-    const { data } = await supabase
+    // Look for a signed document first, fall back to most recent unsigned
+    let { data } = await supabase
       .from('manufacturer_documents')
       .select('*')
       .eq('manufacturer_id', manufacturer.id)
       .eq('document_type', documentType)
-      .order('is_used', { ascending: false })
+      .eq('is_used', true)
       .order('created_at', { ascending: false })
       .limit(1)
-      .single()
+      .maybeSingle()
+
+    if (!data) {
+      const result = await supabase
+        .from('manufacturer_documents')
+        .select('*')
+        .eq('manufacturer_id', manufacturer.id)
+        .eq('document_type', documentType)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+      data = result.data
+    }
 
     docStatusModal.value.document = data
     docStatusModal.value.documentType = documentType
     docStatusModal.value.show = true
   } catch (err) {
     console.error('Error fetching document status:', err)
-    // If no document found, still show modal with "not signed" state
     docStatusModal.value.document = null
     docStatusModal.value.documentType = documentType
     docStatusModal.value.show = true

@@ -90,12 +90,44 @@ async function downloadPdf() {
   if (!props.document?.id || !props.document?.manufacturer_id) return
   downloading.value = true
   try {
-    const path = `${props.document.manufacturer_id}/${props.documentType}_${props.document.id}.pdf`
-    const { data, error } = await supabase.storage
-      .from('signed_documents')
-      .createSignedUrl(path, 3600)
-    if (error || !data?.signedUrl) throw new Error('Could not generate download link')
-    window.open(data.signedUrl, '_blank')
+    const companySlug = (props.document.signer_company_name || '')
+      .trim().replace(/[^a-zA-Z0-9]/g, '_').replace(/_+/g, '_').toLowerCase() || 'unsigned'
+    const fileName = `${companySlug}_${props.documentType}_signed.pdf`
+    const newPath = `${props.document.manufacturer_id}/${companySlug}_${props.documentType}_${props.document.id}.pdf`
+    const oldPath = `${props.document.manufacturer_id}/${props.documentType}_${props.document.id}.pdf`
+    const dlOpts = { download: fileName }
+
+    let { data, error } = await supabase.storage.from('signed_documents').createSignedUrl(newPath, 3600, dlOpts)
+
+    if (error || !data?.signedUrl) {
+      const legacy = await supabase.storage.from('signed_documents').createSignedUrl(oldPath, 3600, dlOpts)
+      if (!legacy.error && legacy.data?.signedUrl) { data = legacy.data; error = null }
+    }
+
+    // Not in storage — regenerate from saved signature
+    if (error || !data?.signedUrl) {
+      if (!props.document.signature_base64) throw new Error('No signature data found to regenerate PDF')
+      const { generateAndUploadSignedPDF } = await import('../lib/documentSigning')
+      await generateAndUploadSignedPDF(
+        props.document.id,
+        props.documentType,
+        props.document.manufacturer_id,
+        props.document.signature_base64
+      )
+      const result = await supabase.storage.from('signed_documents').createSignedUrl(newPath, 3600, dlOpts)
+      if (result.error || !result.data?.signedUrl) throw new Error('Could not generate download link')
+      data = result.data
+    }
+
+    // Force download via blob (avoids blank tab on cross-origin URLs)
+    const res = await fetch(data.signedUrl)
+    const blob = await res.blob()
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = fileName
+    a.click()
+    URL.revokeObjectURL(url)
   } catch (err) {
     alert('Error generating download link: ' + err.message)
   } finally {

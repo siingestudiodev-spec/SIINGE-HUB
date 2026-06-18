@@ -61,14 +61,29 @@ serve(async (req: Request) => {
       throw new Error('Document not found')
     }
 
-    // Generate signed URL for 30 days
-    const signedUrl = await supabase.storage
-      .from('signed_documents')
-      .createSignedUrl(`${document.manufacturer_id}/${document_type}_${document.id}.pdf`, 2592000) // 30 days
+    // Download PDF from storage to attach to email
+    const companySlug = (document.signer_company_name || '')
+      .trim().replace(/[^a-zA-Z0-9]/g, '_').replace(/_+/g, '_').toLowerCase() || 'unsigned'
+    const newPath = `${document.manufacturer_id}/${companySlug}_${document_type}_${document.id}.pdf`
+    const oldPath = `${document.manufacturer_id}/${document_type}_${document.id}.pdf`
 
-    if (!signedUrl || signedUrl.error) {
-      // Even if file doesn't exist yet, we send confirmation email
-      console.warn('Could not generate signed URL, but sending confirmation anyway')
+    let pdfBlob: Blob | null = null
+    const dl1 = await supabase.storage.from('signed_documents').download(newPath)
+    if (!dl1.error && dl1.data) {
+      pdfBlob = dl1.data
+    } else {
+      const dl2 = await supabase.storage.from('signed_documents').download(oldPath)
+      if (!dl2.error && dl2.data) pdfBlob = dl2.data
+    }
+
+    let pdfAttachment: object[] = []
+    if (pdfBlob) {
+      const buf = await pdfBlob.arrayBuffer()
+      const base64 = btoa(new Uint8Array(buf).reduce((s, b) => s + String.fromCharCode(b), ''))
+      const attachFileName = `${document_type.toUpperCase()}_signed_${companySlug}.pdf`
+      pdfAttachment = [{ filename: attachFileName, content: base64 }]
+    } else {
+      console.warn('PDF not found in storage, sending email without attachment')
     }
 
     const docTypeFormatted = document_type.toUpperCase()
@@ -93,9 +108,8 @@ serve(async (req: Request) => {
       ? `<img src="${SUPABASE_URL}/functions/v1/track-email?id=${logEntryId}" width="1" height="1" style="display:none !important;" />`
       : ''
 
-    // Build email HTML with download parameter
-    const downloadLink = signedUrl?.data?.signedUrl
-      ? `<p><a href="${signedUrl.data.signedUrl}?download" download style="color:#2563eb;text-decoration:underline;">${es ? 'Descargar tu copia firmada' : 'Download your signed copy'}</a></p>`
+    const downloadLink = pdfAttachment.length
+      ? `<p>${es ? 'Tu copia firmada está adjunta a este correo.' : 'Your signed copy is attached to this email.'}</p>`
       : ''
 
     const html = `
@@ -152,6 +166,7 @@ serve(async (req: Request) => {
         to: [signer_email],
         subject,
         html,
+        ...(pdfAttachment.length ? { attachments: pdfAttachment } : {}),
         open_tracking: true,
         ...(logEntryId ? { tags: [{ name: 'log_id', value: logEntryId }] } : {}),
       }),

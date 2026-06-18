@@ -289,7 +289,9 @@ export async function generateAndUploadSignedPDF(documentId, documentType, manuf
     const blob = new Blob([pdfBytes2], { type: 'application/pdf' })
 
     // Upload to Supabase Storage
-    const fileName = `${documentType}_${documentId}.pdf`
+    const companySlug = (document.signer_company_name || '')
+      .trim().replace(/[^a-zA-Z0-9]/g, '_').replace(/_+/g, '_').toLowerCase() || 'unsigned'
+    const fileName = `${companySlug}_${documentType}_${documentId}.pdf`
     const filePath = `${manufacturerId}/${fileName}`
 
     const { error: uploadError } = await supabase.storage
