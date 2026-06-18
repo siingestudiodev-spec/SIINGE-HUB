@@ -1255,6 +1255,7 @@ async function openDocumentStatusModal(manufacturer, documentType) {
       .select('*')
       .eq('manufacturer_id', manufacturer.id)
       .eq('document_type', documentType)
+      .order('is_used', { ascending: false })
       .order('created_at', { ascending: false })
       .limit(1)
       .single()
