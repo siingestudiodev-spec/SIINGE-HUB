@@ -343,6 +343,7 @@
             <span v-else class="status-badge is-sent" title="Sent (not read yet)">Sent</span>
 
             <span v-if="isOverdue(log.sent_at) && !log.read_at" class="warning-icon" title="No response in more than 7 days"><AlertTriangle :size="11" :stroke-width="1.5" /></span>
+            <button v-if="log.id" @click="deleteLog(log)" class="btn-delete-log" title="Delete log"><Trash2 :size="11" :stroke-width="1.5" /></button>
           </div>
         </div>
       </div>
@@ -702,7 +703,7 @@ async function markResponded(m) {
 
 const urlExtractModal = ref({ show: false, url: '', folder_id: null, loading: false, error: '', extra_info: '' })
 
-const emailHistoryPopup = ref({ show: false, list: [], companyName: '' })
+const emailHistoryPopup = ref({ show: false, list: [], companyName: '', manufacturerId: null })
 
 const logContactModal = ref({
   show: false,
@@ -799,6 +800,7 @@ function showNotesPopup(notes) {
 
 async function showEmailHistoryPopup(m) {
   emailHistoryPopup.value.companyName = m.company_name
+  emailHistoryPopup.value.manufacturerId = m.id
   emailHistoryPopup.value.show = true
   const { data } = await supabase
     .from('manufacturer_email_logs')
@@ -806,6 +808,15 @@ async function showEmailHistoryPopup(m) {
     .eq('manufacturer_id', m.id)
     .order('sent_at', { ascending: false })
   emailHistoryPopup.value.list = data ?? m.manufacturer_email_logs
+}
+
+async function deleteLog(log) {
+  await supabase.from('manufacturer_email_logs').delete().eq('id', log.id)
+  emailHistoryPopup.value.list = emailHistoryPopup.value.list.filter(l => l.id !== log.id)
+  const m = manufacturers.value.find(m => m.id === emailHistoryPopup.value.manufacturerId)
+  if (m?.manufacturer_email_logs) {
+    m.manufacturer_email_logs = m.manufacturer_email_logs.filter(l => l.id !== log.id)
+  }
 }
 
 async function saveManufacturer() {
@@ -1749,6 +1760,8 @@ input:focus, textarea:focus, select:focus {
 .chip-overdue  { background: #fee2e2; color: #dc2626; }
 .btn-edit-followup { background: none; border: none; cursor: pointer; font-size: 0.7rem; opacity: 0.5; padding: 0; line-height: 1; }
 .btn-edit-followup:hover { opacity: 1; }
+.btn-delete-log { background: none; border: none; cursor: pointer; color: var(--danger-text, #f87171); opacity: 0.4; padding: 0 0 0 6px; line-height: 1; vertical-align: middle; }
+.btn-delete-log:hover { opacity: 1; }
 
 /* FOLLOW-UP MODAL */
 .followup-modal-hint { font-size: 0.85rem; color: var(--text-body); margin: 0 0 1rem; line-height: 1.5; }
