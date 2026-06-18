@@ -334,7 +334,10 @@
           <button @click="emailHistoryPopup.show = false" class="modal-close">✕</button>
         </div>
         <div class="modal-body" style="padding: 10px 20px 20px; max-height: 400px; overflow-y: auto;">
-          <p class="text-sm text-gray-400 mb-3">All records for <strong>{{ emailHistoryPopup.companyName }}</strong>:</p>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem;">
+            <p class="text-sm text-gray-400" style="margin:0">All records for <strong>{{ emailHistoryPopup.companyName }}</strong>:</p>
+            <button v-if="emailHistoryPopup.list.length" @click="deleteAllLogs" class="btn-delete-log" style="opacity:0.6;font-size:0.72rem;display:flex;align-items:center;gap:4px;"><Trash2 :size="11" :stroke-width="1.5" /> Delete All</button>
+          </div>
           <div v-for="log in emailHistoryPopup.list" :key="log.id || log.sent_at" class="reach-date full-width mb-2" :class="{ 'overdue': isOverdue(log.sent_at) }">
             <span class="log-icon"><Clock :size="11" :stroke-width="1.5" /></span> {{ log.template_name }}: {{ new Date(log.sent_at).toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' }) }}
 
@@ -808,6 +811,14 @@ async function showEmailHistoryPopup(m) {
     .eq('manufacturer_id', m.id)
     .order('sent_at', { ascending: false })
   emailHistoryPopup.value.list = data ?? m.manufacturer_email_logs
+}
+
+async function deleteAllLogs() {
+  if (!emailHistoryPopup.value.manufacturerId) return
+  await supabase.from('manufacturer_email_logs').delete().eq('manufacturer_id', emailHistoryPopup.value.manufacturerId)
+  emailHistoryPopup.value.list = []
+  const m = manufacturers.value.find(m => m.id === emailHistoryPopup.value.manufacturerId)
+  if (m) m.manufacturer_email_logs = []
 }
 
 async function deleteLog(log) {
