@@ -12,6 +12,7 @@ import CalendarView from '../views/CalendarView.vue'
 import TestingView from '../views/TestingView.vue'
 import FollowUpsView from '../views/FollowUpsView.vue'
 import PortalSignView from '../views/PortalSignView.vue'
+import LogsView from '../views/LogsView.vue'
 
 const routes = [
   { path: '/login', component: LoginView },
@@ -59,6 +60,11 @@ const routes = [
   {
     path: '/followups',
     component: FollowUpsView,
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/logs',
+    component: LogsView,
     meta: { requiresAuth: true }
   },
   {

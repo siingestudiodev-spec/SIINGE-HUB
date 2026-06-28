@@ -31,6 +31,9 @@
         <router-link to="/followups" class="nav-item" :class="{ active: isActive('/followups') }">
           <Phone :size="14" :stroke-width="1.5" /><span>Follow-ups</span>
         </router-link>
+        <router-link to="/logs" class="nav-item" :class="{ active: isActive('/logs') }">
+          <ScrollText :size="14" :stroke-width="1.5" /><span>Logs</span>
+        </router-link>
       </nav>
 
       <div class="navbar-right">
@@ -81,7 +84,7 @@ import { ref, onMounted, computed, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useThemeStore } from './stores/themeStore'
 import { supabase } from './lib/supabase'
-import { Factory, ClipboardList, Search, Mail, Calendar, PartyPopper, Phone, Bell, Sun, Moon, LogOut } from 'lucide-vue-next'
+import { Factory, ClipboardList, Search, Mail, Calendar, PartyPopper, Phone, Bell, Sun, Moon, LogOut, ScrollText } from 'lucide-vue-next'
 import logo from './assets/siinge-mark.png'
 
 const router = useRouter()

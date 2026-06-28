@@ -142,6 +142,18 @@
           </div>
 
           <textarea v-model="form.notes" placeholder="Notes (Optional)" rows="3" class="mt-4"></textarea>
+
+          <div v-if="editing" class="categories-section mt-4">
+            <label class="section-label">Additional Contacts</label>
+            <div v-for="(c, i) in contacts.filter(c => !c._deleted)" :key="c.id || i" class="contact-row">
+              <input v-model="c.name" placeholder="Name" class="contact-input" />
+              <input v-model="c.title" placeholder="Title" class="contact-input" />
+              <input v-model="c.email" placeholder="Email" class="contact-input" />
+              <input v-model="c.phone" placeholder="Phone" class="contact-input" />
+              <button @click="c._deleted = true" class="btn-delete-contact" title="Remove">✕</button>
+            </div>
+            <button @click="contacts.push({ name:'', title:'', email:'', phone:'' })" class="btn-add-contact">+ Add Contact</button>
+          </div>
         </div>
 
         <div class="modal-actions mt-4">
@@ -224,6 +236,13 @@
                     <div class="info-row" v-if="m.website">
                       <span class="info-icon"><Globe :size="12" :stroke-width="1.5" /></span><a :href="m.website" target="_blank">Website</a>
                     </div>
+                    <template v-if="m.manufacturer_contacts?.length">
+                      <div class="info-row" style="margin-top:4px;"><span class="info-icon"><User :size="12" :stroke-width="1.5" /></span><span style="font-size:0.7rem;color:var(--text-muted);font-weight:600;text-transform:uppercase;">More contacts</span></div>
+                      <div v-for="c in m.manufacturer_contacts" :key="c.id" class="info-row" style="padding-left:16px;gap:4px;">
+                        <span style="font-size:0.78rem;"><strong>{{ c.name }}</strong><span v-if="c.title" style="color:var(--text-muted)"> · {{ c.title }}</span></span>
+                        <a v-if="c.email" :href="'mailto:'+c.email" style="font-size:0.75rem;color:var(--primary);">{{ c.email }}</a>
+                      </div>
+                    </template>
                   </div>
 
                   <div class="tags-section">
@@ -506,7 +525,7 @@
             <option v-for="t in templatesList" :key="t.id" :value="t">{{ t.name }}</option>
           </select>
 
-          <div v-if="sdmTemplate" style="margin-top: 0.75rem; display: flex; flex-direction: column; gap: 0.5rem;">
+          <div style="margin-top: 0.75rem; display: flex; flex-direction: column; gap: 0.5rem;">
             <div>
               <label style="font-size: 0.75rem; color: var(--text-muted); display:block; margin-bottom:0.25rem;">Subject</label>
               <input
@@ -519,18 +538,14 @@
               <label style="font-size: 0.75rem; color: var(--text-muted); display:block; margin-bottom:0.25rem;">Body</label>
               <textarea
                 v-model="sdmEditableBody"
-                rows="8"
+                rows="10"
                 style="width:100%; padding: 0.5rem 0.75rem; font-size: 0.85rem; border: 1px solid var(--border-main); border-radius: 6px; background: var(--bg-app); color: var(--text-main); resize: vertical; font-family: inherit; box-sizing: border-box;"
               />
             </div>
             <p style="font-size: 0.72rem; color: var(--text-muted); margin: 0;">
-              The signing link button is added automatically at the end.
+              The signing link button{{ sdmSelectedDocs.length > 1 ? 's' : '' }} and expiration date are added automatically at the end.
             </p>
           </div>
-
-          <p v-else style="font-size: 0.73rem; color: var(--text-muted); margin: 0.4rem 0 0;">
-            The signing link is added automatically at the end of the message.
-          </p>
         </div>
 
         <div v-if="sdmError" style="background: #fee2e2; border: 1px solid #fca5a5; border-radius: 6px; padding: 0.6rem 0.9rem; color: #991b1b; font-size: 0.8rem;">
@@ -574,6 +589,7 @@ const showFolderForm = ref(false)
 const editing = ref(false)
 const editingFolder = ref(false)
 const editId = ref(null)
+const contacts = ref([]) // extra contacts during edit
 const editFolderId = ref(null)
 const search = ref('')
 const filterFolder = ref('')
@@ -609,44 +625,70 @@ const sdmError = ref(null)
 const sdmEditableSubject = ref('')
 const sdmEditableBody = ref('')
 
-watch(sdmTemplate, (tpl) => {
+// Plain-text default email explaining the why of NDA/MMA. Links + expiration are
+// appended automatically at send time, so they are not part of the editable body.
+function buildDefaultEmail(es, docs, company) {
+  const x = es ? {
+    intro: 'En SIINGE STUDIO trabajamos con fabricantes seleccionados para desarrollar y producir nuestras colecciones. Antes de compartir diseños, especificaciones técnicas y volúmenes, necesitamos formalizar los siguientes acuerdos que protegen a ambas partes:',
+    nda: 'NDA (Acuerdo de Confidencialidad): garantiza que toda la información que intercambiamos —diseños, patrones, materiales, precios y planes de producción— se mantenga confidencial y no se comparta con terceros ni se use para otros fines. Es el primer paso para poder enviarle información sensible con tranquilidad.',
+    mma: 'MMA (Acuerdo de Fabricación): define las reglas de nuestra relación de producción —estándares de calidad, propiedad de los diseños y moldes, tiempos, exclusividad y responsabilidades de cada parte—. Nos da a ambos un marco claro antes de iniciar pedidos.',
+    outro: 'Firmar estos documentos no le compromete a un pedido; simplemente sienta las bases para poder cotizar y colaborar de forma segura.',
+    click: 'Haga clic en el/los botón(es) de abajo para revisar y firmar en nuestro portal seguro:',
+    greet: 'Hola', regards: 'Saludos,',
+  } : {
+    intro: 'At SIINGE STUDIO we partner with selected manufacturers to develop and produce our collections. Before we share designs, technical specs and volumes, we need to put the following agreements in place that protect both sides:',
+    nda: 'NDA (Non-Disclosure Agreement): ensures that everything we exchange —designs, patterns, materials, pricing and production plans— stays confidential and is never shared with third parties or used for other purposes. It is the first step so we can send you sensitive information with confidence.',
+    mma: 'MMA (Manufacturing Agreement): sets the rules of our production relationship —quality standards, ownership of designs and molds, timelines, exclusivity and each party\'s responsibilities—. It gives both of us a clear framework before any orders begin.',
+    outro: 'Signing these documents does not commit you to an order; it simply lays the groundwork so we can quote and collaborate securely.',
+    click: 'Please click the button(s) below to review and sign in our secure portal:',
+    greet: 'Hi', regards: 'Best regards,',
+  }
+  const reasons = docs.map(d => x[d]).filter(Boolean).join('\n\n')
+  const body = `${x.greet} ${company},\n\n${x.intro}\n\n${reasons}\n\n${x.outro}\n\n${x.click}\n\n${x.regards}\nSIINGE STUDIO\nwww.siinge.studio`
+  const subject = es
+    ? `Solicitud de Firma ${docs.map(d => d.toUpperCase()).join(' & ')} — SIINGE STUDIO`
+    : `${docs.map(d => d.toUpperCase()).join(' & ')} Signing Request — SIINGE STUDIO`
+  return { subject, body }
+}
+
+// ponytail: regenerating the default overwrites manual edits when language/docs change.
+// Acceptable since changing those should change the explanation; templates aren't touched.
+function refreshDefaultEmail() {
+  if (sdmTemplate.value) return
+  const company = sendDocumentsModal.value.manufacturer?.company_name ?? ''
+  const { subject, body } = buildDefaultEmail(sdmLanguage.value === 'es', sdmSelectedDocs.value, company)
+  sdmEditableSubject.value = subject
+  sdmEditableBody.value = body
+}
+
+watch([sdmTemplate, sdmLanguage, () => sdmSelectedDocs.value.join(',')], () => {
+  const tpl = sdmTemplate.value
   const company = sendDocumentsModal.value.manufacturer?.company_name ?? ''
   if (tpl) {
     sdmEditableSubject.value = (tpl.subject || '').replace(/\{\{company_name\}\}/g, company)
     sdmEditableBody.value = (tpl.body || '').replace(/\{\{company_name\}\}/g, company)
   } else {
-    sdmEditableSubject.value = ''
-    sdmEditableBody.value = ''
+    refreshDefaultEmail()
   }
-})
-
-const PLACEHOLDER = '{{company_name}}'
-const sdmPreviewSubject = computed(() => {
-  if (!sdmTemplate.value || !sendDocumentsModal.value.manufacturer) return ''
-  return (sdmTemplate.value.subject || '').split(PLACEHOLDER).join(sendDocumentsModal.value.manufacturer.company_name)
-})
-const sdmPreviewBody = computed(() => {
-  if (!sdmTemplate.value || !sendDocumentsModal.value.manufacturer) return ''
-  return (sdmTemplate.value.body || '').split(PLACEHOLDER).join(sendDocumentsModal.value.manufacturer.company_name)
 })
 
 const todayDate = new Date().toISOString().split('T')[0]
 
+function followupDayDiff(m) {
+  const now = new Date(); now.setHours(0,0,0,0)
+  const due = new Date(m.followup_due_at); due.setHours(0,0,0,0)
+  return Math.floor((now - due) / 86400000)
+}
+
 function followupChipClass(m) {
-  const now = new Date()
-  const due = new Date(m.followup_due_at)
-  const diff = Math.floor((now - due) / 86400000)
+  const diff = followupDayDiff(m)
   if (diff < 0) return 'chip-upcoming'
   if (diff === 0) return 'chip-today'
   return 'chip-overdue'
 }
 
 function followupChipLabel(m) {
-  const now = new Date()
-  now.setHours(0,0,0,0)
-  const due = new Date(m.followup_due_at)
-  due.setHours(0,0,0,0)
-  const diff = Math.floor((now - due) / 86400000)
+  const diff = followupDayDiff(m)
   if (diff < 0) return `Follow-up in ${Math.abs(diff)}d`
   if (diff === 0) return 'Follow-up today'
   return `Follow-up ${diff}d overdue`
@@ -865,6 +907,18 @@ async function saveManufacturer() {
     return alert('Error guardando en la base de datos: ' + err.message)
   }
 
+  // Sync extra contacts (only when editing — new manufacturers get the ID after insert)
+  if (editing.value && editId.value) {
+    const toDelete = contacts.value.filter(c => c._deleted && c.id)
+    const toUpsert = contacts.value.filter(c => !c._deleted)
+    if (toDelete.length) await supabase.from('manufacturer_contacts').delete().in('id', toDelete.map(c => c.id))
+    for (const c of toUpsert) {
+      const payload = { manufacturer_id: editId.value, name: c.name, email: c.email, phone: c.phone, title: c.title }
+      if (c.id) await supabase.from('manufacturer_contacts').update(payload).eq('id', c.id)
+      else await supabase.from('manufacturer_contacts').insert([payload])
+    }
+  }
+
   resetForm()
   fetchManufacturers()
 }
@@ -923,13 +977,15 @@ function openFolderForm() {
   showFolderForm.value = true
 }
 
-function editManufacturer(m) {
+async function editManufacturer(m) {
   form.value = { ...m }
   selectedCategories.value = m.product_categories ? m.product_categories.split(',').map(s => s.trim()) : []
   selectedCertifications.value = m.certifications ? m.certifications.split(',').map(s => s.trim()) : []
   editId.value = m.id
   editing.value = true
   showForm.value = true
+  const { data } = await supabase.from('manufacturer_contacts').select('*').eq('manufacturer_id', m.id).order('created_at')
+  contacts.value = data || []
 }
 
 function resetForm() {
@@ -941,6 +997,7 @@ function resetForm() {
   }
   selectedCategories.value = []
   selectedCertifications.value = []
+  contacts.value = []
   editing.value = false
   editId.value = null
   showForm.value = false
@@ -950,7 +1007,7 @@ async function fetchManufacturers() {
   loading.value = true
   const { data } = await supabase
     .from('manufacturers')
-    .select('*, manufacturer_email_logs(id, template_name, sent_at, read_at)')
+    .select('*, manufacturer_email_logs(id, template_name, sent_at, read_at), manufacturer_contacts(id, name, email, phone, title)')
     .order('company_name')
     .order('sent_at', { foreignTable: 'manufacturer_email_logs', ascending: false })
     
@@ -1156,10 +1213,9 @@ function openSendDocumentsModal(manufacturer) {
   sdmLanguage.value = 'en'
   sdmTemplate.value = null
   sdmError.value = null
-  sdmEditableSubject.value = ''
-  sdmEditableBody.value = ''
   sendDocumentsModal.value.manufacturer = manufacturer
   sendDocumentsModal.value.show = true
+  refreshDefaultEmail()
 }
 
 function closeSendDocumentsModal() {
@@ -1177,7 +1233,6 @@ async function sendDocuments() {
   try {
     const { generateDocumentToken } = await import('../lib/documentSigning.js')
     const company = sendDocumentsModal.value.manufacturer.company_name
-    const tpl = sdmTemplate.value
 
     // Generate tokens for all documents
     const documentLinks = []
@@ -1209,26 +1264,18 @@ async function sendDocuments() {
       day: 'numeric',
     })
 
-    // Build custom body with all links
-    let emailBody = null
-    if (tpl) {
-      emailBody = sdmEditableBody.value + `\n\n${linksHtml}`
-    } else {
-      emailBody = `
-        <p>Hi ${company},</p>
-        <p>We would like you to review and sign the following documents:</p>
-        <p style="font-weight: 600; margin: 1rem 0;">${documentLinks.map(d => d.type).join(' & ')}</p>
-        <p>Please click the button(s) below to access the secure signing portal:</p>
-        ${linksHtml}
-        <p style="color: #666; font-size: 14px;"><strong>Links expire:</strong> ${expiresDate}</p>
-        <p>If you have any questions, please reach out to us.</p>
-        <p>Best regards,<br><strong>SIINGE STUDIO</strong><br><a href="https://www.siinge.studio" style="color: #6366f1;">www.siinge.studio</a></p>
-      `
-    }
+    // Body comes from the editable field (default text or chosen template);
+    // links + expiration are appended automatically here.
+    const es = sdmLanguage.value === 'es'
+    const expiresLabel = es ? 'Los enlaces expiran:' : 'Links expire:'
+    const tail = `\n\n${linksHtml}<p style="color: #666; font-size: 14px;"><strong>${expiresLabel}</strong> ${expiresDate}</p>`
+    const emailBody = sdmEditableBody.value + tail
 
-    const customSubject = tpl
-      ? (sdmEditableSubject.value || `${documentLinks.map(d => d.type).join(' & ')} Signing Request — SIINGE STUDIO`)
-      : `${documentLinks.map(d => d.type).join(' & ')} Signing Request — SIINGE STUDIO`
+    const docTypes = documentLinks.map(d => d.type).join(' & ')
+    const defaultSubject = es
+      ? `Solicitud de Firma ${docTypes} — SIINGE STUDIO`
+      : `${docTypes} Signing Request — SIINGE STUDIO`
+    const customSubject = sdmEditableSubject.value || defaultSubject
 
     // Send single email with all documents
     const res = await fetch(`${SUPABASE_URL}/functions/v1/send-signing-link`, {
@@ -1773,6 +1820,12 @@ input:focus, textarea:focus, select:focus {
 .btn-edit-followup:hover { opacity: 1; }
 .btn-delete-log { background: none; border: none; cursor: pointer; color: var(--danger-text, #f87171); opacity: 0.4; padding: 0 0 0 6px; line-height: 1; vertical-align: middle; }
 .btn-delete-log:hover { opacity: 1; }
+.contact-row { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr auto; gap: 0.4rem; margin-bottom: 0.4rem; align-items: center; }
+.contact-input { padding: 0.35rem 0.6rem; border: 1px solid var(--border-main); border-radius: 6px; font-size: 0.82rem; background: var(--bg-app); color: var(--text-main); }
+.btn-add-contact { background: none; border: 1px dashed var(--border-main); border-radius: 6px; padding: 0.35rem 0.75rem; font-size: 0.8rem; color: var(--primary); cursor: pointer; margin-top: 0.25rem; }
+.btn-add-contact:hover { background: var(--bg-hover); }
+.btn-delete-contact { background: none; border: none; cursor: pointer; color: var(--danger-text, #f87171); font-size: 0.9rem; opacity: 0.5; padding: 0; }
+.btn-delete-contact:hover { opacity: 1; }
 
 /* FOLLOW-UP MODAL */
 .followup-modal-hint { font-size: 0.85rem; color: var(--text-body); margin: 0 0 1rem; line-height: 1.5; }
