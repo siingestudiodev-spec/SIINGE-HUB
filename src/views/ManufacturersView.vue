@@ -645,9 +645,11 @@ function buildDefaultEmail(es, docs, company) {
   }
   const reasons = docs.map(d => x[d]).filter(Boolean).join('\n\n')
   const body = `${x.greet} ${company},\n\n${x.intro}\n\n${reasons}\n\n${x.outro}\n\n${x.click}\n\n${x.regards}\nSIINGE STUDIO\nwww.siinge.studio`
+  const fullNames = { nda: 'Non-Disclosure Agreement', mma: 'Master Manufacturer Agreement' }
+  const docFull = docs.map(d => fullNames[d]).filter(Boolean).join(' / ')
   const subject = es
-    ? `Solicitud de Firma ${docs.map(d => d.toUpperCase()).join(' & ')} — SIINGE STUDIO`
-    : `${docs.map(d => d.toUpperCase()).join(' & ')} Signing Request — SIINGE STUDIO`
+    ? `Nueva Solicitud de Desarrollo — ${docs.map(d => d.toUpperCase()).join(' & ')}`
+    : `New Development Inquiry — ${docFull}`
   return { subject, body }
 }
 
@@ -1272,9 +1274,11 @@ async function sendDocuments() {
     const emailBody = sdmEditableBody.value + tail
 
     const docTypes = documentLinks.map(d => d.type).join(' & ')
+    const fullNames = { NDA: 'Non-Disclosure Agreement', MMA: 'Master Manufacturer Agreement' }
+    const docFull = documentLinks.map(d => fullNames[d.type]).filter(Boolean).join(' / ')
     const defaultSubject = es
-      ? `Solicitud de Firma ${docTypes} — SIINGE STUDIO`
-      : `${docTypes} Signing Request — SIINGE STUDIO`
+      ? `Nueva Solicitud de Desarrollo — ${docTypes}`
+      : `New Development Inquiry — ${docFull}`
     const customSubject = sdmEditableSubject.value || defaultSubject
 
     // Send single email with all documents
