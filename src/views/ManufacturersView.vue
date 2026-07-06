@@ -146,13 +146,14 @@
           <div v-if="editing" class="categories-section mt-4">
             <label class="section-label">Additional Contacts</label>
             <div v-for="(c, i) in contacts.filter(c => !c._deleted)" :key="c.id || i" class="contact-row">
+              <button @click="setPrimaryContact(i)" :class="['btn-primary-star', c.is_primary ? 'is-primary' : '']" :title="c.is_primary ? 'Primary contact' : 'Set as primary'">★</button>
               <input v-model="c.name" placeholder="Name" class="contact-input" />
               <input v-model="c.title" placeholder="Title" class="contact-input" />
               <input v-model="c.email" placeholder="Email" class="contact-input" />
               <input v-model="c.phone" placeholder="Phone" class="contact-input" />
               <button @click="c._deleted = true" class="btn-delete-contact" title="Remove">✕</button>
             </div>
-            <button @click="contacts.push({ name:'', title:'', email:'', phone:'' })" class="btn-add-contact">+ Add Contact</button>
+            <button @click="contacts.push({ name:'', title:'', email:'', phone:'', is_primary: false })" class="btn-add-contact">+ Add Contact</button>
           </div>
         </div>
 
@@ -239,7 +240,7 @@
                     <template v-if="m.manufacturer_contacts?.length">
                       <div class="info-row" style="margin-top:4px;"><span class="info-icon"><User :size="12" :stroke-width="1.5" /></span><span style="font-size:0.7rem;color:var(--text-muted);font-weight:600;text-transform:uppercase;">More contacts</span></div>
                       <div v-for="c in m.manufacturer_contacts" :key="c.id" class="info-row" style="padding-left:16px;gap:4px;">
-                        <span style="font-size:0.78rem;"><strong>{{ c.name }}</strong><span v-if="c.title" style="color:var(--text-muted)"> · {{ c.title }}</span></span>
+                        <span style="font-size:0.78rem;"><strong>{{ c.name }}</strong><span v-if="c.is_primary" style="color:#f59e0b;margin-left:3px;" title="Primary contact">★</span><span v-if="c.title" style="color:var(--text-muted)"> · {{ c.title }}</span></span>
                         <a v-if="c.email" :href="'mailto:'+c.email" style="font-size:0.75rem;color:var(--primary);">{{ c.email }}</a>
                       </div>
                     </template>
@@ -358,7 +359,7 @@
             <button v-if="emailHistoryPopup.list.length" @click="deleteAllLogs" class="btn-delete-log" style="opacity:0.6;font-size:0.72rem;display:flex;align-items:center;gap:4px;"><Trash2 :size="11" :stroke-width="1.5" /> Delete All</button>
           </div>
           <div v-for="log in emailHistoryPopup.list" :key="log.id || log.sent_at" class="reach-date full-width mb-2" :class="{ 'overdue': isOverdue(log.sent_at) }">
-            <span class="log-icon"><Clock :size="11" :stroke-width="1.5" /></span> {{ log.template_name }}: {{ new Date(log.sent_at).toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' }) }}
+            <span class="log-icon"><Clock :size="11" :stroke-width="1.5" /></span> {{ (log.template_name || '').replace(/^\[Follow-up\] /, '') }}: {{ new Date(log.sent_at).toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' }) }}
 
             <span v-if="isSigned(log)" class="status-badge is-signed">Signed</span>
             <span v-else-if="log.read_at" class="status-badge is-read" :title="'Read at: ' + new Date(log.read_at).toLocaleString()">Read</span>
@@ -718,7 +719,7 @@ async function saveFollowup() {
   if (followupModal.value.notes?.trim()) {
     await supabase.from('manufacturer_email_logs').insert([{
       manufacturer_id: followupModal.value.manu.id,
-      template_name: followupModal.value.notes.trim(),
+      template_name: '[Follow-up] ' + followupModal.value.notes.trim(),
       sent_at: isoDate,
     }])
   }
@@ -923,7 +924,7 @@ async function saveManufacturer() {
     const toUpsert = contacts.value.filter(c => !c._deleted)
     if (toDelete.length) await supabase.from('manufacturer_contacts').delete().in('id', toDelete.map(c => c.id))
     for (const c of toUpsert) {
-      const payload = { manufacturer_id: editId.value, name: c.name, email: c.email, phone: c.phone, title: c.title }
+      const payload = { manufacturer_id: editId.value, name: c.name, email: c.email, phone: c.phone, title: c.title, is_primary: c.is_primary || false }
       if (c.id) await supabase.from('manufacturer_contacts').update(payload).eq('id', c.id)
       else await supabase.from('manufacturer_contacts').insert([payload])
     }
@@ -996,6 +997,12 @@ async function editManufacturer(m) {
   showForm.value = true
   const { data } = await supabase.from('manufacturer_contacts').select('*').eq('manufacturer_id', m.id).order('created_at')
   contacts.value = data || []
+}
+
+function setPrimaryContact(idx) {
+  const visible = contacts.value.filter(c => !c._deleted)
+  contacts.value.forEach(c => { c.is_primary = false })
+  visible[idx].is_primary = true
 }
 
 function resetForm() {
@@ -1832,7 +1839,10 @@ input:focus, textarea:focus, select:focus {
 .btn-edit-followup:hover { opacity: 1; }
 .btn-delete-log { background: none; border: none; cursor: pointer; color: var(--danger-text, #f87171); opacity: 0.4; padding: 0 0 0 6px; line-height: 1; vertical-align: middle; }
 .btn-delete-log:hover { opacity: 1; }
-.contact-row { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr auto; gap: 0.4rem; margin-bottom: 0.4rem; align-items: center; }
+.contact-row { display: grid; grid-template-columns: auto 1fr 1fr 1fr 1fr auto; gap: 0.4rem; margin-bottom: 0.4rem; align-items: center; }
+.btn-primary-star { background: none; border: none; cursor: pointer; font-size: 1rem; color: var(--border-main); padding: 0; line-height: 1; }
+.btn-primary-star.is-primary { color: #f59e0b; }
+.btn-primary-star:hover { color: #f59e0b; }
 .contact-input { padding: 0.35rem 0.6rem; border: 1px solid var(--border-main); border-radius: 6px; font-size: 0.82rem; background: var(--bg-app); color: var(--text-main); }
 .btn-add-contact { background: none; border: 1px dashed var(--border-main); border-radius: 6px; padding: 0.35rem 0.75rem; font-size: 0.8rem; color: var(--primary); cursor: pointer; margin-top: 0.25rem; }
 .btn-add-contact:hover { background: var(--bg-hover); }

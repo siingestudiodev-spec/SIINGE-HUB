@@ -9,7 +9,23 @@
           {{ dueList.length }} due now &middot; {{ upcomingList.length }} upcoming
         </p>
       </div>
-      <button @click="fetchData" class="btn btn-ghost btn-sm">↻ Refresh</button>
+      <div style="display:flex;gap:0.5rem;align-items:center;">
+        <button @click="fetchData" class="btn btn-ghost btn-sm">↻ Refresh</button>
+        <button @click="dlPanel = !dlPanel" class="btn btn-ghost btn-sm">⬇ Download Logs</button>
+      </div>
+    </div>
+
+    <!-- DOWNLOAD PANEL -->
+    <div v-if="dlPanel" style="background:var(--bg-card);border:1px solid var(--border-main);border-radius:8px;padding:1rem;margin-bottom:1.5rem;display:flex;gap:0.75rem;align-items:flex-end;flex-wrap:wrap;">
+      <div>
+        <label style="font-size:0.72rem;font-weight:600;color:var(--text-muted);display:block;margin-bottom:4px;">FROM</label>
+        <input type="date" v-model="dlFrom" style="padding:0.35rem 0.6rem;border:1px solid var(--border-main);border-radius:6px;font-size:0.82rem;background:var(--bg-app);color:var(--text-main);" />
+      </div>
+      <div>
+        <label style="font-size:0.72rem;font-weight:600;color:var(--text-muted);display:block;margin-bottom:4px;">TO</label>
+        <input type="date" v-model="dlTo" style="padding:0.35rem 0.6rem;border:1px solid var(--border-main);border-radius:6px;font-size:0.82rem;background:var(--bg-app);color:var(--text-main);" />
+      </div>
+      <button @click="downloadLogs" :disabled="dlLoading" class="btn btn-primary btn-sm">{{ dlLoading ? 'Loading...' : 'Download CSV' }}</button>
     </div>
 
     <!-- LOADING -->
@@ -240,6 +256,37 @@ const compose = ref({
 })
 
 const nextFu = ref({ show: false, manu: null, date: '' })
+
+const dlPanel  = ref(false)
+const dlFrom   = ref('')
+const dlTo     = ref('')
+const dlLoading = ref(false)
+
+async function downloadLogs() {
+  dlLoading.value = true
+  let query = supabase
+    .from('manufacturer_email_logs')
+    .select('sent_at, template_name, manufacturers(company_name)')
+    .like('template_name', '[Follow-up]%')
+    .order('sent_at', { ascending: false })
+  if (dlFrom.value) query = query.gte('sent_at', dlFrom.value)
+  if (dlTo.value)   query = query.lte('sent_at', dlTo.value + 'T23:59:59Z')
+  const { data } = await query
+  dlLoading.value = false
+  if (!data?.length) return alert('No follow-up logs found for that range.')
+  const rows = [['Date', 'Company', 'Note']]
+  for (const r of data) {
+    const date = new Date(r.sent_at).toLocaleDateString('en-US', { year:'numeric', month:'short', day:'numeric' })
+    const company = r.manufacturers?.company_name || ''
+    const note = (r.template_name || '').replace(/^\[Follow-up\] /, '')
+    rows.push([date, company, note])
+  }
+  const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n')
+  const a = document.createElement('a')
+  a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }))
+  a.download = `followup_logs${dlFrom.value ? '_' + dlFrom.value : ''}${dlTo.value ? '_to_' + dlTo.value : ''}.csv`
+  a.click()
+}
 
 // ─── Computed ─────────────────────────────────────────────────────
 const tomorrowDate = computed(() => {
