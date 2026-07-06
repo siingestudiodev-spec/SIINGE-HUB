@@ -459,7 +459,7 @@
         </p>
         <div class="modal-field">
           <label>Date</label>
-          <input type="date" v-model="followupModal.date" class="modal-input" :min="todayDate" />
+          <input type="date" v-model="followupModal.date" class="modal-input" />
         </div>
         <div class="modal-field">
           <label>Notes (optional)</label>
