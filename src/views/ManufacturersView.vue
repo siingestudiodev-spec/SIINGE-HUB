@@ -184,6 +184,21 @@
         ✕ CLEAR
       </button>
       <span class="results-count">{{ filteredManufacturers.length }} result{{ filteredManufacturers.length !== 1 ? 's' : '' }}</span>
+      <button @click="fuDlPanel = !fuDlPanel" class="btn-clear" style="margin-left:auto;">⬇ Follow-up Logs</button>
+    </div>
+
+    <!-- FOLLOW-UP LOG DOWNLOAD PANEL -->
+    <div v-if="fuDlPanel" style="background:var(--bg-card);border:1px solid var(--border-main);border-radius:8px;padding:0.75rem 1rem;margin-bottom:1rem;display:flex;gap:0.75rem;align-items:flex-end;flex-wrap:wrap;">
+      <div>
+        <label style="font-size:0.72rem;font-weight:600;color:var(--text-muted);display:block;margin-bottom:3px;">FROM</label>
+        <input type="date" v-model="fuDlFrom" style="padding:0.35rem 0.6rem;border:1px solid var(--border-main);border-radius:6px;font-size:0.82rem;background:var(--bg-app);color:var(--text-main);" />
+      </div>
+      <div>
+        <label style="font-size:0.72rem;font-weight:600;color:var(--text-muted);display:block;margin-bottom:3px;">TO</label>
+        <input type="date" v-model="fuDlTo" style="padding:0.35rem 0.6rem;border:1px solid var(--border-main);border-radius:6px;font-size:0.82rem;background:var(--bg-app);color:var(--text-main);" />
+      </div>
+      <button @click="downloadFollowupLogs" :disabled="fuDlLoading" class="btn-primary" style="font-size:0.82rem;padding:0.4rem 0.9rem;">{{ fuDlLoading ? 'Loading...' : 'Download CSV' }}</button>
+      <button @click="fuDlPanel = false" class="btn-clear">✕</button>
     </div>
 
     <div v-if="loading" class="loading">Loading...</div>
@@ -591,6 +606,36 @@ const editing = ref(false)
 const editingFolder = ref(false)
 const editId = ref(null)
 const contacts = ref([]) // extra contacts during edit
+const fuDlPanel = ref(false)
+const fuDlFrom  = ref('')
+const fuDlTo    = ref('')
+const fuDlLoading = ref(false)
+
+async function downloadFollowupLogs() {
+  fuDlLoading.value = true
+  let query = supabase
+    .from('manufacturer_email_logs')
+    .select('sent_at, template_name, manufacturers(company_name)')
+    .like('template_name', '[Follow-up]%')
+    .order('sent_at', { ascending: false })
+  if (fuDlFrom.value) query = query.gte('sent_at', fuDlFrom.value)
+  if (fuDlTo.value)   query = query.lte('sent_at', fuDlTo.value + 'T23:59:59Z')
+  const { data } = await query
+  fuDlLoading.value = false
+  if (!data?.length) return alert('No follow-up logs found for that range.')
+  const rows = [['Date', 'Company', 'Note']]
+  for (const r of data) {
+    const date = new Date(r.sent_at).toLocaleDateString('en-US', { year:'numeric', month:'short', day:'numeric' })
+    const company = r.manufacturers?.company_name || ''
+    const note = (r.template_name || '').replace(/^\[Follow-up\] /, '')
+    rows.push([date, company, note])
+  }
+  const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n')
+  const a = document.createElement('a')
+  a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }))
+  a.download = `followup_logs${fuDlFrom.value ? '_' + fuDlFrom.value : ''}${fuDlTo.value ? '_to_' + fuDlTo.value : ''}.csv`
+  a.click()
+}
 const editFolderId = ref(null)
 const search = ref('')
 const filterFolder = ref('')
@@ -1024,7 +1069,7 @@ async function fetchManufacturers() {
   loading.value = true
   const { data } = await supabase
     .from('manufacturers')
-    .select('*, manufacturer_email_logs(id, template_name, sent_at, read_at), manufacturer_contacts(id, name, email, phone, title)')
+    .select('*, manufacturer_email_logs(id, template_name, sent_at, read_at), manufacturer_contacts(id, name, email, phone, title, is_primary)')
     .order('company_name')
     .order('sent_at', { foreignTable: 'manufacturer_email_logs', ascending: false })
     
