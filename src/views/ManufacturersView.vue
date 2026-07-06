@@ -708,13 +708,20 @@ function openFollowupModal(m) {
 async function saveFollowup() {
   if (!followupModal.value.date) return
   const isoDate = new Date(followupModal.value.date + 'T13:00:00Z').toISOString()
-  const isPast = new Date(followupModal.value.date) < new Date(new Date().toDateString())
+  const isPast = followupModal.value.date < new Date().toISOString().split('T')[0]
   await supabase.from('manufacturers').update({
     followup_due_at: isoDate,
     followup_notes: followupModal.value.notes || null,
     followup_sent_at: null,
     followup_manually_completed_at: isPast ? new Date().toISOString() : null,
   }).eq('id', followupModal.value.manu.id)
+  if (followupModal.value.notes?.trim()) {
+    await supabase.from('manufacturer_email_logs').insert([{
+      manufacturer_id: followupModal.value.manu.id,
+      template_name: followupModal.value.notes.trim(),
+      sent_at: isoDate,
+    }])
+  }
   followupModal.value.show = false
   fetchManufacturers()
 }
