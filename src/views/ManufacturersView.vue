@@ -1085,12 +1085,18 @@ function resetForm() {
 
 async function fetchManufacturers() {
   loading.value = true
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('manufacturers')
-    .select('*, manufacturer_email_logs(id, template_name, sent_at, read_at), manufacturer_contacts(id, name, email, phone, title, is_primary)')
+    // manufacturer_contacts!manufacturer_id disambiguates the embed: primary_contact_id
+    // added a second FK between these two tables, so PostgREST needs to be told which one to follow.
+    .select('*, manufacturer_email_logs(id, template_name, sent_at, read_at), manufacturer_contacts!manufacturer_id(id, name, email, phone, title, is_primary)')
     .order('company_name')
     .order('sent_at', { foreignTable: 'manufacturer_email_logs', ascending: false })
-    
+
+  if (error) {
+    console.error('Error fetching manufacturers:', error)
+    alert('Error cargando manufacturers: ' + error.message)
+  }
   manufacturers.value = data || []
   loading.value = false
 }
