@@ -187,7 +187,7 @@
         ✕ CLEAR
       </button>
       <span class="results-count">{{ filteredManufacturers.length }} result{{ filteredManufacturers.length !== 1 ? 's' : '' }}</span>
-      <button @click="fuDlPanel = !fuDlPanel" class="btn-clear" style="margin-left:auto;">⬇ Follow-up Logs</button>
+      <button @click="fuDlPanel = !fuDlPanel" class="btn-clear" style="margin-left:auto;">⬇ Contact Logs</button>
     </div>
 
     <!-- FOLLOW-UP LOG DOWNLOAD PANEL -->
@@ -620,14 +620,13 @@ async function downloadFollowupLogs() {
   let query = supabase
     .from('manufacturer_email_logs')
     .select('sent_at, template_name, manufacturers(company_name)')
-    .like('template_name', '[Follow-up]%')
     .order('sent_at', { ascending: false })
   if (fuDlFrom.value) query = query.gte('sent_at', fuDlFrom.value)
   if (fuDlTo.value)   query = query.lte('sent_at', fuDlTo.value + 'T23:59:59Z')
   const { data } = await query
   fuDlLoading.value = false
-  if (!data?.length) return alert('No follow-up logs found for that range.')
-  const rows = [['Date', 'Company', 'Note']]
+  if (!data?.length) return alert('No logs found for that range.')
+  const rows = [['Date', 'Company', 'Log']]
   for (const r of data) {
     const date = new Date(r.sent_at).toLocaleDateString('en-US', { year:'numeric', month:'short', day:'numeric' })
     const company = r.manufacturers?.company_name || ''
@@ -637,7 +636,7 @@ async function downloadFollowupLogs() {
   const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n')
   const a = document.createElement('a')
   a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }))
-  a.download = `followup_logs${fuDlFrom.value ? '_' + fuDlFrom.value : ''}${fuDlTo.value ? '_to_' + fuDlTo.value : ''}.csv`
+  a.download = `contact_logs${fuDlFrom.value ? '_' + fuDlFrom.value : ''}${fuDlTo.value ? '_to_' + fuDlTo.value : ''}.csv`
   a.click()
 }
 const editFolderId = ref(null)
