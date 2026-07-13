@@ -102,7 +102,10 @@
               </select>
             </div>
             <div class="input-group"><input v-model="form.country" placeholder="Country" /></div>
-            <div class="input-group"><input v-model="form.contact_name" placeholder="Contact Name" /></div>
+            <div class="input-group" style="display:flex;align-items:center;gap:4px;">
+              <button type="button" @click="primarySelection = 'default'" :class="['btn-primary-star', primarySelection === 'default' ? 'is-primary' : '']" :title="primarySelection === 'default' ? 'Primary contact' : 'Set as primary'">★</button>
+              <input v-model="form.contact_name" placeholder="Contact Name" style="flex:1;" />
+            </div>
             <div class="input-group"><input v-model="form.phone" placeholder="Phone" /></div>
             <div class="input-group"><input v-model="form.email" placeholder="Email" /></div>
             <div class="input-group"><input v-model="form.website" placeholder="Website" /></div>
@@ -143,17 +146,17 @@
 
           <textarea v-model="form.notes" placeholder="Notes (Optional)" rows="3" class="mt-4"></textarea>
 
-          <div v-if="editing" class="categories-section mt-4">
+          <div class="categories-section mt-4">
             <label class="section-label">Additional Contacts</label>
-            <div v-for="(c, i) in contacts.filter(c => !c._deleted)" :key="c.id || i" class="contact-row">
-              <button @click="setPrimaryContact(i)" :class="['btn-primary-star', c.is_primary ? 'is-primary' : '']" :title="c.is_primary ? 'Primary contact' : 'Set as primary'">★</button>
+            <div v-for="c in contacts.filter(c => !c._deleted)" :key="c._localKey" class="contact-row">
+              <button @click="primarySelection = c._localKey" :class="['btn-primary-star', primarySelection === c._localKey ? 'is-primary' : '']" :title="primarySelection === c._localKey ? 'Primary contact' : 'Set as primary'">★</button>
               <input v-model="c.name" placeholder="Name" class="contact-input" />
               <input v-model="c.title" placeholder="Title" class="contact-input" />
               <input v-model="c.email" placeholder="Email" class="contact-input" />
               <input v-model="c.phone" placeholder="Phone" class="contact-input" />
-              <button @click="c._deleted = true" class="btn-delete-contact" title="Remove">✕</button>
+              <button @click="c._deleted = true; if (primarySelection === c._localKey) primarySelection = 'default'" class="btn-delete-contact" title="Remove">✕</button>
             </div>
-            <button @click="contacts.push({ name:'', title:'', email:'', phone:'', is_primary: false })" class="btn-add-contact">+ Add Contact</button>
+            <button @click="contacts.push({ _localKey: crypto.randomUUID(), name:'', title:'', email:'', phone:'' })" class="btn-add-contact">+ Add Contact</button>
           </div>
         </div>
 
@@ -241,7 +244,7 @@
                 <div class="card-info-block">
                   <div class="contact-info">
                     <div class="info-row" v-if="m.contact_name">
-                      <span class="info-icon"><User :size="12" :stroke-width="1.5" /></span><strong>{{ m.contact_name }}</strong>
+                      <span class="info-icon"><User :size="12" :stroke-width="1.5" /></span><strong>{{ m.contact_name }}</strong><button @click.stop="quickSetPrimary(m, null)" class="btn-primary-star" :class="{ 'is-primary': !m.primary_contact_id }" :title="!m.primary_contact_id ? 'Primary contact' : 'Set as primary'">★</button>
                     </div>
                     <div class="info-row" v-if="m.phone">
                       <span class="info-icon"><Phone :size="12" :stroke-width="1.5" /></span><a :href="'tel:'+m.phone">{{ m.phone }}</a>
@@ -255,7 +258,7 @@
                     <template v-if="m.manufacturer_contacts?.length">
                       <div class="info-row" style="margin-top:4px;"><span class="info-icon"><User :size="12" :stroke-width="1.5" /></span><span style="font-size:0.7rem;color:var(--text-muted);font-weight:600;text-transform:uppercase;">More contacts</span></div>
                       <div v-for="c in m.manufacturer_contacts" :key="c.id" class="info-row" style="padding-left:16px;gap:4px;">
-                        <span style="font-size:0.78rem;"><strong>{{ c.name }}</strong><span v-if="c.is_primary" style="color:#f59e0b;margin-left:3px;" title="Primary contact">★</span><span v-if="c.title" style="color:var(--text-muted)"> · {{ c.title }}</span></span>
+                        <span style="font-size:0.78rem;"><strong>{{ c.name }}</strong><button @click.stop="quickSetPrimary(m, c.id)" class="btn-primary-star" :class="{ 'is-primary': m.primary_contact_id === c.id }" :title="m.primary_contact_id === c.id ? 'Primary contact' : 'Set as primary'" style="margin-left:3px;">★</button><span v-if="c.title" style="color:var(--text-muted)"> · {{ c.title }}</span></span>
                         <a v-if="c.email" :href="'mailto:'+c.email" style="font-size:0.75rem;color:var(--primary);">{{ c.email }}</a>
                       </div>
                     </template>
@@ -606,6 +609,7 @@ const editing = ref(false)
 const editingFolder = ref(false)
 const editId = ref(null)
 const contacts = ref([]) // extra contacts during edit
+const primarySelection = ref('default') // 'default' | manufacturer_contacts id | a new contact's _localKey
 const fuDlPanel = ref(false)
 const fuDlFrom  = ref('')
 const fuDlTo    = ref('')
@@ -950,12 +954,14 @@ async function saveManufacturer() {
   }
 
   let err = null
+  let manufacturerId = editId.value
   if (editing.value) {
     const { error } = await supabase.from('manufacturers').update(cleanPayload).eq('id', editId.value)
     err = error
   } else {
-    const { error } = await supabase.from('manufacturers').insert([cleanPayload])
+    const { data, error } = await supabase.from('manufacturers').insert([cleanPayload]).select().single()
     err = error
+    manufacturerId = data?.id
   }
 
   if (err) {
@@ -963,20 +969,36 @@ async function saveManufacturer() {
     return alert('Error guardando en la base de datos: ' + err.message)
   }
 
-  // Sync extra contacts (only when editing — new manufacturers get the ID after insert)
-  if (editing.value && editId.value) {
-    const toDelete = contacts.value.filter(c => c._deleted && c.id)
-    const toUpsert = contacts.value.filter(c => !c._deleted)
-    if (toDelete.length) await supabase.from('manufacturer_contacts').delete().in('id', toDelete.map(c => c.id))
-    for (const c of toUpsert) {
-      const payload = { manufacturer_id: editId.value, name: c.name, email: c.email, phone: c.phone, title: c.title, is_primary: c.is_primary || false }
-      if (c.id) await supabase.from('manufacturer_contacts').update(payload).eq('id', c.id)
-      else await supabase.from('manufacturer_contacts').insert([payload])
+  // Sync extra contacts (runs for both create and edit now that we have manufacturerId)
+  const toDelete = contacts.value.filter(c => c._deleted && c.id)
+  const toUpsert = contacts.value.filter(c => !c._deleted)
+  if (toDelete.length) await supabase.from('manufacturer_contacts').delete().in('id', toDelete.map(c => c.id))
+  const resolvedIds = {} // _localKey -> real DB id, only populated for brand-new rows
+  for (const c of toUpsert) {
+    // ponytail: is_primary no longer written — manufacturers.primary_contact_id is now the
+    // single source of truth, avoids two disagreeing fields. Column + read left in place.
+    const payload = { manufacturer_id: manufacturerId, name: c.name, email: c.email, phone: c.phone, title: c.title }
+    if (c.id) {
+      await supabase.from('manufacturer_contacts').update(payload).eq('id', c.id)
+    } else {
+      const { data } = await supabase.from('manufacturer_contacts').insert([payload]).select().single()
+      resolvedIds[c._localKey] = data?.id
     }
   }
 
+  const finalPrimaryId = primarySelection.value === 'default'
+    ? null
+    : (resolvedIds[primarySelection.value] ?? primarySelection.value)
+  await supabase.from('manufacturers').update({ primary_contact_id: finalPrimaryId }).eq('id', manufacturerId)
+
   resetForm()
   fetchManufacturers()
+}
+
+async function quickSetPrimary(m, id) {
+  const { error } = await supabase.from('manufacturers').update({ primary_contact_id: id }).eq('id', m.id)
+  if (error) return alert('Error: ' + error.message)
+  m.primary_contact_id = id
 }
 
 async function saveFolder() {
@@ -1041,13 +1063,8 @@ async function editManufacturer(m) {
   editing.value = true
   showForm.value = true
   const { data } = await supabase.from('manufacturer_contacts').select('*').eq('manufacturer_id', m.id).order('created_at')
-  contacts.value = data || []
-}
-
-function setPrimaryContact(idx) {
-  const visible = contacts.value.filter(c => !c._deleted)
-  contacts.value.forEach(c => { c.is_primary = false })
-  visible[idx].is_primary = true
+  contacts.value = (data || []).map(c => ({ ...c, _localKey: c.id }))
+  primarySelection.value = m.primary_contact_id || 'default'
 }
 
 function resetForm() {
@@ -1060,6 +1077,7 @@ function resetForm() {
   selectedCategories.value = []
   selectedCertifications.value = []
   contacts.value = []
+  primarySelection.value = 'default'
   editing.value = false
   editId.value = null
   showForm.value = false
