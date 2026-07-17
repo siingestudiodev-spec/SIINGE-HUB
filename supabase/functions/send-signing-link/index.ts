@@ -22,6 +22,7 @@ serve(async (req: Request) => {
   try {
     const {
       manufacturer_email,
+      extra_recipients = [],
       manufacturer_name,
       document_type,
       portal_url,
@@ -112,7 +113,7 @@ serve(async (req: Request) => {
       },
       body: JSON.stringify({
         from: 'SIINGE Studio <production@siinge.studio>',
-        to: [manufacturer_email],
+        to: [manufacturer_email, ...extra_recipients],
         subject: custom_subject || `${docTypeFormatted} Signing Request — SIINGE STUDIO`,
         html,
         open_tracking: true,

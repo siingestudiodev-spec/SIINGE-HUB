@@ -504,9 +504,21 @@
         <button @click="closeSendDocumentsModal" class="modal-close">✕</button>
       </div>
       <div class="modal-body">
-        <p style="color: var(--text-muted); font-size: 0.85rem; margin: 0 0 1rem;">
+        <p style="color: var(--text-muted); font-size: 0.85rem; margin: 0 0 0.5rem;">
           Sending to: <strong>{{ sendDocumentsModal.manufacturer.email }}</strong>
         </p>
+        <div class="sdm-section">
+          <label style="font-size: 0.75rem; color: var(--text-muted); display:block; margin-bottom:0.25rem;">Additional Recipients (comma-separated)</label>
+          <input
+            v-model="sdmExtraRecipients"
+            type="text"
+            placeholder="email2@example.com, email3@example.com"
+            style="width:100%; padding: 0.5rem 0.75rem; font-size: 0.85rem; border: 1px solid var(--border-main); border-radius: 6px; background: var(--bg-app); color: var(--text-main); box-sizing: border-box;"
+          />
+          <p style="font-size: 0.72rem; color: var(--text-muted); margin: 0.35rem 0 0;">
+            Everyone listed receives the same email, in the same thread.
+          </p>
+        </div>
 
         <!-- DOCUMENT SELECTION -->
         <div class="sdm-section">
@@ -673,6 +685,7 @@ const sdmSending = ref(false)
 const sdmError = ref(null)
 const sdmEditableSubject = ref('')
 const sdmEditableBody = ref('')
+const sdmExtraRecipients = ref('')
 
 // Plain-text default email explaining the why of NDA/MMA. Links + expiration are
 // appended automatically at send time, so they are not part of the editable body.
@@ -1298,6 +1311,7 @@ function openSendDocumentsModal(manufacturer) {
   sdmLanguage.value = 'en'
   sdmTemplate.value = null
   sdmError.value = null
+  sdmExtraRecipients.value = ''
   sendDocumentsModal.value.manufacturer = manufacturer
   sendDocumentsModal.value.show = true
   refreshDefaultEmail()
@@ -1364,7 +1378,13 @@ async function sendDocuments() {
       : `New Development Inquiry — ${docFull}`
     const customSubject = sdmEditableSubject.value || defaultSubject
 
-    // Send single email with all documents
+    const extraRecipients = sdmExtraRecipients.value.split(',').map(e => e.trim()).filter(Boolean)
+    const invalidEmails = extraRecipients.filter(e => !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e))
+    if (invalidEmails.length) {
+      throw new Error(`Invalid email(s): ${invalidEmails.join(', ')}`)
+    }
+
+    // Send single email with all documents, to the manufacturer + any extra recipients, same thread
     const res = await fetch(`${SUPABASE_URL}/functions/v1/send-signing-link`, {
       method: 'POST',
       headers: {
@@ -1373,6 +1393,7 @@ async function sendDocuments() {
       },
       body: JSON.stringify({
         manufacturer_email: sendDocumentsModal.value.manufacturer.email,
+        extra_recipients: extraRecipients,
         manufacturer_name: company,
         document_type: sdmSelectedDocs.value.join('/'),
         portal_url: documentLinks[0].url,
