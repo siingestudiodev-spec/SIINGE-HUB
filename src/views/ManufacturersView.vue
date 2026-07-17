@@ -574,7 +574,7 @@
               />
             </div>
             <p style="font-size: 0.72rem; color: var(--text-muted); margin: 0;">
-              The signing link button{{ sdmSelectedDocs.length > 1 ? 's' : '' }} and expiration date are added automatically at the end.
+              The signing link button{{ sdmSelectedDocs.length > 1 ? 's' : '' }} and expiration date are inserted where you write <code>[BOTONES]</code> or <code>[BUTTONS]</code>, or appended at the end if you don't include that placeholder.
             </p>
           </div>
         </div>
@@ -1363,12 +1363,16 @@ async function sendDocuments() {
       day: 'numeric',
     })
 
-    // Body comes from the editable field (default text or chosen template);
-    // links + expiration are appended automatically here.
+    // Body comes from the editable field (default text or chosen template).
+    // If it contains a [BOTONES]/[BUTTONS] placeholder, the buttons are inserted
+    // there; otherwise they're appended at the end (previous behavior).
     const es = sdmLanguage.value === 'es'
     const expiresLabel = es ? 'Los enlaces expiran:' : 'Links expire:'
-    const tail = `\n\n${linksHtml}<p style="color: #666; font-size: 14px;"><strong>${expiresLabel}</strong> ${expiresDate}</p>`
-    const emailBody = sdmEditableBody.value + tail
+    const buttonsBlock = `${linksHtml}<p style="color: #666; font-size: 14px;"><strong>${expiresLabel}</strong> ${expiresDate}</p>`
+    const buttonsPlaceholder = /\[botones\]|\[buttons\]/i
+    const emailBody = buttonsPlaceholder.test(sdmEditableBody.value)
+      ? sdmEditableBody.value.replace(buttonsPlaceholder, buttonsBlock)
+      : sdmEditableBody.value + `\n\n${buttonsBlock}`
 
     const docTypes = documentLinks.map(d => d.type).join(' & ')
     const fullNames = { NDA: 'Non-Disclosure Agreement', MMA: 'Master Manufacturer Agreement' }
