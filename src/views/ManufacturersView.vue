@@ -612,9 +612,7 @@ const SUPABASE_URL      = import.meta.env.VITE_SUPABASE_URL
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
 
 
-// ponytail: temporary switch to hide the manufacturers list from the UI without touching
-// data or other views. Flip back to false (and redeploy) to make the list visible again.
-const manufacturersListHidden = true
+const manufacturersListHidden = false
 const manufacturers = ref([])
 const folders = ref([])
 const templatesList = ref([])
