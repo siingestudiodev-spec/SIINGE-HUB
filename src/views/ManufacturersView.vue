@@ -204,7 +204,8 @@
       <button @click="fuDlPanel = false" class="btn-clear">✕</button>
     </div>
 
-    <div v-if="loading" class="loading">Loading...</div>
+    <div v-if="manufacturersListHidden" class="empty" style="padding: 3rem 1rem; text-align: center;">Manufacturers list is temporarily unavailable.</div>
+    <div v-else-if="loading" class="loading">Loading...</div>
     <div v-else-if="filteredFolders.length === 0 && filteredManufacturers.length === 0" class="empty">No manufacturers or folders found.</div>
     
     <div v-else class="list-container">
@@ -611,6 +612,9 @@ const SUPABASE_URL      = import.meta.env.VITE_SUPABASE_URL
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
 
 
+// ponytail: temporary switch to hide the manufacturers list from the UI without touching
+// data or other views. Flip back to false (and redeploy) to make the list visible again.
+const manufacturersListHidden = true
 const manufacturers = ref([])
 const folders = ref([])
 const templatesList = ref([])
