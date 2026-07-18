@@ -5,7 +5,29 @@
         <h1>Sourcing</h1>
         <p class="subtitle">Raw material & input providers</p>
       </div>
-      <button @click="openAddForm" class="btn-primary">+ Add Provider</button>
+      <div class="header-actions">
+        <button @click="openFolderForm" class="btn-secondary">
+          <Folder :size="13" :stroke-width="1.5" /> {{ showFolderForm ? 'Cancel Folder' : '+ New Folder' }}
+        </button>
+        <button @click="openAddForm" class="btn-primary">+ Add Provider</button>
+      </div>
+    </div>
+
+    <!-- Folder create/edit modal -->
+    <div v-if="showFolderForm" class="modal-overlay" @click.self="resetFolderForm">
+      <div class="modal-box" style="max-width:420px;">
+        <div class="modal-box-header">
+          <h2>{{ editingFolder ? 'Edit Folder' : 'Create New Folder' }}</h2>
+          <button @click="resetFolderForm" class="modal-close-btn">✕</button>
+        </div>
+        <div class="modal-box-body">
+          <input v-model="folderForm.name" placeholder="Folder Name *" class="modal-input" />
+        </div>
+        <div class="modal-box-actions">
+          <button @click="resetFolderForm" class="btn-secondary">Cancel</button>
+          <button @click="saveFolder" class="btn-primary">{{ editingFolder ? 'Update Folder' : 'Create Folder' }}</button>
+        </div>
+      </div>
     </div>
 
     <div class="filters-bar">
@@ -17,7 +39,11 @@
         <option value="">All Countries</option>
         <option v-for="c in availableCountries" :key="c" :value="c">{{ c }}</option>
       </select>
-      <button v-if="filterType || filterCountry" @click="clearFilters" class="btn-clear">✕ Clear</button>
+      <select v-model="filterFolder" class="filter-select">
+        <option value="">All Folders</option>
+        <option v-for="f in folders" :key="f.id" :value="f.id">{{ f.name }}</option>
+      </select>
+      <button v-if="filterType || filterCountry || filterFolder" @click="clearFilters" class="btn-clear">✕ Clear</button>
       <span class="results-count">{{ filteredProviders.length }} provider{{ filteredProviders.length !== 1 ? 's' : '' }}</span>
     </div>
 
@@ -25,9 +51,16 @@
       <h2 class="title">{{ editingId ? 'Edit Provider' : 'New Provider' }}</h2>
       <div class="form-grid">
         <input v-model="form.provider" placeholder="Provider Name *" />
+        <select v-model="form.folder_id">
+          <option :value="null">No Folder</option>
+          <option v-for="f in folders" :key="f.id" :value="f.id">{{ f.name }}</option>
+        </select>
         <input v-model="form.country" placeholder="Country" />
         <input v-model="form.city" placeholder="City" />
-        <input v-model="form.contact_name" placeholder="Contact Name" />
+        <div class="contact-name-field">
+          <button type="button" @click="primarySelection = 'default'" :class="['btn-primary-star', primarySelection === 'default' ? 'is-primary' : '']" :title="primarySelection === 'default' ? 'Primary contact' : 'Set as primary'">★</button>
+          <input v-model="form.contact_name" placeholder="Contact Name" style="flex:1;" />
+        </div>
         <input v-model="form.phone" placeholder="Phone" />
         <input v-model="form.email" placeholder="Email" />
         <input v-model="form.address" placeholder="Address" />
@@ -57,6 +90,19 @@
         </div>
       </div>
 
+      <div class="contacts-section">
+        <label class="types-label">Additional Contacts</label>
+        <div v-for="c in contacts.filter(c => !c._deleted)" :key="c._localKey" class="contact-row">
+          <button @click="primarySelection = c._localKey" :class="['btn-primary-star', primarySelection === c._localKey ? 'is-primary' : '']" :title="primarySelection === c._localKey ? 'Primary contact' : 'Set as primary'">★</button>
+          <input v-model="c.name" placeholder="Name" class="contact-input" />
+          <input v-model="c.title" placeholder="Title" class="contact-input" />
+          <input v-model="c.email" placeholder="Email" class="contact-input" />
+          <input v-model="c.phone" placeholder="Phone" class="contact-input" />
+          <button @click="removeContact(c)" class="btn-delete-contact" title="Remove">✕</button>
+        </div>
+        <button @click="addContact" class="btn-add-contact">+ Add Contact</button>
+      </div>
+
       <textarea v-model="form.notes" placeholder="Notes" rows="2"></textarea>
       <div class="form-actions">
         <button @click="saveProvider" class="btn-primary">
@@ -67,53 +113,83 @@
     </div>
 
     <div v-if="loading" class="loading">Loading...</div>
-    <div v-else-if="filteredProviders.length === 0" class="empty">No providers match your filters.</div>
-    <div v-else class="cards-grid">
-      <div v-for="p in filteredProviders" :key="p.id" class="provider-card">
-        <div class="card-header">
-          <div class="provider-avatar">{{ p.provider?.charAt(0) }}</div>
-          <div>
-            <strong>{{ p.provider }}</strong>
-            <div class="card-location">{{ [p.city, p.country].filter(Boolean).join(', ') || '—' }}</div>
+    <div v-else-if="filteredFolders.length === 0" class="empty">No providers or folders found.</div>
+    <div v-else class="folders-list">
+      <div v-for="folder in filteredFolders" :key="folder.id" class="folder-section">
+        <div class="folder-header" @click="toggleFolder(folder.id)">
+          <div class="folder-info-wrapper">
+            <span class="expand-icon">{{ isExpanded(folder.id) ? '▼' : '▶' }}</span>
+            <h2 class="folder-title"><Folder :size="15" :stroke-width="1.5" /> {{ folder.name }}
+              <span class="empty-badge">{{ folder.providers.length === 0 ? '(Empty)' : `(${folder.providers.length})` }}</span>
+            </h2>
           </div>
-          <div class="card-actions">
-            <button @click="editProvider(p)" class="btn-edit"><Pencil :size="13" :stroke-width="1.5" /></button>
-            <button @click="deleteProvider(p.id)" class="btn-delete">✕</button>
+          <div class="folder-actions" @click.stop v-if="folder.id !== 'no-folder'">
+            <button @click="editFolder(folder)" class="btn-edit" title="Edit Folder"><Pencil :size="13" :stroke-width="1.5" /></button>
+            <button @click="deleteFolder(folder.id)" class="btn-delete" title="Delete Folder"><Trash2 :size="13" :stroke-width="1.5" /></button>
           </div>
         </div>
 
-        <div class="types-tags">
-          <span v-for="t in parseTypes(p.types)" :key="t" class="type-tag">{{ t }}</span>
-        </div>
+        <transition name="slide-fade">
+          <div v-show="isExpanded(folder.id)" class="folder-content">
+            <div v-if="folder.providers.length > 0" class="cards-grid">
+              <div v-for="p in folder.providers" :key="p.id" class="provider-card">
+                <div class="card-header">
+                  <div class="provider-avatar">{{ p.provider?.charAt(0) }}</div>
+                  <div>
+                    <strong>{{ p.provider }}</strong>
+                    <div class="card-location">{{ [p.city, p.country].filter(Boolean).join(', ') || '—' }}</div>
+                  </div>
+                  <div class="card-actions">
+                    <button @click="editProvider(p)" class="btn-edit"><Pencil :size="13" :stroke-width="1.5" /></button>
+                    <button @click="deleteProvider(p.id)" class="btn-delete">✕</button>
+                  </div>
+                </div>
 
-        <div class="card-info">
-          <div v-if="p.contact_name"><User :size="12" :stroke-width="1.5" /> {{ p.contact_name }}</div>
-          <div v-if="p.phone"><Phone :size="12" :stroke-width="1.5" /> {{ p.phone }}</div>
-          <div v-if="p.email">{{ p.email }}</div>
-          <div v-if="p.address"><MapPin :size="12" :stroke-width="1.5" /> {{ p.address }}</div>
-          <div v-if="p.website"><a :href="p.website" target="_blank"><Globe :size="12" :stroke-width="1.5" /> {{ p.website }}</a></div>
-        </div>
+                <div class="types-tags">
+                  <span v-for="t in parseTypes(p.types)" :key="t" class="type-tag">{{ t }}</span>
+                </div>
 
-        <div class="card-footer">
-          <div class="stars-display">
-            <span v-for="n in 5" :key="n" class="star" :class="{ active: n <= p.reliability }">★</span>
+                <div class="card-info">
+                  <div v-if="p.contact_name"><User :size="12" :stroke-width="1.5" /> {{ p.contact_name }}<button @click.stop="quickSetPrimary(p, null)" class="btn-primary-star" :class="{ 'is-primary': !p.primary_contact_id }" :title="!p.primary_contact_id ? 'Primary contact' : 'Set as primary'">★</button></div>
+                  <div v-if="p.phone"><Phone :size="12" :stroke-width="1.5" /> {{ p.phone }}</div>
+                  <div v-if="p.email">{{ p.email }}</div>
+                  <div v-if="p.address"><MapPin :size="12" :stroke-width="1.5" /> {{ p.address }}</div>
+                  <div v-if="p.website"><a :href="p.website" target="_blank"><Globe :size="12" :stroke-width="1.5" /> {{ p.website }}</a></div>
+                  <template v-if="p.sourcing_contacts?.length">
+                    <div class="more-contacts-label"><User :size="12" :stroke-width="1.5" /> More contacts</div>
+                    <div v-for="c in p.sourcing_contacts" :key="c.id" class="more-contact-row">
+                      <span><strong>{{ c.name }}</strong><button @click.stop="quickSetPrimary(p, c.id)" class="btn-primary-star" :class="{ 'is-primary': p.primary_contact_id === c.id }" :title="p.primary_contact_id === c.id ? 'Primary contact' : 'Set as primary'" style="margin-left:3px;">★</button><span v-if="c.title"> · {{ c.title }}</span></span>
+                      <a v-if="c.email" :href="'mailto:'+c.email">{{ c.email }}</a>
+                    </div>
+                  </template>
+                </div>
+
+                <div class="card-footer">
+                  <div class="stars-display">
+                    <span v-for="n in 5" :key="n" class="star" :class="{ active: n <= p.reliability }">★</span>
+                  </div>
+                  <div v-if="p.notes" class="card-notes">{{ p.notes }}</div>
+                  <a v-if="p.catalogue_url" :href="p.catalogue_url" target="_blank" class="btn-catalogue">
+                    <BookOpen :size="13" :stroke-width="1.5" /> Catalogue
+                  </a>
+                  <div class="card-email-actions">
+                    <button @click="openEmailModal(p)" class="btn-email-action" :disabled="!p.email">
+                      ✉ Send Email
+                    </button>
+                    <button @click="openLogModal(p)" class="btn-log-action">📋 Log Contact</button>
+                    <button v-if="emailLogs[p.id]?.length" @click="openHistoryPopup(p)" class="btn-history">
+                      {{ emailLogs[p.id].length }} log{{ emailLogs[p.id].length !== 1 ? 's' : '' }}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div v-else class="empty-folder-message">No providers in this folder yet.</div>
           </div>
-          <div v-if="p.notes" class="card-notes">{{ p.notes }}</div>
-          <a v-if="p.catalogue_url" :href="p.catalogue_url" target="_blank" class="btn-catalogue">
-            <BookOpen :size="13" :stroke-width="1.5" /> Catalogue
-          </a>
-          <div class="card-email-actions">
-            <button @click="openEmailModal(p)" class="btn-email-action" :disabled="!p.email">
-              ✉ Send Email
-            </button>
-            <button @click="openLogModal(p)" class="btn-log-action">📋 Log Contact</button>
-            <button v-if="emailLogs[p.id]?.length" @click="openHistoryPopup(p)" class="btn-history">
-              {{ emailLogs[p.id].length }} log{{ emailLogs[p.id].length !== 1 ? 's' : '' }}
-            </button>
-          </div>
-        </div>
+        </transition>
       </div>
     </div>
+
     <!-- Email modal -->
     <div v-if="emailModal.show" class="modal-overlay" @click.self="emailModal.show = false">
       <div class="modal-box">
@@ -183,7 +259,7 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import { supabase } from '../lib/supabase'
-import { User, Phone, MapPin, Globe, Pencil, BookOpen } from 'lucide-vue-next'
+import { User, Phone, MapPin, Globe, Pencil, BookOpen, Folder, Trash2 } from 'lucide-vue-next'
 
 const SUPABASE_URL      = import.meta.env.VITE_SUPABASE_URL
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
@@ -193,6 +269,16 @@ const loading = ref(true)
 const showForm = ref(false)
 const editingId = ref(null)
 const emailLogs = ref({})
+const contacts = ref([]) // extra contacts during add/edit
+const primarySelection = ref('default') // 'default' | sourcing_contacts id | a new contact's _localKey
+
+const folders = ref([])
+const showFolderForm = ref(false)
+const folderForm = ref({ name: '' })
+const editingFolder = ref(false)
+const editFolderId = ref(null)
+const filterFolder = ref('')
+const expandedFolders = ref(new Set(['no-folder']))
 
 const emailModal = ref({ show: false, providerId: null, providerName: '', subject: '', body: '', cc: '', sending: false, error: '' })
 const logModal   = ref({ show: false, providerId: null, providerName: '', note: '', date: new Date().toISOString().split('T')[0] })
@@ -206,7 +292,8 @@ const typeOptions = ['Yarns', 'Fabrics', 'Tags', 'Packaging', 'Stickers', 'Trims
 const emptyForm = () => ({
   provider: '', types: [], country: '', city: '',
   contact_name: '', phone: '', email: '',
-  address: '', website: '', catalogue_url: '', reliability: 0, notes: ''
+  address: '', website: '', catalogue_url: '', reliability: 0, notes: '',
+  folder_id: null
 })
 
 const form = ref(emptyForm())
@@ -234,22 +321,73 @@ const filteredProviders = computed(() => {
     const types = parseTypes(p.types)
     const matchType = !filterType.value || types.includes(filterType.value)
     const matchCountry = !filterCountry.value || p.country === filterCountry.value
-    return matchType && matchCountry
+    const matchFolder = !filterFolder.value || p.folder_id === filterFolder.value
+    return matchType && matchCountry && matchFolder
   })
 })
+
+const filteredFolders = computed(() => {
+  const folderMap = {}
+
+  folders.value.forEach(f => {
+    folderMap[f.id] = { id: f.id, name: f.name, providers: [] }
+  })
+
+  folderMap['no-folder'] = { id: 'no-folder', name: 'No Folder', providers: [] }
+
+  filteredProviders.value.forEach(p => {
+    const folderId = p.folder_id || 'no-folder'
+    if (folderMap[folderId]) {
+      folderMap[folderId].providers.push(p)
+    } else {
+      folderMap['no-folder'].providers.push(p)
+    }
+  })
+
+  return Object.values(folderMap)
+    .filter(f => f.providers.length > 0 || (!filterType.value && !filterCountry.value))
+    .sort((a, b) => {
+      if (a.id === 'no-folder') return 1
+      if (b.id === 'no-folder') return -1
+      return a.name.localeCompare(b.name)
+    })
+})
+
+function toggleFolder(id) {
+  if (expandedFolders.value.has(id)) {
+    expandedFolders.value.delete(id)
+  } else {
+    expandedFolders.value.add(id)
+  }
+}
+function isExpanded(id) {
+  return expandedFolders.value.has(id)
+}
 
 function clearFilters() {
   filterType.value = ''
   filterCountry.value = ''
+  filterFolder.value = ''
 }
 
 function openAddForm() {
   editingId.value = null
   form.value = emptyForm()
+  contacts.value = []
+  primarySelection.value = 'default'
   showForm.value = true
 }
 
-function editProvider(p) {
+function addContact() {
+  contacts.value.push({ _localKey: crypto.randomUUID(), name: '', title: '', email: '', phone: '' })
+}
+
+function removeContact(c) {
+  c._deleted = true
+  if (primarySelection.value === c._localKey) primarySelection.value = 'default'
+}
+
+async function editProvider(p) {
   editingId.value = p.id
   form.value = {
     provider: p.provider || '',
@@ -263,23 +401,91 @@ function editProvider(p) {
     website: p.website || '',
     catalogue_url: p.catalogue_url || '',
     reliability: p.reliability || 0,
-    notes: p.notes || ''
+    notes: p.notes || '',
+    folder_id: p.folder_id || null
   }
   showForm.value = true
+  const { data } = await supabase.from('sourcing_contacts').select('*').eq('sourcing_id', p.id).order('created_at')
+  contacts.value = (data || []).map(c => ({ ...c, _localKey: c.id }))
+  primarySelection.value = p.primary_contact_id || 'default'
 }
 
 function cancelForm() {
   showForm.value = false
   editingId.value = null
   form.value = emptyForm()
+  contacts.value = []
+  primarySelection.value = 'default'
 }
 
 async function fetchProviders() {
   loading.value = true
-  const { data } = await supabase.from('sourcing').select('*').order('provider')
+  // sourcing_contacts!sourcing_id disambiguates the embed: primary_contact_id is a
+  // second FK between these two tables, so PostgREST needs to be told which one to follow.
+  const { data, error } = await supabase
+    .from('sourcing')
+    .select('*, sourcing_contacts!sourcing_id(id, name, email, phone, title)')
+    .order('provider')
+  if (error) {
+    console.error('Error fetching sourcing providers:', error)
+    alert('Error loading providers: ' + error.message)
+  }
   providers.value = data || []
   loading.value = false
   fetchAllLogs()
+}
+
+async function fetchFolders() {
+  const { data } = await supabase.from('folders').select('*').order('name')
+  folders.value = data || []
+}
+
+function openFolderForm() {
+  if (showFolderForm.value) {
+    resetFolderForm()
+    return
+  }
+  resetFolderForm()
+  showFolderForm.value = true
+}
+
+function resetFolderForm() {
+  folderForm.value = { name: '' }
+  editingFolder.value = false
+  editFolderId.value = null
+  showFolderForm.value = false
+}
+
+function editFolder(f) {
+  folderForm.value.name = f.name
+  editFolderId.value = f.id
+  editingFolder.value = true
+  showFolderForm.value = true
+}
+
+async function saveFolder() {
+  if (!folderForm.value.name.trim()) return alert('Folder name required')
+
+  if (editingFolder.value) {
+    const { error } = await supabase.from('folders').update({ name: folderForm.value.name }).eq('id', editFolderId.value)
+    if (error) return alert('Error updating folder: ' + error.message)
+  } else {
+    const { error } = await supabase.from('folders').insert([{ name: folderForm.value.name }])
+    if (error) return alert('Error creating folder: ' + error.message)
+  }
+
+  resetFolderForm()
+  fetchFolders()
+}
+
+async function deleteFolder(folderId) {
+  if (!confirm('Are you sure? This will not delete providers, but they will be moved to "No Folder".')) return
+
+  await supabase.from('sourcing').update({ folder_id: null }).eq('folder_id', folderId)
+  await supabase.from('folders').delete().eq('id', folderId)
+
+  fetchFolders()
+  fetchProviders()
 }
 
 async function fetchAllLogs() {
@@ -338,14 +544,50 @@ async function saveProvider() {
     types: form.value.types
   }
 
+  let err = null
+  let sourcingId = editingId.value
   if (editingId.value) {
-    await supabase.from('sourcing').update(payload).eq('id', editingId.value)
+    const { error } = await supabase.from('sourcing').update(payload).eq('id', editingId.value)
+    err = error
   } else {
-    await supabase.from('sourcing').insert([payload])
+    const { data, error } = await supabase.from('sourcing').insert([payload]).select().single()
+    err = error
+    sourcingId = data?.id
   }
+
+  if (err) {
+    console.error('Error saving provider:', err)
+    return alert('Error saving provider: ' + err.message)
+  }
+
+  // Sync extra contacts (runs for both create and edit)
+  const toDelete = contacts.value.filter(c => c._deleted && c.id)
+  const toUpsert = contacts.value.filter(c => !c._deleted)
+  if (toDelete.length) await supabase.from('sourcing_contacts').delete().in('id', toDelete.map(c => c.id))
+  const resolvedIds = {} // _localKey -> real DB id, only populated for brand-new rows
+  for (const c of toUpsert) {
+    const contactPayload = { sourcing_id: sourcingId, name: c.name, email: c.email, phone: c.phone, title: c.title }
+    if (c.id) {
+      await supabase.from('sourcing_contacts').update(contactPayload).eq('id', c.id)
+    } else {
+      const { data } = await supabase.from('sourcing_contacts').insert([contactPayload]).select().single()
+      resolvedIds[c._localKey] = data?.id
+    }
+  }
+
+  const finalPrimaryId = primarySelection.value === 'default'
+    ? null
+    : (resolvedIds[primarySelection.value] ?? primarySelection.value)
+  await supabase.from('sourcing').update({ primary_contact_id: finalPrimaryId }).eq('id', sourcingId)
 
   cancelForm()
   fetchProviders()
+}
+
+async function quickSetPrimary(p, id) {
+  const { error } = await supabase.from('sourcing').update({ primary_contact_id: id }).eq('id', p.id)
+  if (error) return alert('Error: ' + error.message)
+  p.primary_contact_id = id
 }
 
 async function deleteProvider(id) {
@@ -354,12 +596,16 @@ async function deleteProvider(id) {
   fetchProviders()
 }
 
-onMounted(fetchProviders)
+onMounted(() => {
+  fetchProviders()
+  fetchFolders()
+})
 </script>
 
 <style scoped>
 .container { max-width: 1400px; margin: 0 auto; padding: 2rem 1.5rem; }
 .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 2rem; }
+.header-actions { display: flex; gap: 0.75rem; }
 h1 { font-size: 2rem; font-weight: 700; color: var(--text-main); }
 .subtitle { color: var(--text-body); margin-top: 0.25rem; font-size: 0.92rem; }
 
@@ -373,12 +619,14 @@ h1 { font-size: 2rem; font-weight: 700; color: var(--text-main); }
 .form-card { background: var(--bg-card); padding: 2rem; border-radius: 16px; margin-bottom: 2rem; border: 1.5px solid var(--border-main); box-shadow: 0 4px 24px rgba(79,70,229,0.07); }
 .form-card h2 { font-size: 1.1rem; margin-bottom: 1.25rem; color: var(--text-main); }
 .form-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.75rem; margin-bottom: 1.25rem; }
-input, textarea { width: 100%; padding: 0.7rem 1rem; border: 1.5px solid var(--border-main); border-radius: 10px; font-size: 0.92rem; color: var(--text-main); background: var(--bg-card); font-family: 'Poppins', sans-serif; transition: border-color 0.15s; box-sizing: border-box; }
-input:focus, textarea:focus { outline: none; border-color: var(--primary); }
+input, textarea, select { width: 100%; padding: 0.7rem 1rem; border: 1.5px solid var(--border-main); border-radius: 10px; font-size: 0.92rem; color: var(--text-main); background: var(--bg-card); font-family: 'Poppins', sans-serif; transition: border-color 0.15s; box-sizing: border-box; }
+input:focus, textarea:focus, select:focus { outline: none; border-color: var(--primary); }
 textarea { resize: vertical; margin-top: 0.75rem; }
 .form-actions { margin-top: 1rem; display: flex; gap: 0.75rem; }
+.full-row { grid-column: 1 / -1; }
+.contact-name-field { display: flex; align-items: center; gap: 4px; }
 
-.types-section, .reliability-section { margin-bottom: 1.25rem; }
+.types-section, .reliability-section, .contacts-section { margin-bottom: 1.25rem; }
 .types-label { display: block; font-size: 0.85rem; font-weight: 600; color: var(--text-body); margin-bottom: 0.6rem; text-transform: uppercase; letter-spacing: 0.05em; }
 .types-grid { display: flex; flex-wrap: wrap; gap: 0.5rem; }
 .type-checkbox { display: flex; align-items: center; gap: 0.4rem; background: var(--border-light); border: 1.5px solid var(--border-main); padding: 0.35rem 0.75rem; border-radius: 20px; cursor: pointer; font-size: 0.85rem; transition: all 0.15s; color: var(--text-body); }
@@ -391,6 +639,32 @@ textarea { resize: vertical; margin-top: 0.75rem; }
 .stars-display { display: flex; gap: 0.15rem; }
 .stars-display .star { font-size: 1rem; cursor: default; }
 
+.contact-row { display: grid; grid-template-columns: auto 1fr 1fr 1fr 1fr auto; gap: 0.4rem; margin-bottom: 0.4rem; align-items: center; }
+.contact-input { padding: 0.5rem 0.7rem; font-size: 0.85rem; }
+.btn-primary-star { background: none; border: none; cursor: pointer; font-size: 1rem; color: var(--border-main); padding: 0; line-height: 1; }
+.btn-primary-star.is-primary { color: #f59e0b; }
+.btn-primary-star:hover { color: #f59e0b; }
+.btn-add-contact { background: rgba(79, 70, 229, 0.1); color: var(--primary); border: none; padding: 0.4rem 0.9rem; border-radius: 8px; cursor: pointer; font-size: 0.82rem; font-weight: 600; }
+.btn-add-contact:hover { background: rgba(79, 70, 229, 0.15); }
+.btn-delete-contact { background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 0.9rem; padding: 0 0.3rem; }
+.btn-delete-contact:hover { color: #fb7185; }
+
+.folders-list { display: flex; flex-direction: column; }
+.folder-section { margin-bottom: 1.5rem; border-radius: 16px; overflow: hidden; background: var(--bg-card); border: 1px solid var(--border-main); box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+.folder-header { display: flex; justify-content: space-between; align-items: center; padding: 1.2rem 1.5rem; background: var(--bg-app); cursor: pointer; transition: background 0.2s; user-select: none; }
+.folder-header:hover { background: var(--border-light); }
+.folder-info-wrapper { display: flex; align-items: center; gap: 12px; }
+.expand-icon { font-size: 0.8rem; color: var(--text-muted); width: 20px; text-align: center; transition: transform 0.3s; }
+.folder-title { font-size: 1.1rem; font-weight: 700; margin: 0; color: var(--text-main); display: flex; align-items: center; }
+.empty-badge { font-size: 0.75rem; color: var(--text-muted); font-weight: normal; margin-left: 0.5rem; }
+.folder-actions { display: flex; gap: 0.4rem; }
+.folder-content { padding: 1.5rem; border-top: 1px solid var(--border-main); background: var(--bg-card); }
+.empty-folder-message { padding: 1rem 0; color: var(--text-muted); font-style: italic; font-size: 0.85rem; }
+
+.slide-fade-enter-active { transition: all 0.3s ease-out; }
+.slide-fade-leave-active { transition: all 0.2s cubic-bezier(1, 0.5, 0.8, 1); }
+.slide-fade-enter-from, .slide-fade-leave-to { transform: translateY(-10px); opacity: 0; }
+
 .cards-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1.25rem; }
 .provider-card { background: var(--bg-card); border-radius: 16px; border: 1.5px solid var(--border-main); padding: 1.5rem; box-shadow: 0 4px 24px rgba(79,70,229,0.07); display: flex; flex-direction: column; gap: 1rem; }
 .card-header { display: flex; align-items: flex-start; gap: 0.75rem; }
@@ -402,7 +676,6 @@ textarea { resize: vertical; margin-top: 0.75rem; }
 .btn-edit { background: rgba(79, 70, 229, 0.1); color: var(--primary); border: none; padding: 0.35rem 0.7rem; border-radius: 8px; cursor: pointer; font-size: 0.85rem; }
 .btn-edit:hover { background: rgba(79, 70, 229, 0.15); }
 
-.types-tags { display: flex; flex-wrap: wrap; gap: 0.4rem; }
 .types-tags { display: flex; flex-wrap: wrap; gap: 0.4rem; }
 .type-tag {
   background: var(--primary);
@@ -417,6 +690,9 @@ textarea { resize: vertical; margin-top: 0.75rem; }
 .card-info { font-size: 0.85rem; color: var(--text-body); line-height: 1.8; }
 .card-info a { color: var(--primary); text-decoration: none; }
 .card-info a:hover { text-decoration: underline; }
+.more-contacts-label { margin-top: 4px; font-size: 0.7rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; display: flex; align-items: center; gap: 0.3rem; }
+.more-contact-row { padding-left: 16px; display: flex; flex-direction: column; gap: 1px; font-size: 0.78rem; }
+.more-contact-row a { font-size: 0.75rem; }
 
 .card-footer { display: flex; flex-direction: column; gap: 0.5rem; }
 .card-notes { font-size: 0.82rem; color: var(--text-muted); font-style: italic; }
