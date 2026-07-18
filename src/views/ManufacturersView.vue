@@ -156,7 +156,7 @@
               <input v-model="c.phone" placeholder="Phone" class="contact-input" />
               <button @click="c._deleted = true; if (primarySelection === c._localKey) primarySelection = 'default'" class="btn-delete-contact" title="Remove">✕</button>
             </div>
-            <button @click="contacts.push({ _localKey: crypto.randomUUID(), name:'', title:'', email:'', phone:'' })" class="btn-add-contact">+ Add Contact</button>
+            <button @click="addContact" class="btn-add-contact">+ Add Contact</button>
           </div>
         </div>
 
@@ -1067,6 +1067,10 @@ function openFolderForm() {
   }
   resetFolderForm()
   showFolderForm.value = true
+}
+
+function addContact() {
+  contacts.value.push({ _localKey: crypto.randomUUID(), name: '', title: '', email: '', phone: '' })
 }
 
 async function editManufacturer(m) {
