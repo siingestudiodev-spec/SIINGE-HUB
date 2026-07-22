@@ -20,13 +20,6 @@
       <p>{{ error }}</p>
     </div>
 
-    <!-- SUCCESS STATE (Already signed) -->
-    <div v-else-if="isAlreadySigned" class="portal-body success-state">
-      <div class="success-icon">✅</div>
-      <h2>Document Already Signed</h2>
-      <p>{{ formatDate(signedDate) }}</p>
-    </div>
-
     <!-- SIGNING STATE -->
     <div v-else-if="!loading && document" class="portal-body signing-state">
       <div class="signing-container">
@@ -41,6 +34,9 @@
 
         <!-- FORM SECTION -->
         <div class="form-section" v-if="!submitted">
+          <p v-if="isAlreadySigned" class="resign-notice">
+            {{ t.alreadySigned }} {{ formatDate(signedDate) }}. {{ t.resignHint }}
+          </p>
           <h3>{{ t.formTitle }}</h3>
 
           <div class="form-grid">
@@ -140,6 +136,8 @@ const t = computed(() => {
     titleLabel: 'Puesto',
     countryLabel: 'País',
     expires: 'Este enlace expira el',
+    alreadySigned: '⚠️ Este documento ya fue firmado el',
+    resignHint: 'Si firma de nuevo, la nueva firma reemplazará la anterior.',
   }
   const en = {
     title: 'Document Signing Portal',
@@ -165,6 +163,8 @@ const t = computed(() => {
     titleLabel: 'Title',
     countryLabel: 'Country',
     expires: 'This link expires on',
+    alreadySigned: '⚠️ This document was already signed on',
+    resignHint: 'Signing again will replace the previous signature.',
   }
   return lang.value === 'es' ? es : en
 })
@@ -585,6 +585,16 @@ function formatDate(dateString) {
   gap: 0.75rem;
   padding-top: 1rem;
   border-top: 1px solid #e5e7eb;
+}
+
+.resign-notice {
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  color: #92400e;
+  font-size: 0.85rem;
+  margin: 0 0 1rem;
 }
 
 .form-section h3 {

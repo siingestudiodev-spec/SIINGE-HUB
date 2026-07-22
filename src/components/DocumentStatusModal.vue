@@ -44,6 +44,14 @@
       </div>
 
       <div class="modal-actions">
+        <button
+          v-if="document"
+          @click="deleteRecord"
+          :disabled="deleting"
+          class="btn-delete"
+        >
+          {{ deleting ? 'Deleting...' : 'Delete record' }}
+        </button>
         <button @click="close" class="btn-secondary">Close</button>
         <button
           v-if="document && document.is_used"
@@ -68,11 +76,57 @@ const props = defineProps({
   documentType: String, // 'nda' or 'mma'
 })
 
-const emit = defineEmits(['close'])
+const emit = defineEmits(['close', 'deleted'])
 const downloading = ref(false)
+const deleting = ref(false)
 
 function close() {
   emit('close')
+}
+
+async function deleteRecord() {
+  const doc = props.document
+  const type = props.documentType.toUpperCase()
+  if (!confirm(`Delete this ${type} record? The signature and its PDF are erased and the ${type} goes back to unsigned. This cannot be undone.`)) return
+
+  deleting.value = true
+  try {
+    const companySlug = (doc.signer_company_name || '')
+      .trim().replace(/[^a-zA-Z0-9]/g, '_').replace(/_+/g, '_').toLowerCase() || 'unsigned'
+    await supabase.storage.from('signed_documents').remove([
+      `${doc.manufacturer_id}/${companySlug}_${props.documentType}_${doc.id}.pdf`,
+      `${doc.manufacturer_id}/${props.documentType}_${doc.id}.pdf`, // legacy path
+    ])
+
+    const { data, error } = await supabase
+      .from('manufacturer_documents')
+      .delete()
+      .eq('id', doc.id)
+      .select('id')
+    if (error) throw error
+    if (!data?.length) throw new Error('Record was not deleted (check your permissions)')
+
+    // ¿Queda alguna otra firma de este tipo? Si no, el fabricante vuelve a "sin firmar"
+    const { count } = await supabase
+      .from('manufacturer_documents')
+      .select('id', { count: 'exact', head: true })
+      .eq('manufacturer_id', doc.manufacturer_id)
+      .eq('document_type', props.documentType)
+      .eq('is_used', true)
+
+    if (!count) {
+      await supabase
+        .from('manufacturers')
+        .update({ [props.documentType === 'nda' ? 'nda_signed' : 'mma_signed']: false })
+        .eq('id', doc.manufacturer_id)
+    }
+
+    emit('deleted')
+  } catch (err) {
+    alert('Error deleting record: ' + err.message)
+  } finally {
+    deleting.value = false
+  }
 }
 
 function formatDate(dateString) {
@@ -312,6 +366,18 @@ async function downloadPdf() {
   color: white;
 }
 
+.btn-delete {
+  padding: 0.7rem 1.5rem;
+  border-radius: 10px;
+  cursor: pointer;
+  font-weight: 700;
+  border: 1px solid #ef4444;
+  background: transparent;
+  color: #ef4444;
+  margin-right: auto;
+}
+
+.btn-delete:disabled,
 .btn-download:disabled {
   opacity: 0.6;
   cursor: not-allowed;

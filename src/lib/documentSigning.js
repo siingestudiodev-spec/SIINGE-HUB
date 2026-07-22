@@ -54,11 +54,7 @@ export async function validateToken(token) {
     return { valid: false, reason: 'Token has expired' }
   }
 
-  // Validar si ya fue usado
-  if (data.is_used) {
-    return { valid: false, reason: 'Token has already been used' }
-  }
-
+  // ponytail: un token ya usado sigue siendo válido; firmar de nuevo reemplaza la firma anterior
   return {
     valid: true,
     document: {
@@ -106,12 +102,15 @@ export async function saveSignature(
   if (formData.address) updateData.signer_address = formData.address
   if (formData.signerTitle) updateData.signed_by_title = formData.signerTitle
 
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('manufacturer_documents')
     .update(updateData)
     .eq('id', documentId)
+    .select('id')
 
   if (error) throw error
+  // RLS puede filtrar la fila y devolver 0 filas sin error: eso es un fallo, no un éxito
+  if (!data?.length) throw new Error('Signature was not saved (document not updatable)')
   return true
 }
 

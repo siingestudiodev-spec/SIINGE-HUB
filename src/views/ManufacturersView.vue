@@ -599,6 +599,7 @@
     :document="docStatusModal.document"
     :document-type="docStatusModal.documentType"
     @close="closeDocumentStatusModal"
+    @deleted="closeDocumentStatusModal(); fetchManufacturers()"
   />
 
 </template>
