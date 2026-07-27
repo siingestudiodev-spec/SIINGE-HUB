@@ -228,7 +228,7 @@
         <transition name="slide-fade">
           <div v-show="isExpanded(folder.id)" class="folder-content">
             <div class="folder-manufacturers" v-if="folder.manufacturers.length > 0">
-              <div v-for="m in folder.manufacturers" :key="m.id" class="horizontal-card">
+              <div v-for="m in folder.manufacturers" :key="m.id" :id="'manu-' + m.id" class="horizontal-card">
                 
                 <div class="card-identity">
                   <div class="card-avatar">{{ m.company_name?.charAt(0) }}</div>
@@ -605,7 +605,8 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted, nextTick } from 'vue'
+import { useRoute } from 'vue-router'
 import { supabase } from '../lib/supabase'
 import { Folder, Globe, User, Phone, Mail, Tag, FileText, Edit, Pencil, Trash2, CalendarClock, Clock, AlertTriangle, Send, CheckCircle, ClipboardList, ExternalLink, FileCheck } from 'lucide-vue-next'
 import DocumentStatusModal from '../components/DocumentStatusModal.vue'
@@ -1487,10 +1488,27 @@ function isSigned(log) {
   return log.template_name?.toLowerCase().includes('signed by')
 }
 
-onMounted(() => {
-  fetchManufacturers()
-  fetchFolders()
+const route = useRoute()
+
+// Opened from Quotes (?focus=<id>): expand its folder, scroll to it, highlight briefly.
+async function focusManufacturerFromQuery() {
+  const id = route.query.focus
+  if (!id) return
+  const m = manufacturers.value.find(x => String(x.id) === String(id))
+  if (!m) return
+  expandedFolders.value.add(m.folder_id || 'no-folder')
+  await nextTick()
+  const el = document.getElementById('manu-' + id)
+  if (!el) return
+  el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  el.classList.add('focus-highlight')
+  setTimeout(() => el.classList.remove('focus-highlight'), 3000)
+}
+
+onMounted(async () => {
+  await Promise.all([fetchManufacturers(), fetchFolders()])
   fetchTemplates()
+  focusManufacturerFromQuery()
 })
 </script>
 
@@ -1742,10 +1760,19 @@ input:focus, textarea:focus, select:focus {
   margin-bottom: 1rem;
 }
 
-.horizontal-card:hover { 
-  transform: translateX(4px); 
-  border-color: var(--primary); 
+.horizontal-card:hover {
+  transform: translateX(4px);
+  border-color: var(--primary);
   box-shadow: 0 8px 15px rgba(0,0,0,0.15);
+}
+.horizontal-card.focus-highlight {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.35);
+  animation: focus-pulse 1s ease-in-out 2;
+}
+@keyframes focus-pulse {
+  0%, 100% { box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.35); }
+  50% { box-shadow: 0 0 0 6px rgba(99, 102, 241, 0.15); }
 }
 
 /* Bloques */

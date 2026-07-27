@@ -402,7 +402,7 @@
               <div style="display:flex;flex-direction:column;gap:2px;">
                 <div style="display:flex;align-items:center;gap:0.5rem;">
                   <span style="font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted);">{{ s.carrier || 'SHIPMENT' }}</span>
-                  <a v-if="getTrackingUrl(s.carrier, s.tracking_number)" :href="getTrackingUrl(s.carrier, s.tracking_number)" target="_blank"
+                  <a v-if="getTrackingUrl(s)" :href="getTrackingUrl(s)" target="_blank"
                     style="font-size:0.88rem;font-weight:700;font-family:monospace;color:#3b82f6;text-decoration:none;"
                     onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'"
                   >{{ s.tracking_number }} ↗</a>
@@ -428,9 +428,19 @@
                 <option value="UPS">UPS</option>
                 <option value="USPS">USPS</option>
                 <option value="17TRACK">17TRACK (International)</option>
-                <option value="Other">Other (no link)</option>
+                <option value="Other">Other</option>
               </select>
             </div>
+            <template v-if="shipmentsModal.form.carrier === 'Other'">
+              <div class="input-group" style="margin-bottom:0;">
+                <label>Company Name *</label>
+                <input v-model="shipmentsModal.form.custom_carrier" placeholder="e.g. SF Express" style="width:100%;padding:0.6rem 1rem;background:var(--bg-app);color:var(--text-main);border:1px solid var(--border-main);border-radius:8px;font-family:inherit;font-size:0.9rem;" />
+              </div>
+              <div class="input-group" style="margin-bottom:0;">
+                <label>Tracking Link (optional)</label>
+                <input v-model="shipmentsModal.form.custom_url" placeholder="e.g. https://carrier.com/track?id=..." style="width:100%;padding:0.6rem 1rem;background:var(--bg-app);color:var(--text-main);border:1px solid var(--border-main);border-radius:8px;font-family:inherit;font-size:0.9rem;" />
+              </div>
+            </template>
             <div class="input-group" style="margin-bottom:0;">
               <label>Tracking Number *</label>
               <input v-model="shipmentsModal.form.tracking_number" placeholder="e.g. 1Z999AA10123456784" style="width:100%;padding:0.6rem 1rem;background:var(--bg-app);color:var(--text-main);border:1px solid var(--border-main);border-radius:8px;font-family:monospace;font-size:0.9rem;" />
@@ -538,7 +548,7 @@ async function deleteDriveFolder(id) {
   driveModal.value.folders = driveModal.value.folders.filter(f => f.id !== id)
 }
 
-const shipmentsModal = ref({ show: false, loading: false, saving: false, projectId: null, projectName: '', shipments: [], showForm: false, form: { carrier: '', tracking_number: '', description: '' } })
+const shipmentsModal = ref({ show: false, loading: false, saving: false, projectId: null, projectName: '', shipments: [], showForm: false, form: { carrier: '', tracking_number: '', description: '', custom_carrier: '', custom_url: '' } })
 
 const CARRIER_URLS = {
   DHL: (n) => `https://www.dhl.com/en/express/tracking.html?AWB=${n}`,
@@ -548,30 +558,45 @@ const CARRIER_URLS = {
   '17TRACK': (n) => `https://t.17track.net/en#nums=${n}`,
 }
 
-function getTrackingUrl(carrier, trackingNumber) {
-  const fn = CARRIER_URLS[carrier]
-  return fn ? fn(encodeURIComponent(trackingNumber)) : null
+function getTrackingUrl(s) {
+  // A custom link (typed for "Other") wins over the carrier template.
+  if (s.tracking_url) return s.tracking_url
+  const fn = CARRIER_URLS[s.carrier]
+  return fn ? fn(encodeURIComponent(s.tracking_number)) : null
 }
 
 async function openShipments(p) {
-  shipmentsModal.value = { show: true, loading: true, saving: false, projectId: p.id, projectName: p.project_name, shipments: [], showForm: false, form: { carrier: '', tracking_number: '', description: '' } }
+  shipmentsModal.value = { show: true, loading: true, saving: false, projectId: p.id, projectName: p.project_name, shipments: [], showForm: false, form: { carrier: '', tracking_number: '', description: '', custom_carrier: '', custom_url: '' } }
   const { data } = await supabase.from('project_shipments').select('*').eq('project_id', p.id).order('created_at', { ascending: false })
   shipmentsModal.value.shipments = data || []
   shipmentsModal.value.loading = false
 }
 
 async function addShipment() {
-  if (!shipmentsModal.value.form.tracking_number.trim()) return alert('Tracking number is required')
+  const f = shipmentsModal.value.form
+  if (!f.tracking_number.trim()) return alert('Tracking number is required')
+
+  // For "Other", store the typed company name as the carrier and its optional link.
+  let carrier = f.carrier || null
+  let trackingUrl = null
+  if (f.carrier === 'Other') {
+    if (!f.custom_carrier.trim()) return alert('Company name is required for "Other"')
+    carrier = f.custom_carrier.trim()
+    const url = f.custom_url.trim()
+    trackingUrl = url ? (/^https?:\/\//i.test(url) ? url : `https://${url}`) : null
+  }
+
   shipmentsModal.value.saving = true
   const { data, error } = await supabase.from('project_shipments').insert([{
     project_id: shipmentsModal.value.projectId,
-    carrier: shipmentsModal.value.form.carrier || null,
-    tracking_number: shipmentsModal.value.form.tracking_number.trim(),
-    description: shipmentsModal.value.form.description.trim() || null,
+    carrier,
+    tracking_number: f.tracking_number.trim(),
+    description: f.description.trim() || null,
+    tracking_url: trackingUrl,
   }]).select().single()
   if (!error) {
     shipmentsModal.value.shipments.unshift(data)
-    shipmentsModal.value.form = { carrier: '', tracking_number: '', description: '' }
+    shipmentsModal.value.form = { carrier: '', tracking_number: '', description: '', custom_carrier: '', custom_url: '' }
     shipmentsModal.value.showForm = false
   } else { alert('Error: ' + error.message) }
   shipmentsModal.value.saving = false

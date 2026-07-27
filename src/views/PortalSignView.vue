@@ -73,7 +73,7 @@
             <SignatureCanvas ref="signatureCanvas" @signature-captured="handleSignatureCapture" />
           </div>
 
-          <button @click="submitSignature" :disabled="!canSubmit || submitting" class="btn-sign">
+          <button @click="openConfirm" :disabled="!canSubmit || submitting" class="btn-sign">
             {{ submitting ? t.submitting : t.signBtn }}
           </button>
         </div>
@@ -94,6 +94,34 @@
           <p style="color:var(--text-muted);font-size:0.8rem;margin-top:0.5rem;">{{ t.successClose }}</p>
         </div>
 
+      </div>
+
+      <!-- CONFIRMATION MODAL: review answers before submitting -->
+      <div v-if="showConfirm" class="confirm-overlay" @click.self="showConfirm = false">
+        <div class="confirm-box">
+          <div class="confirm-header">
+            <h3>{{ t.confirmTitle }}</h3>
+            <button @click="showConfirm = false" class="confirm-close" :disabled="submitting">✕</button>
+          </div>
+          <p class="confirm-review">{{ t.confirmReview }}</p>
+          <div class="confirm-summary">
+            <div class="detail-row"><span class="label">{{ t.company }}:</span><span class="value">{{ formData.companyName }}</span></div>
+            <div class="detail-row"><span class="label">{{ t.signer }}:</span><span class="value">{{ formData.signerName }}</span></div>
+            <div class="detail-row"><span class="label">{{ t.titleLabel }}:</span><span class="value">{{ formData.signerTitle }}</span></div>
+            <template v-if="documentType === 'mma'">
+              <div class="detail-row"><span class="label">{{ t.countryLabel }}:</span><span class="value">{{ formData.country }}</span></div>
+              <div class="detail-row"><span class="label">{{ t.addressLabel }}:</span><span class="value">{{ formData.address }}</span></div>
+            </template>
+            <div class="detail-row"><span class="label">{{ t.signature }}:</span><span class="value">✅ {{ t.signatureProvided }}</span></div>
+          </div>
+          <p class="confirm-question">{{ t.confirmQuestion }}</p>
+          <div class="confirm-actions">
+            <button @click="showConfirm = false" :disabled="submitting" class="btn-review">{{ t.reviewBtn }}</button>
+            <button @click="submitSignature" :disabled="submitting" class="btn-confirm">
+              {{ submitting ? t.submitting : t.confirmBtn }}
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -138,6 +166,14 @@ const t = computed(() => {
     expires: 'Este enlace expira el',
     alreadySigned: '⚠️ Este documento ya fue firmado el',
     resignHint: 'Si firma de nuevo, la nueva firma reemplazará la anterior.',
+    noSignature: 'Por favor, firme en el recuadro antes de enviar.',
+    confirmTitle: 'Confirmar Envío',
+    confirmReview: 'Por favor revise sus respuestas antes de enviar:',
+    confirmQuestion: '¿Verificó que toda la información esté correcta?',
+    signatureProvided: 'Firma proporcionada',
+    addressLabel: 'Dirección',
+    confirmBtn: 'Sí, enviar',
+    reviewBtn: 'Revisar de nuevo',
   }
   const en = {
     title: 'Document Signing Portal',
@@ -165,6 +201,14 @@ const t = computed(() => {
     expires: 'This link expires on',
     alreadySigned: '⚠️ This document was already signed on',
     resignHint: 'Signing again will replace the previous signature.',
+    noSignature: 'Please sign in the box before submitting.',
+    confirmTitle: 'Confirm Submission',
+    confirmReview: 'Please review your answers before submitting:',
+    confirmQuestion: 'Have you verified that all the information is correct?',
+    signatureProvided: 'Signature provided',
+    addressLabel: 'Address',
+    confirmBtn: 'Yes, submit',
+    reviewBtn: 'Review again',
   }
   return lang.value === 'es' ? es : en
 })
@@ -233,6 +277,7 @@ const documentType = ref('')
 const capturedSignature = ref(null)
 const submitted = ref(false)
 const submitting = ref(false)
+const showConfirm = ref(false)
 const signedDate = ref(null)
 const isAlreadySigned = ref(false)
 
@@ -303,6 +348,15 @@ function handleSignatureCapture(signatureBase64) {
   capturedSignature.value = signatureBase64
 }
 
+function openConfirm() {
+  // Hard guard: never open the confirm step (nor submit) without a signature.
+  if (!canSubmit.value) {
+    if (!capturedSignature.value) alert(t.value.noSignature)
+    return
+  }
+  showConfirm.value = true
+}
+
 async function submitSignature() {
   if (!canSubmit.value) return
 
@@ -366,9 +420,10 @@ async function submitSignature() {
     }).catch(() => {})
 
     submitted.value = true
+    showConfirm.value = false
   } catch (err) {
     console.error('Error saving signature:', err)
-    error.value = 'An error occurred while saving your signature. Please try again.'
+    error.value = `An error occurred while saving your signature. Please try again. (${err.message})`
   } finally {
     submitting.value = false
   }
@@ -755,6 +810,105 @@ function formatDate(dateString) {
   font-size: 0.85rem;
   margin-top: auto;
 }
+
+/* CONFIRMATION MODAL */
+.confirm-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 300;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.confirm-box {
+  background: white;
+  border-radius: 12px;
+  width: 100%;
+  max-width: 440px;
+  max-height: 90vh;
+  overflow-y: auto;
+  padding: 1.5rem;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+}
+
+.confirm-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.confirm-header h3 {
+  margin: 0;
+  font-size: 1.15rem;
+  color: var(--text-main);
+}
+
+.confirm-close {
+  background: none;
+  border: none;
+  font-size: 1.1rem;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+}
+
+.confirm-close:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.confirm-review {
+  color: var(--text-muted);
+  font-size: 0.88rem;
+  margin: 0 0 1rem;
+}
+
+.confirm-summary {
+  background: var(--bg-app);
+  border-radius: 8px;
+  padding: 0.5rem 1rem;
+  margin-bottom: 1rem;
+}
+
+.confirm-question {
+  font-weight: 600;
+  color: var(--text-main);
+  font-size: 0.95rem;
+  margin: 0 0 1.25rem;
+}
+
+.confirm-actions {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.btn-review {
+  flex: 1;
+  padding: 0.7rem 1rem;
+  background: var(--border-light);
+  color: var(--text-main);
+  border: none;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-confirm {
+  flex: 1;
+  padding: 0.7rem 1rem;
+  background: var(--primary);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.btn-review:disabled, .btn-confirm:disabled { opacity: 0.5; cursor: not-allowed; }
 
 @media (max-width: 1200px) {
   .pdf-preview {

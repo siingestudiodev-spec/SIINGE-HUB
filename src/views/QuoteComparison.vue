@@ -36,7 +36,7 @@
               <div class="factory-header-cell">
                 <div class="factory-avatar">{{ group.manufacturer.company_name?.charAt(0) }}</div>
                 <div>
-                  <strong class="factory-name">{{ group.manufacturer.company_name }}</strong>
+                  <a :href="`/manufacturers?focus=${group.manufacturer.id}`" target="_blank" rel="noopener" class="factory-name factory-name-link" title="Open in Manufacturers (new tab)">{{ group.manufacturer.company_name }} ↗</a>
                   <span class="factory-country"><Globe :size="12" :stroke-width="1.5" /> {{ group.manufacturer.country || 'Unknown' }}</span>
                 </div>
                 <div class="factory-header-right">
@@ -512,7 +512,9 @@ td { padding: 1rem; border-bottom: 1px solid var(--border-light); font-size: 0.8
 .factory-group-header td { background: rgba(99, 102, 241, 0.03); border-bottom: 1px solid var(--border-light); padding: 1.2rem 1rem; }
 .factory-header-cell { display: flex; align-items: center; gap: 1rem; }
 .factory-avatar { width: 36px; height: 36px; background: var(--primary); color: white; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 1.1rem; flex-shrink: 0; }
-.factory-name { font-size: 1.1rem; color: var(--text-main); }
+.factory-name { font-size: 1.1rem; color: var(--text-main); font-weight: 700; }
+.factory-name-link { text-decoration: none; cursor: pointer; display: inline-block; }
+.factory-name-link:hover { color: var(--primary); text-decoration: underline; }
 .factory-country { font-size: 0.8rem; color: var(--text-muted); margin-left: 0.5rem; background: var(--bg-app); padding: 0.2rem 0.5rem; border-radius: 12px; border: 1px solid var(--border-main); }
 .factory-header-right { margin-left: auto; display: flex; align-items: center; gap: 0.5rem; }
 .btn-add-variant { background: transparent; border: 1px dashed var(--primary); color: var(--primary); padding: 0.4rem 0.8rem; border-radius: 8px; font-size: 0.8rem; font-weight: 700; cursor: pointer; transition: 0.2s; }

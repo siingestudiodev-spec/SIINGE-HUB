@@ -110,6 +110,8 @@ function clearSignature() {
   context.value.lineWidth = 1
   context.value.strokeRect(0, 0, canvas.width, canvas.height)
   hasSignature.value = false
+  // Tell the parent the signature is gone so it can't be submitted stale.
+  emit('signature-captured', null)
 }
 
 defineExpose({ clearSignature })
