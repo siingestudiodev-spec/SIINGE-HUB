@@ -1024,7 +1024,7 @@ async function saveFolder() {
     const { error } = await supabase.from('folders').update({ name: folderForm.value.name }).eq('id', editFolderId.value)
     err = error
   } else {
-    const { error } = await supabase.from('folders').insert([{ name: folderForm.value.name }])
+    const { error } = await supabase.from('folders').insert([{ name: folderForm.value.name, section: 'manufacturers' }])
     err = error
   }
 
@@ -1121,7 +1121,7 @@ async function fetchManufacturers() {
 }
 
 async function fetchFolders() {
-  const { data } = await supabase.from('folders').select('*').order('name')
+  const { data } = await supabase.from('folders').select('*').eq('section', 'manufacturers').order('name')
   folders.value = data || []
 }
 

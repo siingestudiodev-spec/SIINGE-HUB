@@ -14,7 +14,7 @@
     </div>
 
     <!-- Folder create/edit modal -->
-    <div v-if="showFolderForm" class="modal-overlay" @click.self="resetFolderForm">
+    <div v-if="showFolderForm" class="modal-overlay">
       <div class="modal-box" style="max-width:420px;">
         <div class="modal-box-header">
           <h2>{{ editingFolder ? 'Edit Folder' : 'Create New Folder' }}</h2>
@@ -47,68 +47,84 @@
       <span class="results-count">{{ filteredProviders.length }} provider{{ filteredProviders.length !== 1 ? 's' : '' }}</span>
     </div>
 
-    <div v-if="showForm" class="form-card">
-      <h2 class="title">{{ editingId ? 'Edit Provider' : 'New Provider' }}</h2>
-      <div class="form-grid">
-        <input v-model="form.provider" placeholder="Provider Name *" />
-        <select v-model="form.folder_id">
-          <option :value="null">No Folder</option>
-          <option v-for="f in folders" :key="f.id" :value="f.id">{{ f.name }}</option>
-        </select>
-        <input v-model="form.country" placeholder="Country" />
-        <input v-model="form.city" placeholder="City" />
-        <div class="contact-name-field">
-          <button type="button" @click="primarySelection = 'default'" :class="['btn-primary-star', primarySelection === 'default' ? 'is-primary' : '']" :title="primarySelection === 'default' ? 'Primary contact' : 'Set as primary'">★</button>
-          <input v-model="form.contact_name" placeholder="Contact Name" style="flex:1;" />
+    <!-- Add / edit provider modal -->
+    <div v-if="showForm" class="modal-overlay">
+      <div class="modal-box" style="max-width:660px;">
+        <div class="modal-box-header">
+          <h2>{{ editingId ? 'Edit Provider' : 'New Provider' }}</h2>
+          <button @click="cancelForm" class="modal-close-btn">✕</button>
         </div>
-        <input v-model="form.phone" placeholder="Phone" />
-        <input v-model="form.email" placeholder="Email" />
-        <input v-model="form.address" placeholder="Address" />
-        <input v-model="form.website" placeholder="Website" />
-        <input v-model="form.catalogue_url" placeholder="Catalogue URL" class="full-row" />
-      </div>
+        <div class="modal-box-body">
+          <div class="form-grid">
+            <input v-model="form.provider" placeholder="Provider Name *" />
+            <select v-model="form.folder_id">
+              <option :value="null">No Folder</option>
+              <option v-for="f in folders" :key="f.id" :value="f.id">{{ f.name }}</option>
+            </select>
+            <input v-model="form.country" placeholder="Country" />
+            <input v-model="form.city" placeholder="City" />
+            <div class="contact-name-field">
+              <button type="button" @click="primarySelection = 'default'" :class="['btn-primary-star', primarySelection === 'default' ? 'is-primary' : '']" :title="primarySelection === 'default' ? 'Primary contact' : 'Set as primary'">★</button>
+              <input v-model="form.contact_name" placeholder="Contact Name" style="flex:1;" />
+            </div>
+            <input v-model="form.phone" placeholder="Phone" />
+            <input v-model="form.email" placeholder="Email" />
+            <input v-model="form.address" placeholder="Address" />
+            <input v-model="form.website" placeholder="Website" />
+            <input v-model="form.catalogue_url" placeholder="Catalogue URL" class="full-row" />
+          </div>
 
-      <div class="types-section">
-        <label class="types-label">Type</label>
-        <div class="types-grid">
-          <label v-for="t in typeOptions" :key="t" class="type-checkbox">
-            <input type="checkbox" :value="t" v-model="form.types" />
-            <span>{{ t }}</span>
-          </label>
+          <div class="types-section">
+            <label class="types-label">Type</label>
+            <div class="types-grid">
+              <label v-for="t in typeOptions" :key="t" class="type-checkbox">
+                <input type="checkbox" :value="t" v-model="form.types" />
+                <span>{{ t }}</span>
+              </label>
+            </div>
+          </div>
+
+          <div class="types-section">
+            <label class="types-label">Certifications</label>
+            <select v-model="selectedCertifications" multiple class="cert-multi-select">
+              <option v-for="cert in certOptions" :key="cert" :value="cert">{{ cert }}</option>
+            </select>
+            <p class="cert-hint">Hold Ctrl (or Cmd on Mac) to select multiple.</p>
+          </div>
+
+          <div class="reliability-section">
+            <label class="types-label">Reliability</label>
+            <div class="stars">
+              <span
+                v-for="n in 5" :key="n"
+                class="star"
+                :class="{ active: n <= form.reliability }"
+                @click="form.reliability = n"
+              >★</span>
+            </div>
+          </div>
+
+          <div class="contacts-section">
+            <label class="types-label">Additional Contacts</label>
+            <div v-for="c in contacts.filter(c => !c._deleted)" :key="c._localKey" class="contact-row">
+              <button @click="primarySelection = c._localKey" :class="['btn-primary-star', primarySelection === c._localKey ? 'is-primary' : '']" :title="primarySelection === c._localKey ? 'Primary contact' : 'Set as primary'">★</button>
+              <input v-model="c.name" placeholder="Name" class="contact-input" />
+              <input v-model="c.title" placeholder="Title" class="contact-input" />
+              <input v-model="c.email" placeholder="Email" class="contact-input" />
+              <input v-model="c.phone" placeholder="Phone" class="contact-input" />
+              <button @click="removeContact(c)" class="btn-delete-contact" title="Remove">✕</button>
+            </div>
+            <button @click="addContact" class="btn-add-contact">+ Add Contact</button>
+          </div>
+
+          <textarea v-model="form.notes" placeholder="Notes" rows="2"></textarea>
         </div>
-      </div>
-
-      <div class="reliability-section">
-        <label class="types-label">Reliability</label>
-        <div class="stars">
-          <span
-            v-for="n in 5" :key="n"
-            class="star"
-            :class="{ active: n <= form.reliability }"
-            @click="form.reliability = n"
-          >★</span>
+        <div class="modal-box-actions">
+          <button @click="cancelForm" class="btn-secondary">Cancel</button>
+          <button @click="saveProvider" class="btn-primary">
+            {{ editingId ? 'Update Provider' : 'Save Provider' }}
+          </button>
         </div>
-      </div>
-
-      <div class="contacts-section">
-        <label class="types-label">Additional Contacts</label>
-        <div v-for="c in contacts.filter(c => !c._deleted)" :key="c._localKey" class="contact-row">
-          <button @click="primarySelection = c._localKey" :class="['btn-primary-star', primarySelection === c._localKey ? 'is-primary' : '']" :title="primarySelection === c._localKey ? 'Primary contact' : 'Set as primary'">★</button>
-          <input v-model="c.name" placeholder="Name" class="contact-input" />
-          <input v-model="c.title" placeholder="Title" class="contact-input" />
-          <input v-model="c.email" placeholder="Email" class="contact-input" />
-          <input v-model="c.phone" placeholder="Phone" class="contact-input" />
-          <button @click="removeContact(c)" class="btn-delete-contact" title="Remove">✕</button>
-        </div>
-        <button @click="addContact" class="btn-add-contact">+ Add Contact</button>
-      </div>
-
-      <textarea v-model="form.notes" placeholder="Notes" rows="2"></textarea>
-      <div class="form-actions">
-        <button @click="saveProvider" class="btn-primary">
-          {{ editingId ? 'Update Provider' : 'Save Provider' }}
-        </button>
-        <button @click="cancelForm" class="btn-secondary">Cancel</button>
       </div>
     </div>
 
@@ -148,6 +164,10 @@
                 <div class="types-tags">
                   <span v-for="t in parseTypes(p.types)" :key="t" class="type-tag">{{ t }}</span>
                 </div>
+
+                <button v-if="p.certifications" @click="showCertsPopup(p)" class="btn-view-certs">
+                  <BadgeCheck :size="12" :stroke-width="1.5" /> View {{ p.certifications.split(',').length }} Certs
+                </button>
 
                 <div class="card-info">
                   <div v-if="p.contact_name"><User :size="12" :stroke-width="1.5" /> {{ p.contact_name }}<button @click.stop="quickSetPrimary(p, null)" class="btn-primary-star" :class="{ 'is-primary': !p.primary_contact_id }" :title="!p.primary_contact_id ? 'Primary contact' : 'Set as primary'">★</button></div>
@@ -191,7 +211,7 @@
     </div>
 
     <!-- Email modal -->
-    <div v-if="emailModal.show" class="modal-overlay" @click.self="emailModal.show = false">
+    <div v-if="emailModal.show" class="modal-overlay">
       <div class="modal-box">
         <div class="modal-box-header">
           <h2>Email: {{ emailModal.providerName }}</h2>
@@ -213,7 +233,7 @@
     </div>
 
     <!-- Log contact modal -->
-    <div v-if="logModal.show" class="modal-overlay" @click.self="logModal.show = false">
+    <div v-if="logModal.show" class="modal-overlay">
       <div class="modal-box" style="max-width:420px;">
         <div class="modal-box-header">
           <h2>Log Contact: {{ logModal.providerName }}</h2>
@@ -253,13 +273,28 @@
       </div>
     </div>
 
+    <!-- Certifications popup (read-only) -->
+    <div v-if="certPopup.show" class="modal-overlay" @click.self="certPopup.show = false">
+      <div class="modal-box" style="max-width:400px;">
+        <div class="modal-box-header">
+          <h2>Verified Certifications</h2>
+          <button @click="certPopup.show = false" class="modal-close-btn">✕</button>
+        </div>
+        <div class="modal-box-body">
+          <div v-for="c in certPopup.list" :key="c" class="cert-item">
+            <span class="check-icon-green">✅</span> {{ c.trim() }}
+          </div>
+        </div>
+      </div>
+    </div>
+
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { supabase } from '../lib/supabase'
-import { User, Phone, MapPin, Globe, Pencil, BookOpen, Folder, Trash2 } from 'lucide-vue-next'
+import { User, Phone, MapPin, Globe, Pencil, BookOpen, Folder, Trash2, BadgeCheck } from 'lucide-vue-next'
 
 const SUPABASE_URL      = import.meta.env.VITE_SUPABASE_URL
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
@@ -271,6 +306,15 @@ const editingId = ref(null)
 const emailLogs = ref({})
 const contacts = ref([]) // extra contacts during add/edit
 const primarySelection = ref('default') // 'default' | sourcing_contacts id | a new contact's _localKey
+
+// Same list as Manufacturers (ManufacturersView.vue). Stored comma-separated in sourcing.certifications.
+const certOptions = [
+  'OEKO-TEX STANDARD 100', 'ISO 45001', 'OCS100', 'UN Global Compact',
+  'GRS', 'ISO9001', 'amfori BSCI', 'SMETA', 'WRAP', 'SA8000', 'ISO 14001',
+  'OEKO-TEX STeP', 'bluesign®', 'GOTS'
+]
+const selectedCertifications = ref([])
+const certPopup = ref({ show: false, list: [] })
 
 const folders = ref([])
 const showFolderForm = ref(false)
@@ -374,8 +418,13 @@ function openAddForm() {
   editingId.value = null
   form.value = emptyForm()
   contacts.value = []
+  selectedCertifications.value = []
   primarySelection.value = 'default'
   showForm.value = true
+}
+
+function showCertsPopup(p) {
+  certPopup.value = { show: true, list: p.certifications.split(',') }
 }
 
 function addContact() {
@@ -404,6 +453,7 @@ async function editProvider(p) {
     notes: p.notes || '',
     folder_id: p.folder_id || null
   }
+  selectedCertifications.value = p.certifications ? p.certifications.split(',').map(s => s.trim()) : []
   showForm.value = true
   const { data } = await supabase.from('sourcing_contacts').select('*').eq('sourcing_id', p.id).order('created_at')
   contacts.value = (data || []).map(c => ({ ...c, _localKey: c.id }))
@@ -415,6 +465,7 @@ function cancelForm() {
   editingId.value = null
   form.value = emptyForm()
   contacts.value = []
+  selectedCertifications.value = []
   primarySelection.value = 'default'
 }
 
@@ -436,7 +487,7 @@ async function fetchProviders() {
 }
 
 async function fetchFolders() {
-  const { data } = await supabase.from('folders').select('*').order('name')
+  const { data } = await supabase.from('folders').select('*').eq('section', 'sourcing').order('name')
   folders.value = data || []
 }
 
@@ -470,7 +521,7 @@ async function saveFolder() {
     const { error } = await supabase.from('folders').update({ name: folderForm.value.name }).eq('id', editFolderId.value)
     if (error) return alert('Error updating folder: ' + error.message)
   } else {
-    const { error } = await supabase.from('folders').insert([{ name: folderForm.value.name }])
+    const { error } = await supabase.from('folders').insert([{ name: folderForm.value.name, section: 'sourcing' }])
     if (error) return alert('Error creating folder: ' + error.message)
   }
 
@@ -541,7 +592,8 @@ async function saveProvider() {
 
   const payload = {
     ...form.value,
-    types: form.value.types
+    types: form.value.types,
+    certifications: selectedCertifications.value.join(',')
   }
 
   let err = null
@@ -596,9 +648,24 @@ async function deleteProvider(id) {
   fetchProviders()
 }
 
+// Esc closes the topmost text-input modal (provider / folder / email / log).
+// The history and cert popups are read-only and stay click-outside closable.
+function handleEsc(e) {
+  if (e.key !== 'Escape') return
+  if (showForm.value) cancelForm()
+  else if (showFolderForm.value) resetFolderForm()
+  else if (emailModal.value.show) emailModal.value.show = false
+  else if (logModal.value.show) logModal.value.show = false
+}
+
 onMounted(() => {
   fetchProviders()
   fetchFolders()
+  window.addEventListener('keydown', handleEsc)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('keydown', handleEsc)
 })
 </script>
 
@@ -733,4 +800,12 @@ textarea { resize: vertical; margin-top: 0.75rem; }
 .btn-delete { background: var(--danger-bg); color: var(--danger-text); border: none; padding: 0.35rem 0.7rem; border-radius: 8px; cursor: pointer; font-size: 0.85rem; }
 .btn-delete:hover { background: rgba(225, 29, 72, 0.2); }
 .loading, .empty { text-align: center; padding: 3rem; color: var(--text-muted); }
+
+.btn-view-certs { display: inline-flex; align-items: center; gap: 5px; background: #ecfdf5; color: #059669; border: none; padding: 0.3rem 0.7rem; border-radius: 8px; cursor: pointer; font-size: 0.8rem; font-weight: 600; width: fit-content; }
+.btn-view-certs:hover { background: #d1fae5; }
+.cert-multi-select { min-height: 140px; padding: 0.5rem; }
+.cert-hint { font-size: 0.75rem; color: var(--text-muted); margin-top: 0.35rem; }
+.cert-item { display: flex; align-items: center; gap: 0.5rem; padding: 0.45rem 0; border-bottom: 1px solid var(--border-light); font-size: 0.9rem; color: var(--text-main); }
+.cert-item:last-child { border-bottom: none; }
+.check-icon-green { font-size: 0.85rem; }
 </style>
