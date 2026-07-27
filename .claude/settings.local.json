@@ -18,7 +18,8 @@
       "Bash(schema\")",
       "Bash(git rm *)",
       "Bash(git commit *)",
-      "Bash(git push *)"
+      "Bash(git push *)",
+      "Bash(echo \"EXIT: $?\")"
     ]
   }
 }

@@ -20,9 +20,12 @@ begin
 end $$;
 
 -- Sigue exigiendo enlace no expirado; ya no exige que esté sin firmar.
+-- Sin cláusula de rol a propósito: quien firma suele ser anon, pero si alguien
+-- del equipo tiene sesión abierta en el panel, el portal usa esa sesión y el rol
+-- es authenticated. Restringirlo a anon rompe la firma para el equipo.
 create policy "sign or resign while the link is valid"
   on public.manufacturer_documents
-  for update to anon
+  for update
   using (token_expires_at > now())
   with check (token_expires_at > now());
 

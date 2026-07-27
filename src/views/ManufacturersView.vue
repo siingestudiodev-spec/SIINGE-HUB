@@ -18,7 +18,7 @@
     <div v-if="showFolderForm" class="modal-overlay" @keydown.escape="resetFolderForm" tabindex="0">
       <div class="modal">
         <div class="modal-header">
-          <h2>Create New Folder</h2>
+          <h2>{{ editingFolder ? 'Edit Folder' : 'Create New Folder' }}</h2>
           <button @click="resetFolderForm" class="modal-close">✕</button>
         </div>
         <div class="modal-body">
@@ -27,10 +27,23 @@
               <input v-model="folderForm.name" placeholder="Folder Name *" />
             </div>
           </div>
+          <div class="color-picker">
+            <button
+              v-for="c in FOLDER_COLORS"
+              :key="c.value"
+              type="button"
+              class="color-swatch"
+              :class="{ active: folderForm.color === c.value, none: !c.value }"
+              :style="c.value ? { background: c.value } : null"
+              :aria-label="c.name"
+              :title="c.name"
+              @click="folderForm.color = c.value"
+            >{{ c.value ? '' : '✕' }}</button>
+          </div>
         </div>
         <div class="modal-actions mt-4">
           <button @click="saveFolder" class="btn-primary">
-            CREATE FOLDER
+            {{ editingFolder ? 'UPDATE FOLDER' : 'CREATE FOLDER' }}
           </button>
           <button @click="resetFolderForm" class="btn-secondary">Cancel</button>
         </div>
@@ -209,26 +222,31 @@
     <div v-else-if="filteredFolders.length === 0 && filteredManufacturers.length === 0" class="empty">No manufacturers or folders found.</div>
     
     <div v-else class="list-container">
-      <div v-for="folder in filteredFolders" :key="folder.id" class="folder-section">
-        
-        <div class="folder-header" @click="toggleFolder(folder.id)">
+      <FolderCapsules
+        :folders="filteredFolders.map(f => ({ id: f.id, name: f.name, color: f.color, count: f.manufacturers.length }))"
+        v-model:selected="selectedFolder"
+        item-label="manufacturer"
+        item-label-plural="manufacturers"
+        @reorder="saveFolderOrder"
+        @edit="editFolder"
+        @delete="deleteFolder"
+      />
+
+      <div v-if="openFolder" class="folder-section">
+
+        <div class="folder-header">
           <div class="folder-info-wrapper">
-            <span class="expand-icon">{{ isExpanded(folder.id) ? '▼' : '▶' }}</span>
-            <h2 class="folder-title"><Folder :size="15" :stroke-width="1.5" /> {{ folder.name }}
-              <span v-if="folder.manufacturers.length === 0" class="empty-badge">(Empty)</span>
-              <span v-else class="empty-badge">({{ folder.manufacturers.length }})</span>
+            <h2 class="folder-title"><Folder :size="15" :stroke-width="1.5" /> {{ openFolder.name }}
+              <span v-if="openFolder.manufacturers.length === 0" class="empty-badge">(Empty)</span>
+              <span v-else class="empty-badge">({{ openFolder.manufacturers.length }})</span>
             </h2>
           </div>
-          <div class="folder-actions" @click.stop>
-            <button @click="editFolder(folder)" class="btn-action-icon btn-edit" title="Edit Folder"><Pencil :size="13" :stroke-width="1.5" /></button>
-            <button @click="deleteFolder(folder.id)" class="btn-action-icon btn-delete" title="Delete Folder"><Trash2 :size="13" :stroke-width="1.5" /></button>
-          </div>
         </div>
-        
-        <transition name="slide-fade">
-          <div v-show="isExpanded(folder.id)" class="folder-content">
-            <div class="folder-manufacturers" v-if="folder.manufacturers.length > 0">
-              <div v-for="m in folder.manufacturers" :key="m.id" :id="'manu-' + m.id" class="horizontal-card">
+
+        <transition name="slide-fade" appear>
+          <div class="folder-content">
+            <div class="folder-manufacturers" v-if="openFolder.manufacturers.length > 0">
+              <div v-for="m in openFolder.manufacturers" :key="m.id" :id="'manu-' + m.id" class="horizontal-card">
                 
                 <div class="card-identity">
                   <div class="card-avatar">{{ m.company_name?.charAt(0) }}</div>
@@ -338,6 +356,7 @@
         </transition>
 
       </div>
+      <div v-else class="pick-folder-hint">Select a folder to see what's inside. Drag the folders to reorder them.</div>
     </div>
 
     <div v-if="certPopup.show" class="modal-overlay" @click.self="certPopup.show = false">
@@ -609,6 +628,8 @@ import { ref, computed, watch, onMounted, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
 import { supabase } from '../lib/supabase'
 import { Folder, Globe, User, Phone, Mail, Tag, FileText, Edit, Pencil, Trash2, CalendarClock, Clock, AlertTriangle, Send, CheckCircle, ClipboardList, ExternalLink, FileCheck } from 'lucide-vue-next'
+import FolderCapsules from '../components/FolderCapsules.vue'
+import { FOLDER_COLORS } from '../lib/folderColors'
 import DocumentStatusModal from '../components/DocumentStatusModal.vue'
 const SUPABASE_URL      = import.meta.env.VITE_SUPABASE_URL
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
@@ -661,7 +682,7 @@ const filterFolder = ref('')
 const filterCountry = ref('')
 const filterCategory = ref('')
 
-const expandedFolders = ref(new Set(['no-folder']))
+const selectedFolder = ref(null)
 
 
 const categoryOptions = [
@@ -840,23 +861,30 @@ const form = ref({
   nda_signed: false, mma_signed: false, folder_id: null
 })
 
-const folderForm = ref({ name: '' })
+const folderForm = ref({ name: '', color: '' })
 
 const emailModal = ref({ 
   show: false, to: '', subject: '', body: '', sending: false, success: false, 
   error: '', manufacturerId: null, companyName: '', selectedTemplate: '', isInitialReach: false  
 })
 
-function toggleFolder(id) {
-  if (expandedFolders.value.has(id)) {
-    expandedFolders.value.delete(id)
-  } else {
-    expandedFolders.value.add(id)
-  }
-}
+const openFolder = computed(() => filteredFolders.value.find(f => f.id === selectedFolder.value) || null)
 
-function isExpanded(id) {
-  return expandedFolders.value.has(id)
+// ponytail: one UPDATE per folder. Fine at this scale (tens of folders); if it ever grows,
+// swap for a single upsert of {id, name, section, position} rows.
+async function saveFolderOrder(orderedIds) {
+  const before = folders.value
+  folders.value = orderedIds
+    .map((id, i) => ({ ...before.find(f => f.id === id), position: i }))
+    .filter(f => f.id)
+
+  const { error } = await supabase.from('folders').upsert(
+    folders.value.map(f => ({ id: f.id, name: f.name, color: f.color, section: 'manufacturers', position: f.position }))
+  )
+  if (error) {
+    folders.value = before
+    alert('Could not save the folder order: ' + error.message)
+  }
 }
 
 const countries = computed(() => {
@@ -872,7 +900,7 @@ const filteredFolders = computed(() => {
   const folderMap = {}
 
   folders.value.forEach(f => {
-    folderMap[f.id] = { id: f.id, name: f.name, manufacturers: [] }
+    folderMap[f.id] = { id: f.id, name: f.name, color: f.color, position: f.position ?? 0, manufacturers: [] }
   })
 
   folderMap['no-folder'] = { id: 'no-folder', name: 'No Folder', manufacturers: [] }
@@ -891,7 +919,7 @@ const filteredFolders = computed(() => {
     .sort((a, b) => {
       if (a.id === 'no-folder') return 1
       if (b.id === 'no-folder') return -1
-      return a.name.localeCompare(b.name)
+      return a.position - b.position || a.name.localeCompare(b.name)
     })
 })
 
@@ -1022,10 +1050,11 @@ async function saveFolder() {
   
   let err = null
   if (editingFolder.value) {
-    const { error } = await supabase.from('folders').update({ name: folderForm.value.name }).eq('id', editFolderId.value)
+    const { error } = await supabase.from('folders').update({ name: folderForm.value.name, color: folderForm.value.color || null }).eq('id', editFolderId.value)
     err = error
   } else {
-    const { error } = await supabase.from('folders').insert([{ name: folderForm.value.name, section: 'manufacturers' }])
+    // New folders land at the end of the manual order.
+    const { error } = await supabase.from('folders').insert([{ name: folderForm.value.name, color: folderForm.value.color || null, section: 'manufacturers', position: folders.value.length }])
     err = error
   }
 
@@ -1039,7 +1068,7 @@ async function saveFolder() {
 }
 
 function editFolder(f) {
-  folderForm.value.name = f.name
+  folderForm.value = { name: f.name, color: f.color || '' }
   editFolderId.value = f.id
   editingFolder.value = true
   showFolderForm.value = true
@@ -1050,13 +1079,15 @@ async function deleteFolder(folderId) {
   
   await supabase.from('manufacturers').update({ folder_id: null }).eq('folder_id', folderId)
   await supabase.from('folders').delete().eq('id', folderId)
+
+  if (selectedFolder.value === folderId) selectedFolder.value = null
   
   fetchFolders()
   fetchManufacturers()
 }
 
 function resetFolderForm() {
-  folderForm.value = { name: '' }
+  folderForm.value = { name: '', color: '' }
   editingFolder.value = false
   editFolderId.value = null
   showFolderForm.value = false
@@ -1122,7 +1153,7 @@ async function fetchManufacturers() {
 }
 
 async function fetchFolders() {
-  const { data } = await supabase.from('folders').select('*').eq('section', 'manufacturers').order('name')
+  const { data } = await supabase.from('folders').select('*').eq('section', 'manufacturers').order('position').order('name')
   folders.value = data || []
 }
 
@@ -1490,13 +1521,13 @@ function isSigned(log) {
 
 const route = useRoute()
 
-// Opened from Quotes (?focus=<id>): expand its folder, scroll to it, highlight briefly.
+// Opened from Quotes (?focus=<id>): open its folder, scroll to it, highlight briefly.
 async function focusManufacturerFromQuery() {
   const id = route.query.focus
   if (!id) return
   const m = manufacturers.value.find(x => String(x.id) === String(id))
   if (!m) return
-  expandedFolders.value.add(m.folder_id || 'no-folder')
+  selectedFolder.value = m.folder_id || 'no-folder'
   await nextTick()
   const el = document.getElementById('manu-' + id)
   if (!el) return
@@ -1546,15 +1577,29 @@ h1 {
   display: flex; 
   justify-content: space-between; 
   align-items: center; 
-  padding: 1.2rem 1.5rem; 
-  background: var(--bg-app); 
-  cursor: pointer; 
-  transition: background 0.2s; 
+  padding: 1.2rem 1.5rem;
+  background: var(--bg-app);
   user-select: none;
 }
-.folder-header:hover { 
-  background: var(--border-light); 
+.pick-folder-hint {
+  padding: 2.5rem 1rem;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  font-style: italic;
 }
+
+.color-picker { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.9rem; }
+.color-swatch {
+  width: 28px; height: 28px; padding: 0;
+  border: 2px solid transparent; border-radius: 50%;
+  cursor: pointer; transition: transform var(--dur-fast) var(--ease);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.7rem; color: var(--text-muted); line-height: 1;
+}
+.color-swatch.none { background: var(--bg-app); border-color: var(--border-main); }
+.color-swatch:hover { transform: scale(1.12); }
+.color-swatch.active { border-color: var(--text-main); box-shadow: 0 0 0 2px var(--bg-card) inset; }
 .folder-info-wrapper { 
   display: flex; 
   align-items: center; 
