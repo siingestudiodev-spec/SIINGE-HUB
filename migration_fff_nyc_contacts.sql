@@ -1,8 +1,10 @@
 -- Contactos del Functional Fabric Fair NYC (8-9 julio 2026)
 -- Run in Supabase SQL editor (Settings > SQL editor)
+-- ⚠ PROYECTO CORRECTO: luqakyzgcgcafukfirfk (SIINGE HUB), NO el proyecto del CRM
+--   (pbylrmaqtmgnywzdliql). Estas tablas solo existen en el hub.
 --
 -- Las empresas ya se cargaron vía la API. Estos contactos NO se pudieron insertar con la anon key:
--- las policies RLS de sourcing_contacts y manufacturer_contacts solo permiten escritura al rol
+-- las policies RLS de public.sourcing_contacts y public.manufacturer_contacts solo permiten escritura al rol
 -- authenticated. Pegar este archivo en el SQL editor lo resuelve.
 --
 -- primary_contact_id se deja en NULL a propósito: Sierra marca las estrellas ella misma
@@ -11,7 +13,7 @@
 --
 -- Es idempotente: el WHERE NOT EXISTS evita duplicar si se corre dos veces.
 
-INSERT INTO sourcing_contacts (sourcing_id, name, title, email, phone)
+INSERT INTO public.sourcing_contacts (sourcing_id, name, title, email, phone)
 SELECT v.sourcing_id::uuid, v.name, v.title, v.email, v.phone
 FROM (VALUES
   -- São Pedro de Alcântara (SPA Têxtil)
@@ -36,11 +38,11 @@ FROM (VALUES
   ('63446651-8d78-4f05-a4ef-a9b5662a678e', 'Ben Mead', 'Managing Director, Hohenstein Americas', 'USA@Hohenstein.com', '+1 800 731 9468')
 ) AS v(sourcing_id, name, title, email, phone)
 WHERE NOT EXISTS (
-  SELECT 1 FROM sourcing_contacts c
+  SELECT 1 FROM public.sourcing_contacts c
   WHERE c.sourcing_id = v.sourcing_id::uuid AND c.name = v.name
 );
 
-INSERT INTO manufacturer_contacts (manufacturer_id, name, title, email, phone)
+INSERT INTO public.manufacturer_contacts (manufacturer_id, name, title, email, phone)
 SELECT v.manufacturer_id::uuid, v.name, v.title, v.email, v.phone
 FROM (VALUES
   -- CASLA (California Apparel Services)
@@ -50,7 +52,7 @@ FROM (VALUES
   ('8833aecd-7590-410c-931b-37ae2d1924f4', 'General inquiries', '', 'info@hempfortex.com', '')
 ) AS v(manufacturer_id, name, title, email, phone)
 WHERE NOT EXISTS (
-  SELECT 1 FROM manufacturer_contacts c
+  SELECT 1 FROM public.manufacturer_contacts c
   WHERE c.manufacturer_id = v.manufacturer_id::uuid AND c.name = v.name
 );
 
