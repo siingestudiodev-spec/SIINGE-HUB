@@ -1,8 +1,8 @@
--- Etiqueta de color por carpeta
+-- Per-folder colour label
 -- Run in Supabase SQL editor (Settings > SQL editor)
 --
--- Guarda el hex directo (ej. '#C2410C'). NULL o '' = sin color.
--- La paleta válida vive en src/lib/folderColors.js.
+-- Stores the hex directly (e.g. '#C2410C'). NULL or '' means no colour.
+-- The valid palette lives in src/lib/folderColors.js.
 
 ALTER TABLE folders ADD COLUMN IF NOT EXISTS color TEXT;
 

@@ -1,17 +1,17 @@
--- Contactos del Functional Fabric Fair NYC (8-9 julio 2026)
+-- Functional Fabric Fair NYC contacts (8-9 July 2026)
 -- Run in Supabase SQL editor (Settings > SQL editor)
--- ⚠ PROYECTO CORRECTO: luqakyzgcgcafukfirfk (SIINGE HUB), NO el proyecto del CRM
---   (pbylrmaqtmgnywzdliql). Estas tablas solo existen en el hub.
+-- ⚠ CORRECT PROJECT: luqakyzgcgcafukfirfk (SIINGE HUB), NOT the CRM project
+--   (pbylrmaqtmgnywzdliql). These tables only exist in the hub.
 --
--- Las empresas ya se cargaron vía la API. Estos contactos NO se pudieron insertar con la anon key:
--- las policies RLS de public.sourcing_contacts y public.manufacturer_contacts solo permiten escritura al rol
--- authenticated. Pegar este archivo en el SQL editor lo resuelve.
+-- The companies were already loaded via the API. These contacts could NOT be inserted with
+-- the anon key: RLS on public.sourcing_contacts and public.manufacturer_contacts only allows
+-- writes to the authenticated role. Pasting this into the SQL editor solves it.
 --
--- primary_contact_id se deja en NULL a propósito: Sierra marca las estrellas ella misma
--- ("I will star primary contacts later"). Con NULL, el app trata el contacto de la fila
--- (contact_name/email/phone) como el primario por defecto.
+-- primary_contact_id is deliberately left NULL: Sierra stars the primaries herself
+-- ("I will star primary contacts later"). With NULL the app treats the row.s own contact
+-- (contact_name/email/phone) as the default primary.
 --
--- Es idempotente: el WHERE NOT EXISTS evita duplicar si se corre dos veces.
+-- Idempotent: the WHERE NOT EXISTS prevents duplicates if run twice.
 
 INSERT INTO public.sourcing_contacts (sourcing_id, name, title, email, phone)
 SELECT v.sourcing_id::uuid, v.name, v.title, v.email, v.phone
