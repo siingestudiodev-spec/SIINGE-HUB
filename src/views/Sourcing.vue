@@ -44,6 +44,7 @@
     </div>
 
     <div class="filters-bar">
+      <input v-model="search" type="search" placeholder="Search provider, notes or fabrics (e.g. 190gsm nylon)" class="filter-search" />
       <select v-model="filterType" class="filter-select">
         <option value="">All Types</option>
         <option v-for="t in typeOptions" :key="t" :value="t">{{ t }}</option>
@@ -56,7 +57,7 @@
         <option value="">All Folders</option>
         <option v-for="f in folders" :key="f.id" :value="f.id">{{ f.name }}</option>
       </select>
-      <button v-if="filterType || filterCountry || filterFolder" @click="clearFilters" class="btn-clear">✕ Clear</button>
+      <button v-if="search || filterType || filterCountry || filterFolder" @click="clearFilters" class="btn-clear">✕ Clear</button>
       <span class="results-count">{{ filteredProviders.length }} provider{{ filteredProviders.length !== 1 ? 's' : '' }}</span>
     </div>
 
@@ -183,9 +184,15 @@
                   <span v-for="t in parseTypes(p.types)" :key="t" class="type-tag">{{ t }}</span>
                 </div>
 
-                <button v-if="p.certifications" @click="showCertsPopup(p)" class="btn-view-certs">
-                  <BadgeCheck :size="12" :stroke-width="1.5" /> View {{ p.certifications.split(',').length }} Certs
-                </button>
+                <div class="card-chip-row">
+                  <button v-if="p.certifications" @click="showCertsPopup(p)" class="btn-view-certs">
+                    <BadgeCheck :size="12" :stroke-width="1.5" /> View {{ p.certifications.split(',').length }} Certs
+                  </button>
+                  <button @click="openFabrics(p)" class="btn-view-fabrics">
+                    <Layers :size="12" :stroke-width="1.5" />
+                    {{ p.fabrics?.length ? `${p.fabrics.length} Fabric${p.fabrics.length !== 1 ? 's' : ''}` : 'Add fabrics' }}
+                  </button>
+                </div>
 
                 <div class="card-info">
                   <div v-if="p.contact_name"><User :size="12" :stroke-width="1.5" /> {{ p.contact_name }}<button @click.stop="quickSetPrimary(p, null)" class="btn-primary-star" :class="{ 'is-primary': !p.primary_contact_id }" :title="!p.primary_contact_id ? 'Primary contact' : 'Set as primary'">★</button></div>
@@ -293,6 +300,52 @@
     </div>
 
     <!-- Certifications popup (read-only) -->
+    <!-- Fabric library for one provider -->
+    <div v-if="fabricModal.show" class="modal-overlay" @click.self="fabricModal.show = false">
+      <div class="modal-box" style="max-width: 1100px;">
+        <div class="modal-box-header">
+          <h2>{{ fabricModal.provider?.provider }} — Fabrics</h2>
+          <button @click="fabricModal.show = false" class="modal-close-btn">✕</button>
+        </div>
+
+        <div class="modal-box-body">
+          <div v-if="fabricModal.rows.length === 0" class="empty-folder-message">
+            No fabrics yet. Add the first one below.
+          </div>
+
+          <table v-else class="fabric-table">
+            <thead>
+              <tr>
+                <th>Article</th><th>Composition</th><th>Width</th><th>Weight</th>
+                <th>Color</th><th>Features</th><th>Price/m</th><th></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="f in fabricModal.rows" :key="f.id || f._localKey">
+                <td><input v-model="f.article_number" placeholder="Article" /></td>
+                <td><input v-model="f.composition" placeholder="e.g. 80% Nylon 20% Spandex" /></td>
+                <td><input v-model="f.width" placeholder="150 cm" /></td>
+                <td><input v-model="f.weight" placeholder="190 gsm" /></td>
+                <td><input v-model="f.color" placeholder="Color" /></td>
+                <td><input v-model="f.features" placeholder="Wicking, 4-way stretch…" /></td>
+                <td><input v-model="f.price_per_meter" placeholder="$" /></td>
+                <td><button @click="removeFabric(f)" class="btn-delete-contact" title="Remove">✕</button></td>
+              </tr>
+            </tbody>
+          </table>
+
+          <button @click="addFabricRow" class="btn-add-contact">+ Add Fabric</button>
+        </div>
+
+        <div class="modal-box-actions">
+          <button @click="fabricModal.show = false" class="btn-secondary">Cancel</button>
+          <button @click="saveFabrics" :disabled="fabricModal.saving" class="btn-primary">
+            {{ fabricModal.saving ? 'Saving…' : 'Save Fabrics' }}
+          </button>
+        </div>
+      </div>
+    </div>
+
     <div v-if="certPopup.show" class="modal-overlay" @click.self="certPopup.show = false">
       <div class="modal-box" style="max-width:400px;">
         <div class="modal-box-header">
@@ -313,7 +366,7 @@
 <script setup>
 import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { supabase } from '../lib/supabase'
-import { User, Phone, MapPin, Globe, Pencil, BookOpen, Folder, Trash2, BadgeCheck } from 'lucide-vue-next'
+import { User, Phone, MapPin, Globe, Pencil, BookOpen, Folder, Trash2, BadgeCheck, Layers } from 'lucide-vue-next'
 import FolderCapsules from '../components/FolderCapsules.vue'
 import { FOLDER_COLORS } from '../lib/folderColors'
 
@@ -337,11 +390,72 @@ const certOptions = [
 const selectedCertifications = ref([])
 const certPopup = ref({ show: false, list: [] })
 
+// ── Fabric library ─────────────────────────────────────────────────────────
+// Sierra asked for supplier fabrics to live in the hub. project_materials could not hold
+// them: it needs a project_id, and a supplier's catalogue exists before any project does.
+const fabricModal = ref({ show: false, provider: null, rows: [], deleted: [], saving: false })
+let fabricKey = 0
+
+const openFabrics = (p) => {
+  fabricModal.value = {
+    show: true, provider: p, deleted: [], saving: false,
+    rows: (p.fabrics || [])
+      .slice()
+      .sort((a, b) => (a.article_number || '').localeCompare(b.article_number || ''))
+      .map(f => ({ ...f, _localKey: f.id })),
+  }
+}
+
+const addFabricRow = () => fabricModal.value.rows.push({
+  _localKey: `new-${fabricKey++}`, article_number: '', composition: '', width: '',
+  weight: '', color: '', features: '', price_per_meter: '',
+})
+
+const removeFabric = (f) => {
+  if (f.id) fabricModal.value.deleted.push(f.id)
+  fabricModal.value.rows = fabricModal.value.rows.filter(r => r._localKey !== f._localKey)
+}
+
+const saveFabrics = async () => {
+  const m = fabricModal.value
+  m.saving = true
+  try {
+    if (m.deleted.length) {
+      const { error } = await supabase.from('fabrics').delete().in('id', m.deleted)
+      if (error) throw error
+    }
+    // A row with nothing in it is just an empty line the user left behind.
+    const filled = m.rows.filter(r => r.article_number?.trim() || r.composition?.trim())
+    const payload = filled.map(r => ({
+      ...(r.id ? { id: r.id } : {}),
+      sourcing_id: m.provider.id,
+      article_number: r.article_number?.trim() || null,
+      composition: r.composition?.trim() || null,
+      width: r.width?.trim() || null,
+      weight: r.weight?.trim() || null,
+      color: r.color?.trim() || null,
+      features: r.features?.trim() || null,
+      price_per_meter: r.price_per_meter?.trim() || null,
+    }))
+    if (payload.length) {
+      const { error } = await supabase.from('fabrics').upsert(payload)
+      if (error) throw error
+    }
+    m.show = false
+    await fetchProviders()
+  } catch (e) {
+    alert('Error saving fabrics: ' + (e.message || e))
+  } finally {
+    m.saving = false
+  }
+}
+
 const folders = ref([])
 const showFolderForm = ref(false)
 const folderForm = ref({ name: '', color: '' })
 const editingFolder = ref(false)
 const editFolderId = ref(null)
+const search = ref('')
 const filterFolder = ref('')
 const selectedFolder = ref(null)
 
@@ -382,12 +496,19 @@ const parseTypes = (types) => {
 }
 
 const filteredProviders = computed(() => {
+  const s = search.value.trim().toLowerCase()
   return providers.value.filter(p => {
     const types = parseTypes(p.types)
     const matchType = !filterType.value || types.includes(filterType.value)
     const matchCountry = !filterCountry.value || p.country === filterCountry.value
     const matchFolder = !filterFolder.value || p.folder_id === filterFolder.value
-    return matchType && matchCountry && matchFolder
+    // Searching the fabrics too is the point of the library: "190gsm nylon" should
+    // surface whoever weaves it, not just providers whose name happens to match.
+    const matchSearch = !s || [
+      p.provider, p.country, p.city, p.notes, p.certifications,
+      ...(p.fabrics || []).flatMap(f => [f.article_number, f.composition, f.width, f.weight, f.color, f.features]),
+    ].some(v => v?.toLowerCase().includes(s))
+    return matchType && matchCountry && matchFolder && matchSearch
   })
 })
 
@@ -438,6 +559,7 @@ async function saveFolderOrder(orderedIds) {
 }
 
 function clearFilters() {
+  search.value = ''
   filterType.value = ''
   filterCountry.value = ''
   filterFolder.value = ''
@@ -504,7 +626,7 @@ async function fetchProviders() {
   // second FK between these two tables, so PostgREST needs to be told which one to follow.
   const { data, error } = await supabase
     .from('sourcing')
-    .select('*, sourcing_contacts!sourcing_id(id, name, email, phone, title)')
+    .select('*, sourcing_contacts!sourcing_id(id, name, email, phone, title), fabrics(*)')
     .order('provider')
   if (error) {
     console.error('Error fetching sourcing providers:', error)
@@ -846,6 +968,20 @@ textarea { resize: vertical; margin-top: 0.75rem; }
 
 .btn-view-certs { display: inline-flex; align-items: center; gap: 5px; background: #ecfdf5; color: #059669; border: none; padding: 0.3rem 0.7rem; border-radius: 8px; cursor: pointer; font-size: 0.8rem; font-weight: 600; width: fit-content; }
 .btn-view-certs:hover { background: #d1fae5; }
+
+.card-chip-row { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.btn-view-fabrics { display: inline-flex; align-items: center; gap: 5px; background: var(--primary-soft); color: var(--primary); border: none; padding: 0.3rem 0.7rem; border-radius: 8px; cursor: pointer; font-size: 0.8rem; font-weight: 600; width: fit-content; }
+.btn-view-fabrics:hover { filter: brightness(0.95); }
+
+.filter-search { flex: 1; min-width: 240px; padding: 0.6rem 0.8rem; border: 1px solid var(--border-main); border-radius: 10px; background: var(--bg-card); color: var(--text-main); font-size: 0.85rem; font-family: inherit; }
+.filter-search:focus { outline: none; border-color: var(--primary); }
+
+.fabric-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+.fabric-table th { text-align: left; padding: 0.4rem 0.35rem; font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); border-bottom: 1px solid var(--border-main); white-space: nowrap; }
+.fabric-table td { padding: 0.2rem 0.15rem; border-bottom: 1px solid var(--border-light); }
+.fabric-table input { width: 100%; padding: 0.4rem 0.5rem; border: 1px solid transparent; border-radius: 6px; background: transparent; color: var(--text-main); font-size: 0.8rem; font-family: inherit; }
+.fabric-table input:hover { border-color: var(--border-light); }
+.fabric-table input:focus { outline: none; border-color: var(--primary); background: var(--bg-app); }
 .cert-multi-select { min-height: 140px; padding: 0.5rem; }
 .cert-hint { font-size: 0.75rem; color: var(--text-muted); margin-top: 0.35rem; }
 .cert-item { display: flex; align-items: center; gap: 0.5rem; padding: 0.45rem 0; border-bottom: 1px solid var(--border-light); font-size: 0.9rem; color: var(--text-main); }
