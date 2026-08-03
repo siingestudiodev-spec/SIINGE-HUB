@@ -8,7 +8,7 @@
 -- writes to the authenticated role. Pasting this into the SQL editor solves it.
 --
 -- primary_contact_id is deliberately left NULL: Sierra stars the primaries herself
--- ("I will star primary contacts later"). With NULL the app treats the row.s own contact
+-- ("I will star primary contacts later"). With NULL the app treats the row's own contact
 -- (contact_name/email/phone) as the default primary.
 --
 -- Idempotent: the WHERE NOT EXISTS prevents duplicates if run twice.

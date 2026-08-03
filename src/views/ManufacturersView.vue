@@ -115,6 +115,7 @@
               </select>
             </div>
             <div class="input-group"><input v-model="form.country" placeholder="Country" /></div>
+            <div class="input-group"><input v-model="form.city" placeholder="City" /></div>
             <div class="input-group" style="display:flex;align-items:center;gap:4px;">
               <button type="button" @click="primarySelection = 'default'" :class="['btn-primary-star', primarySelection === 'default' ? 'is-primary' : '']" :title="primarySelection === 'default' ? 'Primary contact' : 'Set as primary'">★</button>
               <input v-model="form.contact_name" placeholder="Contact Name" style="flex:1;" />
@@ -158,6 +159,12 @@
           </div>
 
           <textarea v-model="form.notes" placeholder="Notes (Optional)" rows="3" class="mt-4"></textarea>
+
+          <!-- Filling this in marks the manufacturer as declined: the card dims and shows the
+               reason, but the record is kept. -->
+          <div class="input-group mt-4">
+            <input v-model="form.declined_reason" placeholder="Not moving forward — why? (leave empty if still in play)" />
+          </div>
 
           <div class="categories-section mt-4">
             <label class="section-label">Additional Contacts</label>
@@ -246,14 +253,15 @@
         <transition name="slide-fade" appear>
           <div class="folder-content">
             <div class="folder-manufacturers" v-if="openFolder.manufacturers.length > 0">
-              <div v-for="m in openFolder.manufacturers" :key="m.id" :id="'manu-' + m.id" class="horizontal-card">
-                
+              <div v-for="m in openFolder.manufacturers" :key="m.id" :id="'manu-' + m.id" class="horizontal-card" :class="{ declined: m.declined_reason }">
+
                 <div class="card-identity">
                   <div class="card-avatar">{{ m.company_name?.charAt(0) }}</div>
                   <div class="card-title-block">
                     <h3>{{ m.company_name }}</h3>
                     <div class="badges-row">
-                      <span class="country-badge"><Globe :size="11" :stroke-width="1.5" /> {{ m.country || 'Unknown' }}</span>
+                      <span class="country-badge"><Globe :size="11" :stroke-width="1.5" /> {{ [m.city, m.country].filter(Boolean).join(', ') || 'Unknown' }}</span>
+                      <span v-if="m.declined_reason" class="declined-badge" :title="m.declined_reason">Not moving forward</span>
                       <span v-if="m.nda_signed" class="legal-badge nda" style="cursor:pointer;" @click.stop="openDocumentStatusModal(m, 'nda')">NDA ✓ ↓</span>
                       <span v-if="m.mma_signed" class="legal-badge mma" style="cursor:pointer;" @click.stop="openDocumentStatusModal(m, 'mma')">MMA ✓ ↓</span>
                     </div>
@@ -306,6 +314,11 @@
                   <div class="info-row notes-row" v-if="m.notes" @click="showNotesPopup(m.notes)" style="cursor: pointer;">
                     <span class="info-icon"><Edit :size="12" :stroke-width="1.5" /></span>
                     <span class="truncate-text" :title="m.notes">{{ m.notes }}</span>
+                  </div>
+
+                  <div class="info-row declined-row" v-if="m.declined_reason">
+                    <span class="info-icon"><AlertTriangle :size="12" :stroke-width="1.5" /></span>
+                    <span class="truncate-text" :title="m.declined_reason">{{ m.declined_reason }}</span>
                   </div>
                     
                   <div v-if="m.followup_due_at && !m.followup_sent_at && !m.followup_manually_completed_at" class="followup-status-row mt-2">
@@ -855,10 +868,10 @@ const logContactModal = ref({
   date: new Date().toISOString().split('T')[0]
 })
 
-const form = ref({ 
-  company_name: '', country: '', contact_name: '', phone: '', 
+const form = ref({
+  company_name: '', country: '', city: '', contact_name: '', phone: '',
   email: '', website: '', product_categories: '', certifications: '', notes: '',
-  nda_signed: false, mma_signed: false, folder_id: null
+  declined_reason: '', nda_signed: false, mma_signed: false, folder_id: null
 })
 
 const folderForm = ref({ name: '', color: '' })
@@ -928,7 +941,8 @@ const filteredManufacturers = computed(() => {
     const s = search.value.toLowerCase()
     const matchSearch = !s || 
       m.company_name?.toLowerCase().includes(s) || 
-      m.country?.toLowerCase().includes(s) || 
+      m.country?.toLowerCase().includes(s) ||
+      m.city?.toLowerCase().includes(s) ||
       m.product_categories?.toLowerCase().includes(s)
     const matchCountry = !filterCountry.value || m.country === filterCountry.value
     const matchCategory = !filterCategory.value || m.product_categories?.toLowerCase().includes(filterCategory.value.toLowerCase())
@@ -985,6 +999,8 @@ async function saveManufacturer() {
     // Forzamos que si es un string vacío, mande un null real a PostgreSQL
     folder_id: form.value.folder_id === '' ? null : form.value.folder_id, 
     country: form.value.country,
+    city: form.value.city,
+    declined_reason: form.value.declined_reason?.trim() || null,
     contact_name: form.value.contact_name,
     phone: form.value.phone,
     email: form.value.email,
@@ -1120,10 +1136,10 @@ async function editManufacturer(m) {
 
 function resetForm() {
   form.value = {
-    company_name: '', country: '', contact_name: '', phone: '',
+    company_name: '', country: '', city: '', contact_name: '', phone: '',
     email: '', website: '', catalog_url: '', product_categories: '', certifications: '',
     notes: 'MOQ: \nSLT: \nBulk: \n\n1. Certifications: \n2. Can provide traceability: \n3. QC: \n4. Allow Visits: ',
-    nda_signed: false, mma_signed: false, folder_id: null
+    declined_reason: '', nda_signed: false, mma_signed: false, folder_id: null
   }
   selectedCategories.value = []
   selectedCertifications.value = []
@@ -1581,6 +1597,23 @@ h1 {
   background: var(--bg-app);
   user-select: none;
 }
+/* Declined manufacturers stay on the list — dimmed, with the reason visible — instead of being
+   deleted, so the record survives. Full opacity on hover to read them normally. */
+.horizontal-card.declined { opacity: 0.55; }
+.horizontal-card.declined:hover { opacity: 1; }
+.declined-badge {
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 2px 7px;
+  border-radius: var(--r-2);
+  background: var(--danger-bg);
+  color: var(--danger-text);
+  white-space: nowrap;
+}
+.declined-row { color: var(--danger-text); font-style: italic; }
+
 .pick-folder-hint {
   padding: 2.5rem 1rem;
   text-align: center;
