@@ -108,6 +108,7 @@
         <div class="modal-body modal-body-scroll">
           <div class="form-grid">
             <div class="input-group"><input v-model="form.company_name" placeholder="Company Name *" /></div>
+            <div class="input-group"><input v-model="form.nickname" placeholder="Nickname (used with clients, e.g. &quot;LC&quot;)" /></div>
             <div class="input-group">
               <select v-model="form.folder_id">
                 <option :value="null">No Folder</option>
@@ -260,6 +261,7 @@
                   <div class="card-title-block">
                     <h3>{{ m.company_name }}</h3>
                     <div class="badges-row">
+                      <span v-if="m.nickname" class="nickname-badge" title="Nickname used with clients">{{ m.nickname }}</span>
                       <span class="country-badge"><Globe :size="11" :stroke-width="1.5" /> {{ [m.city, m.country].filter(Boolean).join(', ') || 'Unknown' }}</span>
                       <span v-if="m.declined_reason" class="declined-badge" :title="m.declined_reason">Not moving forward</span>
                       <span v-if="m.nda_signed" class="legal-badge nda" style="cursor:pointer;" @click.stop="openDocumentStatusModal(m, 'nda')">NDA ✓ ↓</span>
@@ -869,7 +871,7 @@ const logContactModal = ref({
 })
 
 const form = ref({
-  company_name: '', country: '', city: '', contact_name: '', phone: '',
+  company_name: '', nickname: '', country: '', city: '', contact_name: '', phone: '',
   email: '', website: '', product_categories: '', certifications: '', notes: '',
   declined_reason: '', nda_signed: false, mma_signed: false, folder_id: null
 })
@@ -996,8 +998,9 @@ async function saveManufacturer() {
   // CREAMOS UN PAYLOAD COMPLETAMENTE LIMPIO CON SOLO LAS COLUMNAS EXISTENTES
   const cleanPayload = {
     company_name: form.value.company_name,
+    nickname: form.value.nickname?.trim() || null,
     // Forzamos que si es un string vacío, mande un null real a PostgreSQL
-    folder_id: form.value.folder_id === '' ? null : form.value.folder_id, 
+    folder_id: form.value.folder_id === '' ? null : form.value.folder_id,
     country: form.value.country,
     city: form.value.city,
     declined_reason: form.value.declined_reason?.trim() || null,
@@ -1136,7 +1139,7 @@ async function editManufacturer(m) {
 
 function resetForm() {
   form.value = {
-    company_name: '', country: '', city: '', contact_name: '', phone: '',
+    company_name: '', nickname: '', country: '', city: '', contact_name: '', phone: '',
     email: '', website: '', catalog_url: '', product_categories: '', certifications: '',
     notes: 'MOQ: \nSLT: \nBulk: \n\n1. Certifications: \n2. Can provide traceability: \n3. QC: \n4. Allow Visits: ',
     declined_reason: '', nda_signed: false, mma_signed: false, folder_id: null
@@ -1874,6 +1877,7 @@ input:focus, textarea:focus, select:focus {
 }
 .card-title-block h3 { margin: 0; font-size: 1.1rem; font-weight: 700; color: var(--text-main); line-height: 1.2;}
 .country-badge { background: var(--bg-app); color: var(--text-muted); padding: 0.2rem 0.6rem; border-radius: 20px; font-size: 0.75rem; border: 1px solid var(--border-main);}
+.nickname-badge { background: var(--primary); color: white; padding: 0.2rem 0.6rem; border-radius: 20px; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.03em; }
 
 .card-info-block { 
   flex: 2; 

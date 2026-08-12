@@ -37,6 +37,7 @@
                 <div class="factory-avatar">{{ group.manufacturer.company_name?.charAt(0) }}</div>
                 <div>
                   <a :href="`/manufacturers?focus=${group.manufacturer.id}`" target="_blank" rel="noopener" class="factory-name factory-name-link" title="Open in Manufacturers (new tab)">{{ group.manufacturer.company_name }} ↗</a>
+                  <span v-if="group.manufacturer.nickname" class="nickname-chip" title="Nickname used with clients">{{ group.manufacturer.nickname }}</span>
                   <span class="factory-country"><Globe :size="12" :stroke-width="1.5" /> {{ group.manufacturer.country || 'Unknown' }}</span>
                 </div>
                 <div class="factory-header-right">
@@ -379,7 +380,7 @@ async function fetchData() {
     const [{ data: project }, { data: q, error: qErr }, { data: m }] = await Promise.all([
       supabase.from('projects').select('*').eq('id', projectId).single(),
       supabase.from('quotes').select('*').eq('project_id', projectId).order('created_at', { ascending: true }),
-      supabase.from('manufacturers').select('id, company_name, country, nda_signed, mma_signed').order('company_name')
+      supabase.from('manufacturers').select('id, company_name, nickname, country, nda_signed, mma_signed').order('company_name')
     ])
 
     if (project) {
@@ -516,6 +517,7 @@ td { padding: 1rem; border-bottom: 1px solid var(--border-light); font-size: 0.8
 .factory-name-link { text-decoration: none; cursor: pointer; display: inline-block; }
 .factory-name-link:hover { color: var(--primary); text-decoration: underline; }
 .factory-country { font-size: 0.8rem; color: var(--text-muted); margin-left: 0.5rem; background: var(--bg-app); padding: 0.2rem 0.5rem; border-radius: 12px; border: 1px solid var(--border-main); }
+.nickname-chip { font-size: 0.7rem; font-weight: 700; letter-spacing: 0.03em; color: white; background: var(--primary); margin-left: 0.5rem; padding: 0.15rem 0.5rem; border-radius: 12px; }
 .factory-header-right { margin-left: auto; display: flex; align-items: center; gap: 0.5rem; }
 .btn-add-variant { background: transparent; border: 1px dashed var(--primary); color: var(--primary); padding: 0.4rem 0.8rem; border-radius: 8px; font-size: 0.8rem; font-weight: 700; cursor: pointer; transition: 0.2s; }
 .btn-add-variant:hover { background: rgba(99, 102, 241, 0.1); }
