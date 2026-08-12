@@ -173,6 +173,7 @@
                   <div>
                     <strong>{{ p.provider }}</strong>
                     <div class="card-location">{{ [p.city, p.country].filter(Boolean).join(', ') || '—' }}</div>
+                    <div v-if="p.updated_at" class="card-updated">Updated {{ formatUpdated(p.updated_at) }}</div>
                   </div>
                   <div class="card-actions">
                     <button @click="editProvider(p)" class="btn-edit"><Pencil :size="13" :stroke-width="1.5" /></button>
@@ -492,6 +493,8 @@ const availableCountries = computed(() => {
   const countries = providers.value.map(p => p.country).filter(Boolean)
   return [...new Set(countries)].sort()
 })
+
+const formatUpdated = (iso) => new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 
 const parseTypes = (types) => {
   if (Array.isArray(types)) return types
@@ -914,6 +917,7 @@ textarea { resize: vertical; margin-top: 0.75rem; }
 .provider-avatar { width: 40px; height: 40px; background: var(--primary); color: white; font-weight: 700; font-size: 1rem; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .card-header strong { font-size: 1rem; color: var(--text-main); }
 .card-location { font-size: 0.82rem; color: var(--text-muted); margin-top: 0.15rem; }
+.card-updated { font-size: 0.7rem; color: var(--text-muted); opacity: 0.75; margin-top: 0.1rem; }
 
 .card-actions { margin-left: auto; display: flex; gap: 0.4rem; }
 .btn-edit { background: rgba(79, 70, 229, 0.1); color: var(--primary); border: none; padding: 0.35rem 0.7rem; border-radius: 8px; cursor: pointer; font-size: 0.85rem; }

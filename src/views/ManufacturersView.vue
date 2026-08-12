@@ -266,6 +266,7 @@
                       <span v-if="m.declined_reason" class="declined-badge" :title="m.declined_reason">Not moving forward</span>
                       <span v-if="m.nda_signed" class="legal-badge nda" style="cursor:pointer;" @click.stop="openDocumentStatusModal(m, 'nda')">NDA ✓ ↓</span>
                       <span v-if="m.mma_signed" class="legal-badge mma" style="cursor:pointer;" @click.stop="openDocumentStatusModal(m, 'mma')">MMA ✓ ↓</span>
+                      <span v-if="m.updated_at" class="updated-badge">Updated {{ new Date(m.updated_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) }}</span>
                     </div>
                   </div>
                 </div>
@@ -1878,6 +1879,7 @@ input:focus, textarea:focus, select:focus {
 .card-title-block h3 { margin: 0; font-size: 1.1rem; font-weight: 700; color: var(--text-main); line-height: 1.2;}
 .country-badge { background: var(--bg-app); color: var(--text-muted); padding: 0.2rem 0.6rem; border-radius: 20px; font-size: 0.75rem; border: 1px solid var(--border-main);}
 .nickname-badge { background: var(--primary); color: white; padding: 0.2rem 0.6rem; border-radius: 20px; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.03em; }
+.updated-badge { color: var(--text-muted); font-size: 0.7rem; opacity: 0.75; padding: 0.2rem 0; }
 
 .card-info-block { 
   flex: 2; 

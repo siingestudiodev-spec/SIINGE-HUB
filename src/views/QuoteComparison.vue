@@ -25,6 +25,7 @@
             <th>Sample Time</th>
             <th>Bulk Time</th>
             <th>Notes</th>
+            <th>Date</th>
             <th class="text-right">Actions</th>
           </tr>
         </thead>
@@ -32,7 +33,7 @@
         <tbody v-for="group in groupedQuotes" :key="group.manufacturer.id" class="factory-group" :class="{ 'is-discarded': group.discarded }">
           <!-- Manufacturer header -->
           <tr class="factory-group-header">
-            <td colspan="7">
+            <td colspan="8">
               <div class="factory-header-cell">
                 <div class="factory-avatar">{{ group.manufacturer.company_name?.charAt(0) }}</div>
                 <div>
@@ -57,7 +58,7 @@
 
           <!-- Inline NEW quote form (appears right after header) -->
           <tr v-if="activeForm?.manufacturerId === group.manufacturer.id && !activeForm.editingId" class="inline-form-row">
-            <td colspan="7">
+            <td colspan="8">
               <div class="inline-form">
                 <div class="inline-form-grid">
                   <div class="input-field">
@@ -113,7 +114,7 @@
 
           <!-- Empty group hint -->
           <tr v-if="group.items.length === 0 && activeForm?.manufacturerId !== group.manufacturer.id" class="empty-group-row">
-            <td colspan="7" class="empty-group-cell">No options yet — click "+ Add Option" to start</td>
+            <td colspan="8" class="empty-group-cell">No options yet — click "+ Add Option" to start</td>
           </tr>
 
           <!-- Quote rows + inline edit form -->
@@ -144,6 +145,7 @@
               <td>{{ formatWeeks(q.sample_lead_time_display) }}</td>
               <td>{{ formatWeeks(q.bulk_lead_time_display) }}</td>
               <td class="notes-cell">{{ q.notes || '—' }}</td>
+              <td class="date-cell" :title="q.updated_at !== q.created_at ? 'Last edited' : 'Added'">{{ formatQuoteDate(q.updated_at || q.created_at) }}</td>
               <td class="text-right">
                 <div class="table-actions">
                   <button @click="openInlineForm(group.manufacturer.id, q)" class="btn-icon btn-edit-icon" title="Edit"><Pencil :size="13" :stroke-width="1.5" /></button>
@@ -154,7 +156,7 @@
 
             <!-- Inline EDIT form (appears right after the quote being edited) -->
             <tr v-if="activeForm?.manufacturerId === group.manufacturer.id && activeForm.editingId === q.id" class="inline-form-row">
-              <td colspan="7">
+              <td colspan="8">
                 <div class="inline-form">
                   <div class="inline-form-grid">
                     <div class="input-field">
@@ -392,6 +394,11 @@ function parseLeadTime(value) {
   return isNaN(n) ? null : Math.floor(n)
 }
 
+function formatQuoteDate(iso) {
+  if (!iso) return '—'
+  return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+}
+
 function formatWeeks(value) {
   if (value == null || value === '') return '—'
   const raw = value.toString().trim()
@@ -570,6 +577,7 @@ td { padding: 1rem; border-bottom: 1px solid var(--border-light); font-size: 0.8
 .indent-cell { padding-left: 1.5rem !important; }
 .variant-icon { color: var(--text-muted); margin-right: 0.5rem; font-weight: normal; }
 .notes-cell { font-style: italic; color: var(--text-muted); max-width: 250px; }
+.date-cell { color: var(--text-muted); font-size: 0.78rem; white-space: nowrap; }
 
 /* PRICING TIERS DISPLAY */
 .tiers-display { display: flex; flex-direction: column; gap: 0.4rem; }

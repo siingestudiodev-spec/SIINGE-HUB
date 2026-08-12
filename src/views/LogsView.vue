@@ -9,6 +9,10 @@
           <option value="manufacturers">Manufacturers</option>
           <option value="manufacturer_documents">Documents</option>
           <option value="quotes">Quotes</option>
+          <option value="sourcing">Sourcing</option>
+          <option value="sourcing_contacts">Sourcing Contacts</option>
+          <option value="manufacturer_contacts">Manufacturer Contacts</option>
+          <option value="fabrics">Fabrics</option>
         </select>
         <select v-model="filterAction" class="filter-select">
           <option value="">All actions</option>
@@ -104,7 +108,7 @@ const filtered = computed(() => {
 function summary(log) {
   const d = log.new_data || log.old_data
   if (!d) return log.record_id || '—'
-  return d.company_name || d.template_name || d.document_type || d.name || log.record_id || '—'
+  return d.company_name || d.template_name || d.document_type || d.provider || d.article_number || d.name || log.record_id || '—'
 }
 
 function changedFields(log) {
