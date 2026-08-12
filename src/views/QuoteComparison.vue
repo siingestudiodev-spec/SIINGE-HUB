@@ -40,6 +40,7 @@
                   <span v-if="group.manufacturer.nickname" class="nickname-chip" title="Nickname used with clients">{{ group.manufacturer.nickname }}</span>
                   <span class="factory-country"><Globe :size="12" :stroke-width="1.5" /> {{ group.manufacturer.country || 'Unknown' }}</span>
                   <span v-if="group.discarded" class="discarded-badge">Discarded</span>
+                  <div v-if="group.discarded && group.discardedReason" class="discarded-reason">{{ group.discardedReason }}</div>
                 </div>
                 <div class="factory-header-right">
                   <span v-if="group.manufacturer.nda_signed" class="legal-chip nda">NDA ✓</span>
@@ -293,8 +294,9 @@ const groupedQuotes = computed(() => {
   })
   const list = Object.values(groups).map(g => ({
     ...g,
-    // Discarded is set on every row of the manufacturer together, so any row reflects it.
+    // Discarded (and its reason) is set on every row of the manufacturer together, so any row reflects it.
     discarded: g.items.length > 0 && g.items[0].discarded,
+    discardedReason: g.items.length > 0 ? g.items[0].discarded_reason : null,
   }))
   // Discarded manufacturers sink to the bottom; alphabetical within each group.
   return list.sort((a, b) => {
@@ -356,12 +358,16 @@ function removeManufacturer(mfgId) {
 }
 
 async function toggleDiscard(mfgId, currentlyDiscarded) {
+  let reason = null
+  if (!currentlyDiscarded) {
+    reason = window.prompt('Reason for discarding this manufacturer (optional):') || null
+  }
   const { error } = await supabase.from('quotes')
-    .update({ discarded: !currentlyDiscarded })
+    .update({ discarded: !currentlyDiscarded, discarded_reason: reason })
     .eq('project_id', projectId)
     .eq('manufacturer_id', mfgId)
   if (error) return showMsg('Error updating quote: ' + error.message, 'error')
-  quotes.value = quotes.value.map(q => q.manufacturer_id === mfgId ? { ...q, discarded: !currentlyDiscarded } : q)
+  quotes.value = quotes.value.map(q => q.manufacturer_id === mfgId ? { ...q, discarded: !currentlyDiscarded, discarded_reason: reason } : q)
 }
 
 function addTier() { activeForm.value.data.pricing_tiers.push({ moq: '', price: '' }) }
@@ -542,6 +548,7 @@ td { padding: 1rem; border-bottom: 1px solid var(--border-light); font-size: 0.8
 .factory-country { font-size: 0.8rem; color: var(--text-muted); margin-left: 0.5rem; background: var(--bg-app); padding: 0.2rem 0.5rem; border-radius: 12px; border: 1px solid var(--border-main); }
 .nickname-chip { font-size: 0.7rem; font-weight: 700; letter-spacing: 0.03em; color: white; background: var(--primary); margin-left: 0.5rem; padding: 0.15rem 0.5rem; border-radius: 12px; }
 .discarded-badge { font-size: 0.7rem; font-weight: 700; color: var(--text-muted); background: var(--bg-app); border: 1px solid var(--border-main); margin-left: 0.5rem; padding: 0.15rem 0.5rem; border-radius: 12px; }
+.discarded-reason { font-size: 0.78rem; color: var(--text-muted); font-style: italic; margin-top: 0.2rem; }
 .btn-discard { background: transparent; border: 1px solid var(--border-main); color: var(--text-muted); padding: 0.4rem 0.8rem; border-radius: 8px; font-size: 0.8rem; font-weight: 700; cursor: pointer; transition: 0.2s; }
 .btn-discard:hover { background: var(--danger-bg); color: var(--danger-text); border-color: var(--danger-text); }
 .factory-group.is-discarded { opacity: 0.5; }
