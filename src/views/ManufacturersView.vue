@@ -153,10 +153,22 @@
 
           <div class="categories-section mt-4">
             <label class="section-label">Certifications</label>
-            <select v-model="selectedCertifications" multiple class="multi-select-custom">
-              <option v-for="cert in certOptions" :key="cert.name" :value="cert.name" :title="cert.description">{{ cert.name }}</option>
-            </select>
-            <p class="text-xs text-gray-400 mt-1">Hold Ctrl (or Cmd on Mac) to select multiple.</p>
+            <div class="categories-grid">
+              <label v-for="cert in certOptions" :key="cert.name" class="category-checkbox" :title="cert.description">
+                <input type="checkbox" :value="cert.name" v-model="selectedCertifications" />
+                <span>{{ cert.name }}</span>
+              </label>
+            </div>
+
+            <div v-for="certName in selectedCertifications" :key="certName" class="cert-detail-row">
+              <div class="cert-detail-title">{{ certName }} — certificate details <span class="text-xs text-gray-400">(optional)</span></div>
+              <div class="cert-detail-grid">
+                <input v-model="form.certification_details[certName].number" placeholder="Certificate number" />
+                <input v-model="form.certification_details[certName].authority" placeholder="Certificate authority (e.g. TÜV SÜD)" />
+                <input type="date" v-model="form.certification_details[certName].validFrom" title="Valid from" />
+                <input type="date" v-model="form.certification_details[certName].validUntil" title="Valid until" />
+              </div>
+            </div>
           </div>
 
           <textarea v-model="form.notes" placeholder="Notes (Optional)" rows="3" class="mt-4"></textarea>
@@ -385,6 +397,11 @@
           <div v-for="c in certPopup.list" :key="c" class="cert-item-block">
             <div class="cert-item"><span class="check-icon-green">✅</span> {{ c.trim() }}</div>
             <p v-if="certDescription(c)" class="cert-description">{{ certDescription(c) }}</p>
+            <div v-if="certPopup.details[c.trim()] && (certPopup.details[c.trim()].number || certPopup.details[c.trim()].authority || certPopup.details[c.trim()].validFrom)" class="cert-detail-facts">
+              <div v-if="certPopup.details[c.trim()].number"><strong>Certificate number:</strong> {{ certPopup.details[c.trim()].number }}</div>
+              <div v-if="certPopup.details[c.trim()].validFrom || certPopup.details[c.trim()].validUntil"><strong>Validity period:</strong> {{ certPopup.details[c.trim()].validFrom || '?' }} – {{ certPopup.details[c.trim()].validUntil || '?' }}</div>
+              <div v-if="certPopup.details[c.trim()].authority"><strong>Certificate authority:</strong> {{ certPopup.details[c.trim()].authority }}</div>
+            </div>
           </div>
         </div>
       </div>
@@ -728,7 +745,16 @@ const certDescription = (name) => certOptions.find(c => c.name === name.trim())?
 
 const selectedCategories = ref([])
 const selectedCertifications = ref([])
-const certPopup = ref({ show: false, list: [] })
+// Every checked cert gets a blank detail record on the spot, so the inputs
+// have something to v-model against as soon as they appear.
+watch(selectedCertifications, (list) => {
+  list.forEach(name => {
+    if (!form.value.certification_details[name]) {
+      form.value.certification_details[name] = { number: '', validFrom: '', validUntil: '', authority: '' }
+    }
+  })
+})
+const certPopup = ref({ show: false, list: [], details: {} })
 const notesPopup = ref({ show: false, text: '' })
 const followupModal = ref({ show: false, manu: null, date: '', notes: '' })
 const sendDocumentsModal = ref({ show: false, manufacturer: null })
@@ -888,7 +914,8 @@ const logContactModal = ref({
 const form = ref({
   company_name: '', nickname: '', country: '', city: '', contact_name: '', phone: '',
   email: '', website: '', product_categories: '', certifications: '', notes: '',
-  declined_reason: '', nda_signed: false, mma_signed: false, folder_id: null
+  declined_reason: '', nda_signed: false, mma_signed: false, folder_id: null,
+  certification_details: {}
 })
 
 const folderForm = ref({ name: '', color: '' })
@@ -968,9 +995,10 @@ const filteredManufacturers = computed(() => {
   })
 })
 
-function showCertsPopup(m) { 
+function showCertsPopup(m) {
   certPopup.value.list = m.certifications.split(',')
-  certPopup.value.show = true 
+  certPopup.value.details = m.certification_details || {}
+  certPopup.value.show = true
 }
 
 function showNotesPopup(notes) {
@@ -1026,6 +1054,12 @@ async function saveManufacturer() {
     catalog_url: form.value.catalog_url,
     product_categories: selectedCategories.value.join(','),
     certifications: selectedCertifications.value.join(','),
+    // Only keep detail records for certs still checked — an unchecked one's old
+    // number/dates aren't shown anywhere, no reason to keep them around either.
+    certification_details: selectedCertifications.value.reduce((acc, name) => {
+      acc[name] = form.value.certification_details[name] || { number: '', validFrom: '', validUntil: '', authority: '' }
+      return acc
+    }, {}),
     notes: form.value.notes,
     nda_signed: form.value.nda_signed,
     mma_signed: form.value.mma_signed
@@ -1141,7 +1175,7 @@ function addContact() {
 }
 
 async function editManufacturer(m) {
-  form.value = { ...m }
+  form.value = { ...m, certification_details: m.certification_details && typeof m.certification_details === 'object' ? { ...m.certification_details } : {} }
   selectedCategories.value = m.product_categories ? m.product_categories.split(',').map(s => s.trim()) : []
   selectedCertifications.value = m.certifications ? m.certifications.split(',').map(s => s.trim()) : []
   editId.value = m.id
@@ -1157,7 +1191,8 @@ function resetForm() {
     company_name: '', nickname: '', country: '', city: '', contact_name: '', phone: '',
     email: '', website: '', catalog_url: '', product_categories: '', certifications: '',
     notes: 'MOQ: \nSLT: \nBulk: \n\n1. Certifications: \n2. Can provide traceability: \n3. QC: \n4. Allow Visits: ',
-    declined_reason: '', nda_signed: false, mma_signed: false, folder_id: null
+    declined_reason: '', nda_signed: false, mma_signed: false, folder_id: null,
+    certification_details: {}
   }
   selectedCategories.value = []
   selectedCertifications.value = []
@@ -2095,6 +2130,11 @@ input:focus, textarea:focus, select:focus {
 .cert-item { background: var(--bg-app); padding: 0.8rem 1rem; border-radius: 8px 8px 0 0; color: var(--text-main); display: flex; gap: 0.6rem; }
 .cert-item-block { margin-bottom: 0.5rem; }
 .cert-description { background: var(--bg-app); border-top: 1px solid var(--border-main); padding: 0 1rem 0.8rem; margin: 0; border-radius: 0 0 8px 8px; font-size: 0.78rem; color: var(--text-muted); }
+.cert-detail-facts { background: var(--bg-app); border-top: 1px solid var(--border-main); padding: 0.6rem 1rem; margin: 0; border-radius: 0 0 8px 8px; font-size: 0.8rem; color: var(--text-main); display: flex; flex-direction: column; gap: 0.2rem; }
+.cert-detail-row { border: 1px solid var(--border-main); border-radius: 8px; padding: 0.6rem 0.8rem; margin-top: 0.5rem; }
+.cert-detail-title { font-size: 0.75rem; font-weight: 700; color: var(--text-muted); margin-bottom: 0.4rem; }
+.cert-detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
+.cert-detail-grid input { padding: 0.45rem 0.6rem; border: 1px solid var(--border-main); border-radius: 6px; background: var(--bg-app); color: var(--text-main); font-size: 0.82rem; font-family: inherit; }
 .modal-field { margin-bottom: 1.2rem; }
 .modal-field label { display: block; font-size: 0.8rem; font-weight: 700; color: var(--text-muted); margin-bottom: 0.4rem; text-transform: uppercase; letter-spacing: 0.05em;}
 
