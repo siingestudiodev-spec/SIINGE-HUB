@@ -29,7 +29,7 @@
           </tr>
         </thead>
 
-        <tbody v-for="group in groupedQuotes" :key="group.manufacturer.id" class="factory-group">
+        <tbody v-for="group in groupedQuotes" :key="group.manufacturer.id" class="factory-group" :class="{ 'is-discarded': group.discarded }">
           <!-- Manufacturer header -->
           <tr class="factory-group-header">
             <td colspan="7">
@@ -39,11 +39,15 @@
                   <a :href="`/manufacturers?focus=${group.manufacturer.id}`" target="_blank" rel="noopener" class="factory-name factory-name-link" title="Open in Manufacturers (new tab)">{{ group.manufacturer.company_name }} ↗</a>
                   <span v-if="group.manufacturer.nickname" class="nickname-chip" title="Nickname used with clients">{{ group.manufacturer.nickname }}</span>
                   <span class="factory-country"><Globe :size="12" :stroke-width="1.5" /> {{ group.manufacturer.country || 'Unknown' }}</span>
+                  <span v-if="group.discarded" class="discarded-badge">Discarded</span>
                 </div>
                 <div class="factory-header-right">
                   <span v-if="group.manufacturer.nda_signed" class="legal-chip nda">NDA ✓</span>
                   <span v-if="group.manufacturer.mma_signed" class="legal-chip mma">MMA ✓</span>
                   <button @click="openInlineForm(group.manufacturer.id)" class="btn-add-variant">+ Add Option</button>
+                  <button v-if="group.items.length > 0" @click="toggleDiscard(group.manufacturer.id, group.discarded)" class="btn-discard" :title="group.discarded ? 'Bring back into consideration' : 'Not moving forward with this manufacturer'">
+                    {{ group.discarded ? '↺ Restore' : '✕ Discard' }}
+                  </button>
                   <button v-if="group.items.length === 0" @click="removeManufacturer(group.manufacturer.id)" class="btn-remove-mfg" title="Remove">✕</button>
                 </div>
               </div>
@@ -287,9 +291,16 @@ const groupedQuotes = computed(() => {
     if (!groups[mId]) groups[mId] = { manufacturer: q.manufacturers || { id: mId, company_name: 'Unknown', country: '' }, items: [] }
     groups[mId].items.push(q)
   })
-  return Object.values(groups).sort((a, b) =>
-    (a.manufacturer.company_name?.toLowerCase() || '').localeCompare(b.manufacturer.company_name?.toLowerCase() || '')
-  )
+  const list = Object.values(groups).map(g => ({
+    ...g,
+    // Discarded is set on every row of the manufacturer together, so any row reflects it.
+    discarded: g.items.length > 0 && g.items[0].discarded,
+  }))
+  // Discarded manufacturers sink to the bottom; alphabetical within each group.
+  return list.sort((a, b) => {
+    if (a.discarded !== b.discarded) return a.discarded ? 1 : -1
+    return (a.manufacturer.company_name?.toLowerCase() || '').localeCompare(b.manufacturer.company_name?.toLowerCase() || '')
+  })
 })
 
 const filteredPickerManufacturers = computed(() => {
@@ -342,6 +353,15 @@ function openInlineForm(manufacturerId, quoteToEdit = null) {
 function removeManufacturer(mfgId) {
   includedManufacturers.value = includedManufacturers.value.filter(m => m.id !== mfgId)
   if (activeForm.value?.manufacturerId === mfgId) activeForm.value = null
+}
+
+async function toggleDiscard(mfgId, currentlyDiscarded) {
+  const { error } = await supabase.from('quotes')
+    .update({ discarded: !currentlyDiscarded })
+    .eq('project_id', projectId)
+    .eq('manufacturer_id', mfgId)
+  if (error) return showMsg('Error updating quote: ' + error.message, 'error')
+  quotes.value = quotes.value.map(q => q.manufacturer_id === mfgId ? { ...q, discarded: !currentlyDiscarded } : q)
 }
 
 function addTier() { activeForm.value.data.pricing_tiers.push({ moq: '', price: '' }) }
@@ -521,6 +541,11 @@ td { padding: 1rem; border-bottom: 1px solid var(--border-light); font-size: 0.8
 .factory-name-link:hover { color: var(--primary); text-decoration: underline; }
 .factory-country { font-size: 0.8rem; color: var(--text-muted); margin-left: 0.5rem; background: var(--bg-app); padding: 0.2rem 0.5rem; border-radius: 12px; border: 1px solid var(--border-main); }
 .nickname-chip { font-size: 0.7rem; font-weight: 700; letter-spacing: 0.03em; color: white; background: var(--primary); margin-left: 0.5rem; padding: 0.15rem 0.5rem; border-radius: 12px; }
+.discarded-badge { font-size: 0.7rem; font-weight: 700; color: var(--text-muted); background: var(--bg-app); border: 1px solid var(--border-main); margin-left: 0.5rem; padding: 0.15rem 0.5rem; border-radius: 12px; }
+.btn-discard { background: transparent; border: 1px solid var(--border-main); color: var(--text-muted); padding: 0.4rem 0.8rem; border-radius: 8px; font-size: 0.8rem; font-weight: 700; cursor: pointer; transition: 0.2s; }
+.btn-discard:hover { background: var(--danger-bg); color: var(--danger-text); border-color: var(--danger-text); }
+.factory-group.is-discarded { opacity: 0.5; }
+.factory-group.is-discarded:hover { opacity: 0.85; }
 .factory-header-right { margin-left: auto; display: flex; align-items: center; gap: 0.5rem; }
 .btn-add-variant { background: transparent; border: 1px dashed var(--primary); color: var(--primary); padding: 0.4rem 0.8rem; border-radius: 8px; font-size: 0.8rem; font-weight: 700; cursor: pointer; transition: 0.2s; }
 .btn-add-variant:hover { background: rgba(99, 102, 241, 0.1); }
