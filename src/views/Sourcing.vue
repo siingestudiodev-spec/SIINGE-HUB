@@ -317,7 +317,7 @@
             <thead>
               <tr>
                 <th>Article</th><th>Composition</th><th>Width</th><th>Weight</th>
-                <th>Color</th><th>Features</th><th>Price/m</th><th></th>
+                <th>Color</th><th>Features</th><th>Price/m</th><th>Swatch Link</th><th></th>
               </tr>
             </thead>
             <tbody>
@@ -329,6 +329,10 @@
                 <td><input v-model="f.color" placeholder="Color" /></td>
                 <td><input v-model="f.features" placeholder="Wicking, 4-way stretch…" /></td>
                 <td><input v-model="f.price_per_meter" placeholder="$" /></td>
+                <td>
+                  <a v-if="f.swatch_url" :href="f.swatch_url" target="_blank" rel="noopener" class="swatch-link-icon" title="Open swatch photo">🔗</a>
+                  <input v-model="f.swatch_url" placeholder="Drive link to photo" />
+                </td>
                 <td><button @click="removeFabric(f)" class="btn-delete-contact" title="Remove">✕</button></td>
               </tr>
             </tbody>
@@ -408,7 +412,7 @@ const openFabrics = (p) => {
 
 const addFabricRow = () => fabricModal.value.rows.push({
   _localKey: `new-${fabricKey++}`, article_number: '', composition: '', width: '',
-  weight: '', color: '', features: '', price_per_meter: '',
+  weight: '', color: '', features: '', price_per_meter: '', swatch_url: '',
 })
 
 const removeFabric = (f) => {
@@ -436,6 +440,7 @@ const saveFabrics = async () => {
       color: r.color?.trim() || null,
       features: r.features?.trim() || null,
       price_per_meter: r.price_per_meter?.trim() || null,
+      swatch_url: r.swatch_url?.trim() || null,
     }))
     if (payload.length) {
       const { error } = await supabase.from('fabrics').upsert(payload)
@@ -982,6 +987,7 @@ textarea { resize: vertical; margin-top: 0.75rem; }
 .fabric-table input { width: 100%; padding: 0.4rem 0.5rem; border: 1px solid transparent; border-radius: 6px; background: transparent; color: var(--text-main); font-size: 0.8rem; font-family: inherit; }
 .fabric-table input:hover { border-color: var(--border-light); }
 .fabric-table input:focus { outline: none; border-color: var(--primary); background: var(--bg-app); }
+.swatch-link-icon { margin-right: 0.3rem; text-decoration: none; }
 .cert-multi-select { min-height: 140px; padding: 0.5rem; }
 .cert-hint { font-size: 0.75rem; color: var(--text-muted); margin-top: 0.35rem; }
 .cert-item { display: flex; align-items: center; gap: 0.5rem; padding: 0.45rem 0; border-bottom: 1px solid var(--border-light); font-size: 0.9rem; color: var(--text-main); }
