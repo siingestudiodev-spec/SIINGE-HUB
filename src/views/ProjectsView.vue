@@ -398,7 +398,7 @@
           <div v-else-if="shipmentsModal.shipments.length > 0" style="display:flex;flex-direction:column;gap:0;border:1px solid var(--border-main);border-radius:8px;overflow:hidden;margin-bottom:1rem;">
             <div v-for="(s, idx) in shipmentsModal.shipments" :key="s.id"
               style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;"
-              :style="idx < shipmentsModal.shipments.length - 1 ? 'border-bottom:1px solid var(--border-light);' : ''"
+              :style="(idx < shipmentsModal.shipments.length - 1 ? 'border-bottom:1px solid var(--border-light);' : '') + (s.delivered_at ? 'opacity:0.55;' : '')"
             >
               <div style="display:flex;flex-direction:column;gap:2px;">
                 <div style="display:flex;align-items:center;gap:0.5rem;">
@@ -408,10 +408,15 @@
                     onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'"
                   >{{ s.tracking_number }} ↗</a>
                   <span v-else style="font-size:0.88rem;font-weight:700;font-family:monospace;color:var(--text-main);">{{ s.tracking_number }}</span>
+                  <span v-if="s.delivered_at" style="font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:#16a34a;background:rgba(34,197,94,0.12);padding:2px 6px;border-radius:4px;">Delivered</span>
                 </div>
-                <span v-if="s.description" style="font-size:0.75rem;color:var(--text-muted);">{{ s.description }}</span>
+                <span v-if="s.manufacturer_name" style="font-size:0.75rem;color:var(--text-muted);">{{ s.manufacturer_name }}<template v-if="s.description"> · {{ s.description }}</template></span>
+                <span v-else-if="s.description" style="font-size:0.75rem;color:var(--text-muted);">{{ s.description }}</span>
               </div>
-              <button @click="deleteShipment(s.id)" style="background:transparent;border:none;color:var(--text-muted);cursor:pointer;padding:0.2rem;border-radius:4px;font-size:0.75rem;opacity:0.6;" title="Delete" onmouseover="this.style.opacity='1';this.style.color='#fb7185'" onmouseout="this.style.opacity='0.6';this.style.color='var(--text-muted)'">✕</button>
+              <div style="display:flex;align-items:center;gap:0.3rem;">
+                <button v-if="!s.delivered_at" @click="markDelivered(s.id)" class="btn-secondary" style="font-size:0.72rem;padding:0.3rem 0.6rem;">Delivered</button>
+                <button @click="deleteShipment(s.id)" style="background:transparent;border:none;color:var(--text-muted);cursor:pointer;padding:0.2rem;border-radius:4px;font-size:0.75rem;opacity:0.6;" title="Delete" onmouseover="this.style.opacity='1';this.style.color='#fb7185'" onmouseout="this.style.opacity='0.6';this.style.color='var(--text-muted)'">✕</button>
+              </div>
             </div>
           </div>
 
@@ -420,6 +425,13 @@
           </div>
 
           <div v-if="shipmentsModal.showForm" style="border:1px solid var(--border-main);border-radius:10px;padding:1rem;display:flex;flex-direction:column;gap:0.8rem;">
+            <div class="input-group" style="margin-bottom:0;">
+              <label>Manufacturer (optional)</label>
+              <select v-model="shipmentsModal.form.manufacturer_id" style="width:100%;padding:0.6rem 1rem;background:var(--bg-app);color:var(--text-main);border:1px solid var(--border-main);border-radius:8px;font-family:inherit;font-size:0.9rem;">
+                <option :value="null">— Not linked —</option>
+                <option v-for="m in shipmentsModal.manufacturers" :key="m.id" :value="m.id">{{ m.company_name }}</option>
+              </select>
+            </div>
             <div class="input-group" style="margin-bottom:0;">
               <label>Carrier</label>
               <select v-model="shipmentsModal.form.carrier" style="width:100%;padding:0.6rem 1rem;background:var(--bg-app);color:var(--text-main);border:1px solid var(--border-main);border-radius:8px;font-family:inherit;font-size:0.9rem;">
@@ -621,7 +633,7 @@ async function deleteDriveFolder(id) {
   driveModal.value.folders = driveModal.value.folders.filter(f => f.id !== id)
 }
 
-const shipmentsModal = ref({ show: false, loading: false, saving: false, projectId: null, projectName: '', shipments: [], showForm: false, form: { carrier: '', tracking_number: '', description: '', custom_carrier: '', custom_url: '' } })
+const shipmentsModal = ref({ show: false, loading: false, saving: false, projectId: null, projectName: '', shipments: [], manufacturers: [], showForm: false, form: { manufacturer_id: null, carrier: '', tracking_number: '', description: '', custom_carrier: '', custom_url: '' } })
 
 const CARRIER_URLS = {
   DHL: (n) => `https://www.dhl.com/en/express/tracking.html?AWB=${n}`,
@@ -639,9 +651,26 @@ function getTrackingUrl(s) {
 }
 
 async function openShipments(p) {
-  shipmentsModal.value = { show: true, loading: true, saving: false, projectId: p.id, projectName: p.project_name, shipments: [], showForm: false, form: { carrier: '', tracking_number: '', description: '', custom_carrier: '', custom_url: '' } }
-  const { data } = await supabase.from('project_shipments').select('*').eq('project_id', p.id).order('created_at', { ascending: false })
-  shipmentsModal.value.shipments = data || []
+  shipmentsModal.value = { show: true, loading: true, saving: false, projectId: p.id, projectName: p.project_name, shipments: [], manufacturers: [], showForm: false, form: { manufacturer_id: null, carrier: '', tracking_number: '', description: '', custom_carrier: '', custom_url: '' } }
+
+  const [{ data: shipments }, { data: quotes }] = await Promise.all([
+    supabase.from('project_shipments').select('*').eq('project_id', p.id).order('created_at', { ascending: false }),
+    supabase.from('quotes').select('manufacturer_id').eq('project_id', p.id),
+  ])
+
+  const manuIds = [...new Set([
+    ...(shipments || []).map(s => s.manufacturer_id).filter(Boolean),
+    ...(quotes || []).map(q => q.manufacturer_id).filter(Boolean),
+  ])]
+
+  let manuMap = {}
+  if (manuIds.length > 0) {
+    const { data: manus } = await supabase.from('manufacturers').select('id, company_name').in('id', manuIds)
+    ;(manus || []).forEach(m => { manuMap[m.id] = m.company_name })
+    shipmentsModal.value.manufacturers = (manus || []).slice().sort((a, b) => a.company_name.localeCompare(b.company_name))
+  }
+
+  shipmentsModal.value.shipments = (shipments || []).map(s => ({ ...s, manufacturer_name: s.manufacturer_id ? manuMap[s.manufacturer_id] : null }))
   shipmentsModal.value.loading = false
 }
 
@@ -662,17 +691,27 @@ async function addShipment() {
   shipmentsModal.value.saving = true
   const { data, error } = await supabase.from('project_shipments').insert([{
     project_id: shipmentsModal.value.projectId,
+    manufacturer_id: f.manufacturer_id || null,
     carrier,
     tracking_number: f.tracking_number.trim(),
     description: f.description.trim() || null,
     tracking_url: trackingUrl,
   }]).select().single()
   if (!error) {
-    shipmentsModal.value.shipments.unshift(data)
-    shipmentsModal.value.form = { carrier: '', tracking_number: '', description: '', custom_carrier: '', custom_url: '' }
+    const manuName = shipmentsModal.value.manufacturers.find(m => m.id === data.manufacturer_id)?.company_name || null
+    shipmentsModal.value.shipments.unshift({ ...data, manufacturer_name: manuName })
+    shipmentsModal.value.form = { manufacturer_id: null, carrier: '', tracking_number: '', description: '', custom_carrier: '', custom_url: '' }
     shipmentsModal.value.showForm = false
   } else { alert('Error: ' + error.message) }
   shipmentsModal.value.saving = false
+}
+
+async function markDelivered(id) {
+  const now = new Date().toISOString()
+  const { error } = await supabase.from('project_shipments').update({ delivered_at: now }).eq('id', id)
+  if (error) return alert('Error: ' + error.message)
+  const s = shipmentsModal.value.shipments.find(s => s.id === id)
+  if (s) s.delivered_at = now
 }
 
 async function deleteShipment(id) {

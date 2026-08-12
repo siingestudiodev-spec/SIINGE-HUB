@@ -335,7 +335,17 @@
                     <span class="info-icon"><AlertTriangle :size="12" :stroke-width="1.5" /></span>
                     <span class="truncate-text" :title="m.declined_reason">{{ m.declined_reason }}</span>
                   </div>
-                    
+
+                  <div v-if="m.active_shipments?.length" class="tracking-block mt-2">
+                    <div v-for="s in m.active_shipments" :key="s.id" class="tracking-row">
+                      <Truck :size="11" :stroke-width="1.5" />
+                      <span class="tracking-carrier">{{ s.carrier || 'Shipment' }}</span>
+                      <a v-if="getTrackingUrl(s)" :href="getTrackingUrl(s)" target="_blank" class="tracking-number">{{ s.tracking_number }} ↗</a>
+                      <span v-else class="tracking-number">{{ s.tracking_number }}</span>
+                      <span v-if="s.project_name" class="tracking-project">· {{ s.project_name }}</span>
+                    </div>
+                  </div>
+
                   <div v-if="m.followup_due_at && !m.followup_sent_at && !m.followup_manually_completed_at" class="followup-status-row mt-2">
                     <span class="info-icon"><CalendarClock :size="12" :stroke-width="1.5" /></span>
                     <span :class="['followup-chip', followupChipClass(m)]">{{ followupChipLabel(m) }}</span>
@@ -661,7 +671,7 @@
 import { ref, computed, watch, onMounted, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
 import { supabase } from '../lib/supabase'
-import { Folder, Globe, User, Phone, Mail, Tag, FileText, Edit, Pencil, Trash2, CalendarClock, Clock, AlertTriangle, Send, CheckCircle, ClipboardList, ExternalLink, FileCheck } from 'lucide-vue-next'
+import { Folder, Globe, User, Phone, Mail, Tag, FileText, Edit, Pencil, Trash2, CalendarClock, Clock, AlertTriangle, Send, CheckCircle, ClipboardList, ExternalLink, FileCheck, Truck } from 'lucide-vue-next'
 import FolderCapsules from '../components/FolderCapsules.vue'
 import { FOLDER_COLORS } from '../lib/folderColors'
 import DocumentStatusModal from '../components/DocumentStatusModal.vue'
@@ -1219,6 +1229,48 @@ async function fetchManufacturers() {
   }
   manufacturers.value = data || []
   loading.value = false
+  fetchActiveShipments()
+}
+
+const CARRIER_URLS = {
+  DHL: (n) => `https://www.dhl.com/en/express/tracking.html?AWB=${n}`,
+  FedEx: (n) => `https://www.fedex.com/fedextrack/?trknbr=${n}`,
+  UPS: (n) => `https://www.ups.com/track?tracknum=${n}`,
+  USPS: (n) => `https://tools.usps.com/go/TrackConfirmAction?tLabels=${n}`,
+  '17TRACK': (n) => `https://t.17track.net/en#nums=${n}`,
+}
+function getTrackingUrl(s) {
+  if (s.tracking_url) return s.tracking_url
+  const fn = CARRIER_URLS[s.carrier]
+  return fn ? fn(encodeURIComponent(s.tracking_number)) : null
+}
+
+// Active (not yet delivered) shipments, grouped by manufacturer, shown right on the card —
+// per Sierra's ask, so tracking is visible without opening the project's Shipments modal.
+async function fetchActiveShipments() {
+  const manuIds = manufacturers.value.map(m => m.id)
+  if (manuIds.length === 0) return
+  const { data: shipments } = await supabase
+    .from('project_shipments')
+    .select('id, manufacturer_id, project_id, carrier, tracking_number, tracking_url, description')
+    .in('manufacturer_id', manuIds)
+    .is('delivered_at', null)
+    .order('created_at', { ascending: false })
+  if (!shipments || shipments.length === 0) return
+
+  const projectIds = [...new Set(shipments.map(s => s.project_id).filter(Boolean))]
+  let projectMap = {}
+  if (projectIds.length > 0) {
+    const { data: projects } = await supabase.from('projects').select('id, project_name').in('id', projectIds)
+    ;(projects || []).forEach(p => { projectMap[p.id] = p.project_name })
+  }
+
+  const byManu = {}
+  shipments.forEach(s => {
+    if (!byManu[s.manufacturer_id]) byManu[s.manufacturer_id] = []
+    byManu[s.manufacturer_id].push({ ...s, project_name: projectMap[s.project_id] || null })
+  })
+  manufacturers.value.forEach(m => { m.active_shipments = byManu[m.id] || [] })
 }
 
 async function fetchFolders() {
@@ -1666,6 +1718,13 @@ h1 {
   white-space: nowrap;
 }
 .declined-row { color: var(--danger-text); font-style: italic; }
+
+.tracking-block { display: flex; flex-direction: column; gap: 3px; }
+.tracking-row { display: flex; align-items: center; gap: 5px; font-size: 0.75rem; color: var(--text-muted); }
+.tracking-carrier { font-weight: 700; text-transform: uppercase; font-size: 0.65rem; letter-spacing: 0.04em; }
+.tracking-number { font-family: monospace; font-weight: 600; color: #3b82f6; text-decoration: none; }
+.tracking-number:hover { text-decoration: underline; }
+.tracking-project { color: var(--text-muted); font-style: italic; }
 
 .pick-folder-hint {
   padding: 2.5rem 1rem;

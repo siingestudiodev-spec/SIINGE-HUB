@@ -13,6 +13,7 @@ import TestingView from '../views/TestingView.vue'
 import FollowUpsView from '../views/FollowUpsView.vue'
 import PortalSignView from '../views/PortalSignView.vue'
 import LogsView from '../views/LogsView.vue'
+import TrackingView from '../views/TrackingView.vue'
 
 const routes = [
   { path: '/login', component: LoginView },
@@ -65,6 +66,11 @@ const routes = [
   {
     path: '/logs',
     component: LogsView,
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/tracking',
+    component: TrackingView,
     meta: { requiresAuth: true }
   },
   {
