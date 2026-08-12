@@ -159,6 +159,7 @@
         <div class="modal-header">
           <h2>⏱️ Timeline: {{ timelineModal.projectName }}</h2>
           <div class="header-actions">
+            <button @click="openProjectLogs({ id: timelineModal.projectId, project_name: timelineModal.projectName })" class="btn-reset-template">📋 Logs</button>
             <button @click="forceResetTimeline" class="btn-reset-template">⚠️ Reset Timeline</button>
             <button @click="closeTimeline" class="modal-close">✕</button>
           </div>
@@ -460,6 +461,43 @@
       </div>
     </div>
 
+    <!-- Project Logs Modal -->
+    <div v-if="projectLogsModal.show" class="modal-overlay" @click.self="projectLogsModal.show = false">
+      <div class="modal modal-large">
+        <div class="modal-header">
+          <h2 style="font-size:1rem;">📋 Logs — {{ projectLogsModal.projectName }}</h2>
+          <button @click="projectLogsModal.show = false" class="modal-close">✕</button>
+        </div>
+
+        <div v-if="projectLogsModal.loading" style="text-align:center;padding:2rem;color:var(--text-muted);font-style:italic;">Loading...</div>
+        <div v-else-if="projectLogsModal.logs.length === 0" style="text-align:center;padding:2rem;color:var(--text-muted);font-style:italic;">No activity logged yet for this project.</div>
+
+        <div v-else style="display:flex;flex-direction:column;gap:0;max-height:60vh;overflow-y:auto;">
+          <div v-for="log in projectLogsModal.logs" :key="log.id"
+            style="padding:10px 4px;border-bottom:1px solid var(--border-light);"
+          >
+            <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;">
+              <span :style="`font-size:0.68rem;font-weight:800;text-transform:uppercase;padding:2px 7px;border-radius:4px;` + (log.action === 'INSERT' ? 'background:#dcfce7;color:#166534;' : log.action === 'DELETE' ? 'background:#fee2e2;color:#991b1b;' : 'background:#fef3c7;color:#92400e;')">{{ log.action }}</span>
+              <span style="font-size:0.72rem;color:var(--text-muted);font-family:monospace;">{{ log.table_name }}</span>
+              <span style="font-size:0.75rem;color:var(--text-muted);">{{ new Date(log.created_at).toLocaleString('en-US', { month:'short', day:'numeric', year:'numeric', hour:'2-digit', minute:'2-digit' }) }}</span>
+              <span v-if="log.user_email" style="font-size:0.72rem;color:var(--text-muted);">— {{ log.user_email }}</span>
+            </div>
+            <div v-if="log.action === 'UPDATE'" style="margin-top:4px;display:flex;flex-direction:column;gap:2px;">
+              <div v-for="(val, key) in projectLogDiff(log)" :key="key" style="font-size:0.75rem;">
+                <span style="font-family:monospace;color:var(--text-muted);">{{ key }}:</span>
+                <span style="color:#dc2626;text-decoration:line-through;">{{ val.old }}</span> →
+                <span style="color:#16a34a;">{{ val.new }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-actions mt-4">
+          <button @click="projectLogsModal.show = false" class="btn-secondary">Close</button>
+        </div>
+      </div>
+    </div>
+
   </div>
 </template>
 
@@ -516,6 +554,41 @@ const currentView = ref('board')
 const form = ref({ project_name: '', client_name: '', description: '', status: projectStages[0], tech_pack_url: '' })
 
 const timelineModal = ref({ show: false, loading: false, saving: false, projectId: null, projectName: '', stages: [] })
+const projectLogsModal = ref({ show: false, loading: false, projectName: '', logs: [] })
+
+// Everything that touched this project: its own row, its quotes, and its timeline stages.
+// audit_logs is generic (table_name + record_id), so a project's activity has to be
+// assembled from three separate lookups rather than one query.
+async function openProjectLogs(p) {
+  projectLogsModal.value = { show: true, loading: true, projectName: p.project_name, logs: [] }
+  const [{ data: quoteRows }, { data: stageRows }] = await Promise.all([
+    supabase.from('quotes').select('id').eq('project_id', p.id),
+    supabase.from('project_stages').select('id').eq('project_id', p.id),
+  ])
+  const quoteIds = (quoteRows || []).map(q => q.id)
+  const stageIds = (stageRows || []).map(s => s.id)
+
+  const queries = [supabase.from('audit_logs').select('*').eq('table_name', 'projects').eq('record_id', p.id)]
+  if (quoteIds.length) queries.push(supabase.from('audit_logs').select('*').eq('table_name', 'quotes').in('record_id', quoteIds))
+  if (stageIds.length) queries.push(supabase.from('audit_logs').select('*').eq('table_name', 'project_stages').in('record_id', stageIds))
+
+  const results = await Promise.all(queries)
+  const merged = results.flatMap(r => r.data || [])
+  merged.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+  projectLogsModal.value.logs = merged
+  projectLogsModal.value.loading = false
+}
+
+function projectLogDiff(log) {
+  if (!log.old_data || !log.new_data) return {}
+  const diff = {}
+  for (const key of Object.keys(log.new_data)) {
+    const o = JSON.stringify(log.old_data[key])
+    const n = JSON.stringify(log.new_data[key])
+    if (o !== n) diff[key] = { old: log.old_data[key], new: log.new_data[key] }
+  }
+  return diff
+}
 const crmDatesModal = ref({ show: false, projectName: '', loading: false, dates: [] })
 const driveModal = ref({ show: false, loading: false, saving: false, projectId: null, projectName: '', folders: [], showForm: false, form: { name: '', url: '' } })
 

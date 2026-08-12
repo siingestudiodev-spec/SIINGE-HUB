@@ -13,6 +13,8 @@
           <option value="sourcing_contacts">Sourcing Contacts</option>
           <option value="manufacturer_contacts">Manufacturer Contacts</option>
           <option value="fabrics">Fabrics</option>
+          <option value="projects">Projects</option>
+          <option value="project_stages">Project Timeline</option>
         </select>
         <select v-model="filterAction" class="filter-select">
           <option value="">All actions</option>
@@ -108,7 +110,7 @@ const filtered = computed(() => {
 function summary(log) {
   const d = log.new_data || log.old_data
   if (!d) return log.record_id || '—'
-  return d.company_name || d.template_name || d.document_type || d.provider || d.article_number || d.name || log.record_id || '—'
+  return d.company_name || d.template_name || d.document_type || d.provider || d.article_number || d.project_name || d.stage_name || d.name || log.record_id || '—'
 }
 
 function changedFields(log) {
