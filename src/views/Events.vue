@@ -42,8 +42,8 @@
         <input v-model="form.event_name" placeholder="Event Name *" />
         <input v-model="form.country" placeholder="Country" />
         <input v-model="form.city" placeholder="City" />
-        <input v-model="form.start_date" type="date" />
-        <input v-model.number="form.duration_days" type="number" placeholder="Duration (days)" min="1" />
+        <input v-model="form.start_date" type="date" placeholder="Start Date" />
+        <input v-model="form.end_date" type="date" placeholder="End Date" :min="form.start_date || undefined" />
         <input v-model="form.registration_url" placeholder="Registration URL" />
       </div>
       <textarea v-model="form.notes" placeholder="Notes (Description)" rows="2"></textarea>
@@ -66,7 +66,7 @@
         <div class="col-actions">Actions</div>
       </div>
       
-      <div v-for="e in filteredEvents" :key="e.id" class="list-row" :class="{ expired: isPast(e.start_date, e.duration_days) }">
+      <div v-for="e in filteredEvents" :key="e.id" class="list-row" :class="{ expired: isPast(e.start_date, e.end_date) }">
         <div class="col-main">
           <div class="event-title-group">
             <strong class="event-title">{{ e.event_name }}</strong>
@@ -79,12 +79,12 @@
         </div>
 
         <div class="col-date">
-          <span class="date-text"><Calendar :size="12" :stroke-width="1.5" /> {{ formatDate(e.start_date) }}</span>
-          <span class="compact-duration">{{ e.duration_days }} day{{ e.duration_days > 1 ? 's' : '' }}</span>
+          <span class="date-text"><Calendar :size="12" :stroke-width="1.5" /> {{ formatDateRange(e) }}</span>
+          <span class="compact-duration">{{ durationDays(e) }} day{{ durationDays(e) > 1 ? 's' : '' }}</span>
         </div>
-        
+
         <div class="col-status">
-          <span v-if="isPast(e.start_date, e.duration_days)" class="status-badge past">Passed</span>
+          <span v-if="isPast(e.start_date, e.end_date)" class="status-badge past">Passed</span>
           <span v-else class="status-badge upcoming">In {{ daysUntil(e.start_date) }} days</span>
         </div>
         
@@ -111,7 +111,7 @@
         </div>
         
         <div class="kanban-cards">
-          <div v-for="e in eventsList" :key="e.id" class="k-card" :class="{ expired: isPast(e.start_date, e.duration_days) }">
+          <div v-for="e in eventsList" :key="e.id" class="k-card" :class="{ expired: isPast(e.start_date, e.end_date) }">
             <div class="k-card-top">
               <div class="k-title-group">
                 <strong class="k-title">{{ e.event_name }}</strong>
@@ -127,9 +127,9 @@
             </div>
             <a v-if="e.registration_url" :href="e.registration_url" target="_blank" class="btn-link-small k-link"><ExternalLink :size="11" :stroke-width="1.5" /> Register / Info</a>
             <div class="k-dates">
-              <span><Calendar :size="12" :stroke-width="1.5" /> {{ formatDateShort(e.start_date) }}</span>
-              <span class="k-status" :class="isPast(e.start_date, e.duration_days) ? 'past' : 'upcoming'">
-                {{ isPast(e.start_date, e.duration_days) ? 'Passed' : daysUntil(e.start_date) + ' days left' }}
+              <span><Calendar :size="12" :stroke-width="1.5" /> {{ formatDateRange(e) }}</span>
+              <span class="k-status" :class="isPast(e.start_date, e.end_date) ? 'past' : 'upcoming'">
+                {{ isPast(e.start_date, e.end_date) ? 'Passed' : daysUntil(e.start_date) + ' days left' }}
               </span>
             </div>
           </div>
@@ -225,7 +225,7 @@ const monthOptions = [
 
 const emptyForm = () => ({
   event_name: '', country: '', city: '',
-  start_date: '', duration_days: 1, registration_url: '', notes: ''
+  start_date: '', end_date: '', registration_url: '', notes: ''
 })
 
 const form = ref(emptyForm())
@@ -263,17 +263,15 @@ const handleImport = (ev) => {
 
         if (!startDate) continue
 
-        const startObj = new Date(startDate)
-        const endObj = dueDate ? new Date(dueDate) : startObj
-        let duration = Math.ceil(Math.abs(endObj - startObj) / (1000 * 60 * 60 * 24))
-        if (duration === 0 || isNaN(duration)) duration = 1
+        const endDate = dueDate && dueDate >= startDate ? dueDate : startDate
 
         const newEvent = {
           event_name: cleanRow['Task Name'],
           country: cleanRow['Parent Name'] || '',
           city: '',
           start_date: startDate,
-          duration_days: duration,
+          end_date: endDate,
+          duration_days: daysBetweenInclusive(startDate, endDate),
           registration_url: extractUrl(cleanRow['Task Content'] || ''),
           notes: cleanRow['Task Content'] || ''
         }
@@ -304,13 +302,13 @@ function extractUrl(text) {
 
 // --- CORE SORTING LOGIC ---
 const sortEvents = (a, b) => {
-  const isPastA = isPast(a.start_date, a.duration_days)
-  const isPastB = isPast(b.start_date, b.duration_days)
-  
-  if (isPastA && !isPastB) return 1  
-  if (!isPastA && isPastB) return -1 
-  
-  return new Date(a.start_date) - new Date(b.start_date)
+  const isPastA = isPast(a.start_date, a.end_date)
+  const isPastB = isPast(b.start_date, b.end_date)
+
+  if (isPastA && !isPastB) return 1
+  if (!isPastA && isPastB) return -1
+
+  return a.start_date < b.start_date ? -1 : a.start_date > b.start_date ? 1 : 0
 }
 
 // --- FILTERS & VIEWS LOGIC ---
@@ -361,8 +359,10 @@ async function fetchEvents() {
 
 async function saveEvent() {
   if (!form.value.event_name || !form.value.start_date) return alert('Event name and date are required')
-  if (editingId.value) { await supabase.from('events').update({ ...form.value }).eq('id', editingId.value)
-  } else { await supabase.from('events').insert([{ ...form.value }]) }
+  const end_date = form.value.end_date && form.value.end_date >= form.value.start_date ? form.value.end_date : form.value.start_date
+  const payload = { ...form.value, end_date, duration_days: daysBetweenInclusive(form.value.start_date, end_date) }
+  if (editingId.value) { await supabase.from('events').update(payload).eq('id', editingId.value)
+  } else { await supabase.from('events').insert([payload]) }
   cancelForm(); fetchEvents()
 }
 
@@ -371,23 +371,44 @@ async function deleteEvent(id) {
   await supabase.from('events').delete().eq('id', id); fetchEvents()
 }
 
-function isPast(startDate, duration) {
-  const end = new Date(startDate)
-  end.setDate(end.getDate() + (duration || 1))
-  end.setHours(23, 59, 59, 999) 
+// Dates come out of Supabase as plain 'YYYY-MM-DD' strings; parsing them with
+// `new Date(str)` reads them as UTC midnight and shifts a day in any negative-offset
+// timezone. Building the Date from the parts keeps it in the browser's local time.
+function parseLocalDate(dateStr) {
+  if (!dateStr) return null
+  const [y, m, d] = dateStr.split('-').map(Number)
+  return new Date(y, m - 1, d)
+}
+
+function daysBetweenInclusive(startDate, endDate) {
+  const start = parseLocalDate(startDate)
+  const end = parseLocalDate(endDate) || start
+  const days = Math.round((end - start) / (1000 * 60 * 60 * 24)) + 1
+  return days < 1 ? 1 : days
+}
+
+function isPast(startDate, endDate) {
+  const end = parseLocalDate(endDate || startDate)
+  end.setHours(23, 59, 59, 999)
   return end < new Date()
 }
 
 function daysUntil(startDate) {
   const today = new Date(); today.setHours(0, 0, 0, 0)
-  const eventDate = new Date(startDate)
+  const eventDate = parseLocalDate(startDate)
   const diff = eventDate - today
   const days = Math.ceil(diff / (1000 * 60 * 60 * 24))
   return days < 0 ? 0 : days
 }
 
-function formatDate(date) { return new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) }
-function formatDateShort(date) { return new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) }
+function durationDays(e) { return daysBetweenInclusive(e.start_date, e.end_date || e.start_date) }
+
+function formatDate(date) { return parseLocalDate(date)?.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) || '' }
+function formatDateShort(date) { return parseLocalDate(date)?.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) || '' }
+function formatDateRange(e) {
+  if (!e.end_date || e.end_date === e.start_date) return formatDate(e.start_date)
+  return `${formatDateShort(e.start_date)} – ${formatDate(e.end_date)}`
+}
 
 onMounted(fetchEvents)
 </script>

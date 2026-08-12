@@ -265,6 +265,11 @@ async function fetchAllData() {
 
 function getItemsForDate(dateStr) {
   return allItems.value.filter(item => {
+    if (item.type === 'event') {
+      const start = item.start_date
+      const end = item.end_date || item.start_date
+      return dateStr >= start && dateStr <= end
+    }
     const itemDate = item.target_date ? item.target_date.split('T')[0] : null
     return itemDate === dateStr
   })
@@ -297,7 +302,7 @@ function getItemPillStyle(item) {
       : 'background: rgba(234,179,8,0.18); color: #a16207;'
   }
   if (item.type === 'event') {
-    return item.target_date < today
+    return (item.end_date || item.target_date) < today
       ? 'background: rgba(107,114,128,0.1); color: var(--text-muted);'
       : 'background: rgba(139,92,246,0.15); color: #8b5cf6;'
   }
