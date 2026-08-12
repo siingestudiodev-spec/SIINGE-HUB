@@ -377,7 +377,7 @@ function formatWeeks(value) {
 async function fetchData() {
   loading.value = true
   try {
-    const [{ data: project }, { data: q, error: qErr }, { data: m }] = await Promise.all([
+    const [{ data: project }, { data: q, error: qErr }, { data: m, error: mErr }] = await Promise.all([
       supabase.from('projects').select('*').eq('id', projectId).single(),
       supabase.from('quotes').select('*').eq('project_id', projectId).order('created_at', { ascending: true }),
       supabase.from('manufacturers').select('id, company_name, nickname, country, nda_signed, mma_signed').order('company_name')
@@ -388,6 +388,9 @@ async function fetchData() {
       clientName.value = project.client_name
     }
     if (qErr) showMsg('Error loading quotes: ' + qErr.message, 'error')
+    // A schema mismatch here (e.g. a column not migrated yet) must not silently blank out
+    // every manufacturer name as "Unknown" — surface it instead.
+    if (mErr) showMsg('Error loading manufacturers: ' + mErr.message, 'error')
 
     manufacturers.value = m || []
     const mfgMap = {}
