@@ -35,11 +35,16 @@
           <tr class="factory-group-header">
             <td colspan="8">
               <div class="factory-header-cell">
+                <button @click="toggleQuotes(group.manufacturer.id)" class="btn-collapse" :title="isQuotesOpen(group.manufacturer.id) ? 'Collapse quotes' : 'Expand quotes'">
+                  <span class="collapse-arrow" :class="{ open: isQuotesOpen(group.manufacturer.id) }">▶</span>
+                </button>
                 <div class="factory-avatar">{{ group.manufacturer.company_name?.charAt(0) }}</div>
                 <div>
-                  <a :href="`/manufacturers?focus=${group.manufacturer.id}`" target="_blank" rel="noopener" class="factory-name factory-name-link" title="Open in Manufacturers (new tab)">{{ group.manufacturer.company_name }} ↗</a>
+                  <span @click="toggleInfo(group.manufacturer.id)" class="factory-name factory-name-toggle" title="Show manufacturer info">{{ group.manufacturer.company_name }}</span>
+                  <a :href="`/manufacturers?focus=${group.manufacturer.id}`" target="_blank" rel="noopener" class="factory-open-link" title="Open in Manufacturers (new tab)">↗</a>
                   <span v-if="group.manufacturer.nickname" class="nickname-chip" title="Nickname used with clients">{{ group.manufacturer.nickname }}</span>
                   <span class="factory-country"><Globe :size="12" :stroke-width="1.5" /> {{ group.manufacturer.country || 'Unknown' }}</span>
+                  <span v-if="!isQuotesOpen(group.manufacturer.id) && group.items.length > 0" class="quote-count-chip">{{ group.items.length }} option{{ group.items.length !== 1 ? 's' : '' }}</span>
                   <span v-if="group.discarded" class="discarded-badge">Discarded</span>
                   <div v-if="group.discarded && group.discardedReason" class="discarded-reason">{{ group.discardedReason }}</div>
                 </div>
@@ -52,6 +57,23 @@
                   </button>
                   <button v-if="group.items.length === 0" @click="removeManufacturer(group.manufacturer.id)" class="btn-remove-mfg" title="Remove">✕</button>
                 </div>
+              </div>
+            </td>
+          </tr>
+
+          <!-- Manufacturer info (collapsed by default, opens on the name) -->
+          <tr v-if="isInfoOpen(group.manufacturer.id)" class="factory-info-row">
+            <td colspan="8">
+              <div class="factory-info-grid">
+                <div v-if="group.manufacturer.city || group.manufacturer.country"><span class="fi-label">Location</span>{{ [group.manufacturer.city, group.manufacturer.country].filter(Boolean).join(', ') }}</div>
+                <div v-if="group.manufacturer.contact_name"><span class="fi-label">Contact</span>{{ group.manufacturer.contact_name }}</div>
+                <div v-if="group.manufacturer.email"><span class="fi-label">Email</span><a :href="`mailto:${group.manufacturer.email}`">{{ group.manufacturer.email }}</a></div>
+                <div v-if="group.manufacturer.phone"><span class="fi-label">Phone</span>{{ group.manufacturer.phone }}</div>
+                <div v-if="group.manufacturer.website"><span class="fi-label">Website</span><a :href="group.manufacturer.website" target="_blank" rel="noopener">{{ group.manufacturer.website }} ↗</a></div>
+                <div v-if="group.manufacturer.catalog_url"><span class="fi-label">Catalogue</span><a :href="group.manufacturer.catalog_url" target="_blank" rel="noopener">Open ↗</a></div>
+                <div v-if="group.manufacturer.product_categories" class="fi-wide"><span class="fi-label">Categories</span>{{ group.manufacturer.product_categories }}</div>
+                <div v-if="group.manufacturer.certifications" class="fi-wide"><span class="fi-label">Certifications</span>{{ group.manufacturer.certifications }}</div>
+                <div v-if="group.manufacturer.notes" class="fi-wide"><span class="fi-label">Notes</span><span class="fi-notes">{{ group.manufacturer.notes }}</span></div>
               </div>
             </td>
           </tr>
@@ -118,6 +140,7 @@
           </tr>
 
           <!-- Quote rows + inline edit form -->
+          <template v-if="isQuotesOpen(group.manufacturer.id)">
           <template v-for="q in group.items" :key="q.id">
             <tr class="variant-row">
               <td class="indent-cell">
@@ -210,6 +233,7 @@
               </td>
             </tr>
           </template>
+          </template>
         </tbody>
       </table>
     </div>
@@ -282,6 +306,22 @@ const showPicker = ref(false)
 const pickerSearch = ref('')
 const activeForm = ref(null) // { manufacturerId, editingId, data }
 
+// Both start collapsed: an empty Set means nothing is open. Quote rows and the
+// manufacturer info panel toggle independently.
+const openQuotes = ref(new Set())
+const openInfo = ref(new Set())
+
+const isQuotesOpen = (id) => openQuotes.value.has(id)
+const isInfoOpen = (id) => openInfo.value.has(id)
+
+function toggleSet(setRef, id) {
+  const next = new Set(setRef.value)
+  next.has(id) ? next.delete(id) : next.add(id)
+  setRef.value = next
+}
+const toggleQuotes = (id) => toggleSet(openQuotes, id)
+const toggleInfo = (id) => toggleSet(openInfo, id)
+
 function emptyFormData() {
   return { material_comp: '', sample_cost: null, sample_lead_time: '', bulk_lead_time: '', specialty: '', notes: '', pricing_tiers: [{ moq: '', price: '' }] }
 }
@@ -328,6 +368,9 @@ function closePicker() {
 }
 
 function openInlineForm(manufacturerId, quoteToEdit = null) {
+  // The edit form lives among the quote rows, so a collapsed group has to open
+  // or the form the user just asked for would be hidden.
+  if (!openQuotes.value.has(manufacturerId)) toggleQuotes(manufacturerId)
   if (quoteToEdit) {
     const tiers = quoteToEdit.pricing_tiers?.length > 0
       ? [...quoteToEdit.pricing_tiers]
@@ -413,7 +456,7 @@ async function fetchData() {
     const [{ data: project }, { data: q, error: qErr }, { data: m, error: mErr }] = await Promise.all([
       supabase.from('projects').select('*').eq('id', projectId).single(),
       supabase.from('quotes').select('*').eq('project_id', projectId).order('created_at', { ascending: true }),
-      supabase.from('manufacturers').select('id, company_name, nickname, country, nda_signed, mma_signed').order('company_name')
+      supabase.from('manufacturers').select('id, company_name, nickname, country, city, contact_name, email, phone, website, catalog_url, product_categories, certifications, notes, nda_signed, mma_signed').order('company_name')
     ])
 
     if (project) {
@@ -552,6 +595,22 @@ td { padding: 1rem; border-bottom: 1px solid var(--border-light); font-size: 0.8
 .factory-name { font-size: 1.1rem; color: var(--text-main); font-weight: 700; }
 .factory-name-link { text-decoration: none; cursor: pointer; display: inline-block; }
 .factory-name-link:hover { color: var(--primary); text-decoration: underline; }
+.factory-name-toggle { cursor: pointer; display: inline-block; }
+.factory-name-toggle:hover { color: var(--primary); text-decoration: underline; }
+.factory-open-link { text-decoration: none; color: var(--text-muted); font-size: 0.8rem; margin-left: 0.25rem; }
+.factory-open-link:hover { color: var(--primary); }
+.btn-collapse { background: transparent; border: none; cursor: pointer; padding: 0.2rem 0.35rem; color: var(--text-muted); display: flex; align-items: center; }
+.btn-collapse:hover { color: var(--primary); }
+.collapse-arrow { display: inline-block; font-size: 0.7rem; transition: transform 0.15s ease; }
+.collapse-arrow.open { transform: rotate(90deg); }
+.quote-count-chip { font-size: 0.72rem; color: var(--text-muted); background: var(--bg-app); border: 1px solid var(--border-main); margin-left: 0.5rem; padding: 0.15rem 0.5rem; border-radius: 12px; }
+.factory-info-row td { background: var(--bg-app); padding: 0.9rem 1.5rem !important; }
+.factory-info-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 0.6rem 1.5rem; font-size: 0.85rem; color: var(--text-body); }
+.factory-info-grid a { color: var(--primary); text-decoration: none; }
+.factory-info-grid a:hover { text-decoration: underline; }
+.fi-label { display: block; font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: var(--text-muted); margin-bottom: 0.15rem; }
+.fi-wide { grid-column: 1 / -1; }
+.fi-notes { white-space: pre-wrap; }
 .factory-country { font-size: 0.8rem; color: var(--text-muted); margin-left: 0.5rem; background: var(--bg-app); padding: 0.2rem 0.5rem; border-radius: 12px; border: 1px solid var(--border-main); }
 .nickname-chip { font-size: 0.7rem; font-weight: 700; letter-spacing: 0.03em; color: white; background: var(--primary); margin-left: 0.5rem; padding: 0.15rem 0.5rem; border-radius: 12px; }
 .discarded-badge { font-size: 0.7rem; font-weight: 700; color: var(--text-muted); background: var(--bg-app); border: 1px solid var(--border-main); margin-left: 0.5rem; padding: 0.15rem 0.5rem; border-radius: 12px; }
