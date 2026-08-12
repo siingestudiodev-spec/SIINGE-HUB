@@ -329,9 +329,12 @@
                 <td><input v-model="f.color" placeholder="Color" /></td>
                 <td><input v-model="f.features" placeholder="Wicking, 4-way stretch…" /></td>
                 <td><input v-model="f.price_per_meter" placeholder="$" /></td>
-                <td>
-                  <a v-if="f.swatch_url" :href="f.swatch_url" target="_blank" rel="noopener" class="swatch-link-icon" title="Open swatch photo">🔗</a>
-                  <input v-model="f.swatch_url" placeholder="Drive link to photo" />
+                <td class="swatch-cell">
+                  <template v-if="f.swatch_url && !swatchEditing[f.id || f._localKey]">
+                    <a :href="f.swatch_url" target="_blank" rel="noopener" class="btn-view-photo">📷 View Photo</a>
+                    <button type="button" @click="swatchEditing[f.id || f._localKey] = true" class="btn-edit-swatch" title="Change link">✎</button>
+                  </template>
+                  <input v-else v-model="f.swatch_url" placeholder="Drive link to photo" />
                 </td>
                 <td><button @click="removeFabric(f)" class="btn-delete-contact" title="Remove">✕</button></td>
               </tr>
@@ -398,9 +401,12 @@ const certPopup = ref({ show: false, list: [] })
 // Sierra asked for supplier fabrics to live in the hub. project_materials could not hold
 // them: it needs a project_id, and a supplier's catalogue exists before any project does.
 const fabricModal = ref({ show: false, provider: null, rows: [], deleted: [], saving: false })
+// Which rows (by id/_localKey) are showing the raw link input instead of the "View Photo" button.
+const swatchEditing = ref({})
 let fabricKey = 0
 
 const openFabrics = (p) => {
+  swatchEditing.value = {}
   fabricModal.value = {
     show: true, provider: p, deleted: [], saving: false,
     rows: (p.fabrics || [])
@@ -987,7 +993,11 @@ textarea { resize: vertical; margin-top: 0.75rem; }
 .fabric-table input { width: 100%; padding: 0.4rem 0.5rem; border: 1px solid transparent; border-radius: 6px; background: transparent; color: var(--text-main); font-size: 0.8rem; font-family: inherit; }
 .fabric-table input:hover { border-color: var(--border-light); }
 .fabric-table input:focus { outline: none; border-color: var(--primary); background: var(--bg-app); }
-.swatch-link-icon { margin-right: 0.3rem; text-decoration: none; }
+.swatch-cell { display: flex; align-items: center; gap: 0.3rem; white-space: nowrap; }
+.btn-view-photo { display: inline-flex; align-items: center; gap: 4px; background: var(--primary-soft); color: var(--primary); text-decoration: none; padding: 0.35rem 0.6rem; border-radius: 6px; font-size: 0.75rem; font-weight: 600; }
+.btn-view-photo:hover { filter: brightness(0.95); }
+.btn-edit-swatch { background: transparent; border: 1px solid var(--border-light); color: var(--text-muted); width: 24px; height: 24px; border-radius: 6px; cursor: pointer; font-size: 0.7rem; flex-shrink: 0; }
+.btn-edit-swatch:hover { border-color: var(--primary); color: var(--primary); }
 .cert-multi-select { min-height: 140px; padding: 0.5rem; }
 .cert-hint { font-size: 0.75rem; color: var(--text-muted); margin-top: 0.35rem; }
 .cert-item { display: flex; align-items: center; gap: 0.5rem; padding: 0.45rem 0; border-bottom: 1px solid var(--border-light); font-size: 0.9rem; color: var(--text-main); }
