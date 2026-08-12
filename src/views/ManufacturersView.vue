@@ -154,7 +154,7 @@
           <div class="categories-section mt-4">
             <label class="section-label">Certifications</label>
             <select v-model="selectedCertifications" multiple class="multi-select-custom">
-              <option v-for="cert in certOptions" :key="cert" :value="cert">{{ cert }}</option>
+              <option v-for="cert in certOptions" :key="cert.name" :value="cert.name" :title="cert.description">{{ cert.name }}</option>
             </select>
             <p class="text-xs text-gray-400 mt-1">Hold Ctrl (or Cmd on Mac) to select multiple.</p>
           </div>
@@ -382,8 +382,9 @@
           <button @click="certPopup.show = false" class="modal-close">✕</button>
         </div>
         <div class="cert-list-popup">
-          <div v-for="c in certPopup.list" :key="c" class="cert-item">
-            <span class="check-icon-green">✅</span> {{ c.trim() }}
+          <div v-for="c in certPopup.list" :key="c" class="cert-item-block">
+            <div class="cert-item"><span class="check-icon-green">✅</span> {{ c.trim() }}</div>
+            <p v-if="certDescription(c)" class="cert-description">{{ certDescription(c) }}</p>
           </div>
         </div>
       </div>
@@ -707,10 +708,23 @@ const categoryOptions = [
   'Loungewear', 'Shapewear', 'Streetwear', 'Swimwear', "Women's Wear", 'Workwear'
 ]
 const certOptions = [
-  'OEKO-TEX STANDARD 100', 'ISO 45001', 'OCS100', 'UN Global Compact', 
-  'GRS', 'ISO9001', 'amfori BSCI', 'SMETA', 'WRAP', 'SA8000', 'ISO 14001', 
-  'OEKO-TEX STeP', 'bluesign®', 'GOTS'
+  { name: 'OEKO-TEX STANDARD 100', description: 'Tests the finished textile for harmful substances — the most common consumer-safety fabric certification.' },
+  { name: 'ISO 45001', description: 'International standard for occupational health & safety management systems.' },
+  { name: 'OCS100', description: 'Organic Content Standard — verifies organic material content and tracks it from source to final product.' },
+  { name: 'UN Global Compact', description: 'UN initiative for businesses committing to human rights, labor, environmental, and anti-corruption principles.' },
+  { name: 'GRS', description: 'Global Recycled Standard — verifies recycled content and tracks it through the supply chain, plus social/environmental practices.' },
+  { name: 'ISO9001', description: 'International standard for quality management systems.' },
+  { name: 'amfori BSCI', description: 'Social compliance audit program covering labor conditions in the supply chain.' },
+  { name: 'SMETA', description: 'Sedex Members Ethical Trade Audit — covers labor, health & safety, environment, and business ethics.' },
+  { name: 'WRAP', description: 'Worldwide Responsible Accredited Production — certifies lawful, humane, and ethical manufacturing.' },
+  { name: 'SA8000', description: 'Social accountability standard covering workers\' rights and working conditions.' },
+  { name: 'ISO 14001', description: 'International standard for environmental management systems.' },
+  { name: 'OEKO-TEX STeP', description: 'Certifies sustainable production facilities — chemical management, environmental performance, social responsibility.' },
+  { name: 'bluesign®', description: 'Certifies that a textile supply chain meets strict environmental, health, and safety standards.' },
+  { name: 'GOTS', description: 'Global Organic Textile Standard — the leading standard for organic fibers, covering ecological and social criteria through the full supply chain.' },
+  { name: 'EN 71', description: 'European toy safety standard — mechanical/physical safety, flammability, and chemical migration limits. Relevant for kids’ products with trims, snaps, or small parts.' },
 ]
+const certDescription = (name) => certOptions.find(c => c.name === name.trim())?.description || ''
 
 const selectedCategories = ref([])
 const selectedCertifications = ref([])
@@ -2078,7 +2092,9 @@ input:focus, textarea:focus, select:focus {
 .modal-body-scroll { max-height: calc(90vh - 200px); }
 .modal-actions { display: flex; gap: 0.8rem; justify-content: flex-end; padding: 1rem 1.5rem; border-top: 1px solid var(--border-light); flex-shrink: 0; background: var(--bg-app); border-radius: 0 0 20px 20px; }
 .signature-notice { background: rgba(234, 179, 8, 0.1); color: var(--warning-text); padding: 0.5rem 0.8rem; border-radius: 8px; font-size: 0.85rem; border: 1px dashed var(--warning-text); }
-.cert-item { background: var(--bg-app); padding: 0.8rem 1rem; border-radius: 8px; margin-bottom: 0.5rem; color: var(--text-main); display: flex; gap: 0.6rem; }
+.cert-item { background: var(--bg-app); padding: 0.8rem 1rem; border-radius: 8px 8px 0 0; color: var(--text-main); display: flex; gap: 0.6rem; }
+.cert-item-block { margin-bottom: 0.5rem; }
+.cert-description { background: var(--bg-app); border-top: 1px solid var(--border-main); padding: 0 1rem 0.8rem; margin: 0; border-radius: 0 0 8px 8px; font-size: 0.78rem; color: var(--text-muted); }
 .modal-field { margin-bottom: 1.2rem; }
 .modal-field label { display: block; font-size: 0.8rem; font-weight: 700; color: var(--text-muted); margin-bottom: 0.4rem; text-transform: uppercase; letter-spacing: 0.05em;}
 
