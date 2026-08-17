@@ -1,10 +1,16 @@
 -- ============================================================
--- Certificate expiration alerts
+-- Certificate expiration alerts   ⚠ HUB PROJECT: luqakyzgcgcafukfirfk
 -- Run the block below in the Supabase SQL editor AFTER deploying
 -- the check-cert-expirations edge function:
 --   supabase functions deploy check-cert-expirations
 -- Replace <SERVICE_ROLE_KEY> with the value from
 -- Supabase Dashboard > Settings > API > service_role secret.
+--
+-- NOTE: migration_followups.sql points its cron at
+-- dshnhzgnfgtwqobqazxu, which is neither the hub
+-- (luqakyzgcgcafukfirfk) nor the CRM (pbylrmaqtmgnywzdliql).
+-- If that job was ever scheduled, send-manu-digest has been
+-- posting into the void — worth checking `SELECT * FROM cron.job;`.
 -- ============================================================
 --
 -- SELECT cron.schedule(
@@ -12,7 +18,7 @@
 --   '0 13 * * *',                 -- 08:00 Bogotá (UTC-5) = 13:00 UTC
 --   $$
 --   SELECT net.http_post(
---     url     := 'https://dshnhzgnfgtwqobqazxu.supabase.co/functions/v1/check-cert-expirations',
+--     url     := 'https://luqakyzgcgcafukfirfk.supabase.co/functions/v1/check-cert-expirations',
 --     headers := '{"Content-Type":"application/json","Authorization":"Bearer <SERVICE_ROLE_KEY>"}'::jsonb,
 --     body    := '{}'::jsonb
 --   );
