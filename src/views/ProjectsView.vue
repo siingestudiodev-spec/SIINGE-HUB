@@ -65,6 +65,7 @@
           <button @click="openTimeline(p)" class="btn-action-full btn-timeline"><Timer :size="12" :stroke-width="1.5" /> TIMELINE</button>
           <button @click="openCrmDates(p)" class="btn-action-full btn-crmdates mt-1"><CalendarDays :size="12" :stroke-width="1.5" /> CRM DATES</button>
           <button @click="openShipments(p)" class="btn-action-full btn-shipments mt-1"><Truck :size="12" :stroke-width="1.5" /> SHIPMENTS</button>
+          <button @click="openManuAssign(p)" class="btn-action-full btn-shipments mt-1"><Factory :size="12" :stroke-width="1.5" /> MANUFACTURERS</button>
           <div class="action-top-row mt-2">
             <button @click="editProject(p)" class="btn-action-icon btn-edit" title="Edit"><Pencil :size="13" :stroke-width="1.5" /></button>
             <button @click="deleteProject(p.id)" class="btn-action-icon btn-delete" title="Delete"><Trash2 :size="13" :stroke-width="1.5" /></button>
@@ -103,6 +104,7 @@
                 <button @click="openCrmDates(p)" class="btn-micro" title="CRM Dates" style="color:#0f766e;"><CalendarDays :size="13" :stroke-width="1.5" /></button>
                 <button @click="openTimeline(p)" class="btn-micro" title="Timeline" style="color:var(--primary);"><Timer :size="13" :stroke-width="1.5" /></button>
                 <button @click="openShipments(p)" class="btn-micro" title="Shipments" style="color:#3b82f6;"><Truck :size="13" :stroke-width="1.5" /></button>
+                <button @click="openManuAssign(p)" class="btn-micro" title="Manufacturers" style="color:#a855f7;"><Factory :size="13" :stroke-width="1.5" /></button>
                 <button @click="editProject(p)" class="btn-micro" title="Edit"><Pencil :size="13" :stroke-width="1.5" /></button>
                 <button @click="deleteProject(p.id)" class="btn-micro del" title="Delete"><Trash2 :size="13" :stroke-width="1.5" /></button>
               </div>
@@ -408,13 +410,19 @@
                     onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'"
                   >{{ s.tracking_number }} ↗</a>
                   <span v-else style="font-size:0.88rem;font-weight:700;font-family:monospace;color:var(--text-main);">{{ s.tracking_number }}</span>
-                  <span v-if="s.delivered_at" style="font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:#16a34a;background:rgba(34,197,94,0.12);padding:2px 6px;border-radius:4px;">Delivered</span>
+                  <span v-if="s.delivered_at && deliveryEdit.id !== s.id" @click="startEditDelivered(s)" style="font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:#16a34a;background:rgba(34,197,94,0.12);padding:2px 6px;border-radius:4px;cursor:pointer;" title="Click to change the date">Delivered {{ formatShortDate(s.delivered_at) }}</span>
                 </div>
                 <span v-if="s.manufacturer_name" style="font-size:0.75rem;color:var(--text-muted);">{{ s.manufacturer_name }}<template v-if="s.description"> · {{ s.description }}</template></span>
                 <span v-else-if="s.description" style="font-size:0.75rem;color:var(--text-muted);">{{ s.description }}</span>
               </div>
               <div style="display:flex;align-items:center;gap:0.3rem;">
-                <button v-if="!s.delivered_at" @click="markDelivered(s.id)" class="btn-secondary" style="font-size:0.72rem;padding:0.3rem 0.6rem;">Delivered</button>
+                <template v-if="deliveryEdit.id === s.id">
+                  <input type="date" v-model="deliveryEdit.date" style="padding:0.3rem 0.4rem;border:1px solid var(--border-main);border-radius:6px;background:var(--bg-app);color:var(--text-main);font-size:0.72rem;" />
+                  <button @click="confirmDelivered(s)" class="btn-secondary" style="font-size:0.72rem;padding:0.3rem 0.6rem;">Confirm</button>
+                  <button @click="deliveryEdit.id = null" style="background:transparent;border:none;color:var(--text-muted);cursor:pointer;padding:0.2rem;font-size:0.75rem;opacity:0.6;" title="Cancel">✕</button>
+                </template>
+                <button v-else-if="!s.delivered_at" @click="startEditDelivered(s)" class="btn-secondary" style="font-size:0.72rem;padding:0.3rem 0.6rem;">Delivered</button>
+                <button v-else @click="revertDelivered(s.id)" class="btn-secondary" style="font-size:0.72rem;padding:0.3rem 0.6rem;">Revert</button>
                 <button @click="deleteShipment(s.id)" style="background:transparent;border:none;color:var(--text-muted);cursor:pointer;padding:0.2rem;border-radius:4px;font-size:0.75rem;opacity:0.6;" title="Delete" onmouseover="this.style.opacity='1';this.style.color='#fb7185'" onmouseout="this.style.opacity='0.6';this.style.color='var(--text-muted)'">✕</button>
               </div>
             </div>
@@ -473,6 +481,73 @@
       </div>
     </div>
 
+    <!-- Manufacturers Modal -->
+    <div v-if="manuAssignModal.show" class="modal-overlay" @click.self="manuAssignModal.show = false">
+      <div class="modal form-modal" style="max-width:480px;">
+        <div class="modal-header">
+          <h2 style="font-size:1rem;display:flex;align-items:center;gap:0.5rem;"><Factory :size="16" :stroke-width="1.5" /> Manufacturers — {{ manuAssignModal.projectName }}</h2>
+          <button @click="manuAssignModal.show = false" class="modal-close">✕</button>
+        </div>
+
+        <div v-if="manuAssignModal.loading" style="text-align:center;padding:2rem;color:var(--text-muted);font-style:italic;">Loading...</div>
+
+        <div v-else>
+          <div v-if="manuAssignModal.assigned.length === 0" style="text-align:center;padding:1.5rem;color:var(--text-muted);font-style:italic;border:1px dashed var(--border-main);border-radius:8px;margin-bottom:1rem;">
+            No manufacturers assigned yet.
+          </div>
+          <div v-else style="display:flex;flex-direction:column;gap:0;border:1px solid var(--border-main);border-radius:8px;overflow:hidden;margin-bottom:1rem;">
+            <div v-for="(m, idx) in manuAssignModal.assigned" :key="m.id"
+              :style="idx < manuAssignModal.assigned.length - 1 ? 'border-bottom:1px solid var(--border-light);' : ''"
+            >
+              <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;">
+                <span style="font-size:0.88rem;font-weight:600;">{{ m.company_name }}</span>
+                <div style="display:flex;align-items:center;gap:0.5rem;">
+                  <button @click="toggleRefFolders(m.id)" style="background:transparent;border:1px solid var(--border-main);border-radius:6px;color:var(--text-muted);cursor:pointer;padding:0.2rem 0.5rem;font-size:0.7rem;display:flex;align-items:center;gap:0.3rem;" title="Reference work — photos of similar projects">
+                    <FolderOpen :size="12" :stroke-width="1.5" />
+                    {{ (manuRefFolders[m.id] || []).length }}
+                  </button>
+                  <button @click="unassignManufacturer(m.id)" style="background:transparent;border:none;color:var(--text-muted);cursor:pointer;padding:0.2rem;border-radius:4px;font-size:0.75rem;opacity:0.6;" title="Remove" onmouseover="this.style.opacity='1';this.style.color='#fb7185'" onmouseout="this.style.opacity='0.6';this.style.color='var(--text-muted)'">✕</button>
+                </div>
+              </div>
+
+              <div v-if="expandedRefs.has(m.id)" style="padding:0 14px 10px;background:var(--bg-app);">
+                <div v-for="f in (manuRefFolders[m.id] || [])" :key="f.id" style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;">
+                  <a :href="f.url" target="_blank" style="display:flex;align-items:center;gap:0.4rem;text-decoration:none;color:var(--text-main);font-size:0.8rem;">
+                    <FolderOpen :size="12" :stroke-width="1.5" style="color:#22c55e;flex-shrink:0;" />
+                    <span>{{ f.name }}</span>
+                    <span style="color:#22c55e;">↗</span>
+                  </a>
+                  <button @click="deleteRefFolder(m.id, f.id)" style="background:transparent;border:none;color:var(--text-muted);cursor:pointer;font-size:0.7rem;opacity:0.6;" title="Remove">✕</button>
+                </div>
+
+                <div v-if="refForm.manufacturerId === m.id" style="display:flex;flex-direction:column;gap:0.4rem;margin-top:0.4rem;">
+                  <input v-model="refForm.name" placeholder="Name — e.g. Crochet swim reference" style="width:100%;padding:0.4rem 0.6rem;background:var(--bg-card);color:var(--text-main);border:1px solid var(--border-main);border-radius:6px;font-size:0.8rem;" />
+                  <input v-model="refForm.url" placeholder="Link — Drive, Instagram, anything" style="width:100%;padding:0.4rem 0.6rem;background:var(--bg-card);color:var(--text-main);border:1px solid var(--border-main);border-radius:6px;font-size:0.8rem;" />
+                  <div style="display:flex;gap:0.4rem;justify-content:flex-end;">
+                    <button @click="refForm = { manufacturerId: null, name: '', url: '' }" class="btn-secondary" style="font-size:0.75rem;padding:0.25rem 0.6rem;">Cancel</button>
+                    <button @click="addRefFolder(m.id)" class="btn-primary" style="font-size:0.75rem;padding:0.25rem 0.6rem;">Save</button>
+                  </div>
+                </div>
+                <button v-else @click="refForm = { manufacturerId: m.id, name: '', url: '' }" style="background:transparent;border:none;color:var(--primary);cursor:pointer;font-size:0.75rem;font-weight:600;padding:0.3rem 0;">+ Add reference folder</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="input-group" style="margin-bottom:0;">
+            <label>Add a manufacturer</label>
+            <input v-model="manuAssignModal.search" placeholder="Search by name..." style="width:100%;padding:0.6rem 1rem;background:var(--bg-app);color:var(--text-main);border:1px solid var(--border-main);border-radius:8px;font-family:inherit;font-size:0.9rem;" />
+            <div v-if="manuAssignModal.search.trim()" style="max-height:180px;overflow-y:auto;border:1px solid var(--border-main);border-radius:8px;margin-top:0.4rem;">
+              <div v-for="m in manuAssignSearchResults" :key="m.id" @click="assignManufacturer(m)"
+                style="padding:8px 12px;cursor:pointer;font-size:0.85rem;border-bottom:1px solid var(--border-light);"
+                onmouseover="this.style.background='var(--bg-app)'" onmouseout="this.style.background='transparent'"
+              >{{ m.company_name }}</div>
+              <div v-if="manuAssignSearchResults.length === 0" style="padding:8px 12px;font-size:0.8rem;color:var(--text-muted);font-style:italic;">No matches</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Project Logs Modal -->
     <div v-if="projectLogsModal.show" class="modal-overlay" @click.self="projectLogsModal.show = false">
       <div class="modal modal-large">
@@ -518,7 +593,7 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { supabase } from '../lib/supabase'
 import { crmSupabase } from '../lib/crmClient'
-import { List, LayoutGrid, User, CalendarDays, FileText, Paperclip, BarChart2, Package, Timer, Pencil, Trash2, MessageSquare, Truck, FolderOpen } from 'lucide-vue-next'
+import { List, LayoutGrid, User, CalendarDays, FileText, Paperclip, BarChart2, Package, Timer, Pencil, Trash2, MessageSquare, Truck, FolderOpen, Factory } from 'lucide-vue-next'
 
 const CRM_DUE_LABELS = {
   due_date: 'Main Due Date',
@@ -635,6 +710,100 @@ async function deleteDriveFolder(id) {
 
 const shipmentsModal = ref({ show: false, loading: false, saving: false, projectId: null, projectName: '', shipments: [], manufacturers: [], showForm: false, form: { manufacturer_id: null, carrier: '', tracking_number: '', description: '', custom_carrier: '', custom_url: '' } })
 
+const manuAssignModal = ref({ show: false, loading: false, projectId: null, projectName: '', assigned: [], allManufacturers: [], search: '' })
+
+// Reference-work folders (photos of similar past projects) belong to the manufacturer,
+// not to this project — the same links are useful from any project they're compared in.
+// They're surfaced here because this is where you're actually judging one against another.
+const manuRefFolders = ref({})
+const expandedRefs = ref(new Set())
+const refForm = ref({ manufacturerId: null, name: '', url: '' })
+
+// Replaced, not mutated: a ref'd Set doesn't trigger re-renders on .add()/.delete().
+function toggleRefFolders(manufacturerId) {
+  const next = new Set(expandedRefs.value)
+  next.has(manufacturerId) ? next.delete(manufacturerId) : next.add(manufacturerId)
+  expandedRefs.value = next
+}
+
+async function addRefFolder(manufacturerId) {
+  const name = refForm.value.name.trim()
+  const url = refForm.value.url.trim()
+  if (!name || !url) return alert('Name and link are required')
+  const { data, error } = await supabase.from('manufacturer_reference_folders')
+    .insert([{ manufacturer_id: manufacturerId, name, url }]).select().single()
+  if (error) return alert('Error: ' + error.message)
+  manuRefFolders.value = { ...manuRefFolders.value, [manufacturerId]: [...(manuRefFolders.value[manufacturerId] || []), data] }
+  refForm.value = { manufacturerId: null, name: '', url: '' }
+}
+
+async function deleteRefFolder(manufacturerId, folderId) {
+  if (!confirm('Remove this folder?')) return
+  await supabase.from('manufacturer_reference_folders').delete().eq('id', folderId)
+  manuRefFolders.value = { ...manuRefFolders.value, [manufacturerId]: (manuRefFolders.value[manufacturerId] || []).filter(f => f.id !== folderId) }
+}
+
+const manuAssignSearchResults = computed(() => {
+  const s = manuAssignModal.value.search.toLowerCase().trim()
+  if (!s) return []
+  const assignedIds = new Set(manuAssignModal.value.assigned.map(m => m.id))
+  return manuAssignModal.value.allManufacturers.filter(m => !assignedIds.has(m.id) && m.company_name?.toLowerCase().includes(s)).slice(0, 8)
+})
+
+async function openManuAssign(p) {
+  const cachedManufacturers = manuAssignModal.value.allManufacturers
+  manuAssignModal.value = { show: true, loading: true, projectId: p.id, projectName: p.project_name, assigned: [], allManufacturers: cachedManufacturers, search: '' }
+
+  // Two plain queries + a manual join, not a PostgREST embed: this table is brand
+  // new, and an embed depends on PostgREST having already picked up its foreign
+  // keys from the schema cache — a manual join works regardless of that timing.
+  const [{ data: links, error: linksErr }, manusRes] = await Promise.all([
+    supabase.from('project_manufacturers').select('manufacturer_id').eq('project_id', p.id),
+    cachedManufacturers.length ? Promise.resolve(null) : supabase.from('manufacturers').select('id, company_name').order('company_name'),
+  ])
+  if (linksErr) console.error('project_manufacturers fetch failed:', linksErr)
+  if (manusRes) manuAssignModal.value.allManufacturers = manusRes.data || []
+
+  const manuIds = (links || []).map(l => l.manufacturer_id)
+  if (manuIds.length > 0) {
+    const cached = manuAssignModal.value.allManufacturers
+    const missing = manuIds.filter(id => !cached.some(m => m.id === id))
+    if (missing.length > 0) {
+      const { data: extra } = await supabase.from('manufacturers').select('id, company_name').in('id', missing)
+      manuAssignModal.value.allManufacturers = [...cached, ...(extra || [])]
+    }
+    manuAssignModal.value.assigned = manuIds
+      .map(id => manuAssignModal.value.allManufacturers.find(m => m.id === id))
+      .filter(Boolean)
+
+    // One query for every assigned manufacturer's folders, so the counts on each row
+    // are right without waiting for a click.
+    const { data: folders } = await supabase.from('manufacturer_reference_folders')
+      .select('*').in('manufacturer_id', manuIds).order('created_at', { ascending: true })
+    const byManu = {}
+    ;(folders || []).forEach(f => {
+      if (!byManu[f.manufacturer_id]) byManu[f.manufacturer_id] = []
+      byManu[f.manufacturer_id].push(f)
+    })
+    manuRefFolders.value = byManu
+  }
+  expandedRefs.value = new Set()
+  refForm.value = { manufacturerId: null, name: '', url: '' }
+  manuAssignModal.value.loading = false
+}
+
+async function assignManufacturer(m) {
+  const { error } = await supabase.from('project_manufacturers').insert({ project_id: manuAssignModal.value.projectId, manufacturer_id: m.id })
+  if (error) return alert('Error: ' + error.message)
+  manuAssignModal.value.assigned.push(m)
+  manuAssignModal.value.search = ''
+}
+
+async function unassignManufacturer(manufacturerId) {
+  await supabase.from('project_manufacturers').delete().eq('project_id', manuAssignModal.value.projectId).eq('manufacturer_id', manufacturerId)
+  manuAssignModal.value.assigned = manuAssignModal.value.assigned.filter(m => m.id !== manufacturerId)
+}
+
 const CARRIER_URLS = {
   DHL: (n) => `https://www.dhl.com/en/express/tracking.html?AWB=${n}`,
   FedEx: (n) => `https://www.fedex.com/fedextrack/?trknbr=${n}`,
@@ -706,12 +875,35 @@ async function addShipment() {
   shipmentsModal.value.saving = false
 }
 
-async function markDelivered(id) {
-  const now = new Date().toISOString()
-  const { error } = await supabase.from('project_shipments').update({ delivered_at: now }).eq('id', id)
+function toLocalDateStr(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+function formatShortDate(iso) {
+  return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+}
+
+const deliveryEdit = ref({ id: null, date: '' })
+
+function startEditDelivered(s) {
+  deliveryEdit.value = { id: s.id, date: s.delivered_at ? toLocalDateStr(new Date(s.delivered_at)) : toLocalDateStr(new Date()) }
+}
+
+// Stored at local noon, not midnight, so the date doesn't slip a day when
+// read back in a collaborator's timezone on the other side of the clock.
+async function confirmDelivered(s) {
+  const [y, m, d] = deliveryEdit.value.date.split('-').map(Number)
+  const iso = new Date(y, m - 1, d, 12).toISOString()
+  const { error } = await supabase.from('project_shipments').update({ delivered_at: iso }).eq('id', s.id)
+  if (error) return alert('Error: ' + error.message)
+  s.delivered_at = iso
+  deliveryEdit.value = { id: null, date: '' }
+}
+
+async function revertDelivered(id) {
+  const { error } = await supabase.from('project_shipments').update({ delivered_at: null }).eq('id', id)
   if (error) return alert('Error: ' + error.message)
   const s = shipmentsModal.value.shipments.find(s => s.id === id)
-  if (s) s.delivered_at = now
+  if (s) s.delivered_at = null
 }
 
 async function deleteShipment(id) {

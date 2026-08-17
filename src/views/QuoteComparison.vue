@@ -7,6 +7,7 @@
         <p class="subtitle" v-if="clientName"><User :size="13" :stroke-width="1.5" /> {{ clientName }}</p>
       </div>
       <div class="header-actions">
+        <button v-if="quotes.length > 0" @click="openTemplateModal" class="btn-export">📋 BUILD TEMPLATE</button>
         <button @click="exportExcel" class="btn-export" v-if="quotes.length > 0">⬇ EXPORT EXCEL</button>
         <button @click="showPicker = true" class="btn-primary">+ ADD MANUFACTURER</button>
       </div>
@@ -25,7 +26,7 @@
             <th>Sample Time</th>
             <th>Bulk Time</th>
             <th>Notes</th>
-            <th>Date</th>
+            <th>Requested / Received</th>
             <th class="text-right">Actions</th>
           </tr>
         </thead>
@@ -107,6 +108,14 @@
                     <label>Notes</label>
                     <input v-model="activeForm.data.notes" placeholder="Additional details..." />
                   </div>
+                  <div class="input-field">
+                    <label>Date Requested</label>
+                    <input type="date" v-model="activeForm.data.requested_at" />
+                  </div>
+                  <div class="input-field">
+                    <label>Date Received</label>
+                    <input type="date" v-model="activeForm.data.received_at" />
+                  </div>
                 </div>
                 <div class="tiers-section mt-3">
                   <label class="section-label">Pricing Tiers (MOQ & Price)</label>
@@ -168,7 +177,10 @@
               <td>{{ formatWeeks(q.sample_lead_time_display) }}</td>
               <td>{{ formatWeeks(q.bulk_lead_time_display) }}</td>
               <td class="notes-cell">{{ q.notes || '—' }}</td>
-              <td class="date-cell" :title="q.updated_at !== q.created_at ? 'Last edited' : 'Added'">{{ formatQuoteDate(q.updated_at || q.created_at) }}</td>
+              <td class="date-cell">
+                <div>Req: {{ formatQuoteDate(q.requested_at) }}</div>
+                <div>Recv: {{ formatQuoteDate(q.received_at) }}</div>
+              </td>
               <td class="text-right">
                 <div class="table-actions">
                   <button @click="openInlineForm(group.manufacturer.id, q)" class="btn-icon btn-edit-icon" title="Edit"><Pencil :size="13" :stroke-width="1.5" /></button>
@@ -272,6 +284,61 @@
       </div>
     </div>
 
+    <!-- CLIENT TEMPLATE -->
+    <div v-if="showTemplateModal" class="modal-overlay" @click.self="showTemplateModal = false">
+      <div class="picker-modal" style="max-width:640px;">
+
+        <!-- Step 1: pick which options go into the template -->
+        <template v-if="templateStep === 'pick'">
+          <div class="picker-header">
+            <h2>Build Client Template</h2>
+            <button @click="showTemplateModal = false" class="modal-close">✕</button>
+          </div>
+          <p style="padding:0.75rem 1.25rem 0;margin:0;font-size:0.8rem;color:var(--text-muted);">
+            Click a manufacturer to see their options, then check the ones to include.
+          </p>
+          <div class="picker-list">
+            <div v-for="group in groupedQuotes.filter(g => g.items.length > 0)" :key="group.manufacturer.id">
+              <div class="template-manu-row" @click="toggleTemplateExpanded(group.manufacturer.id)">
+                <span class="collapse-arrow" :class="{ open: templateExpanded.has(group.manufacturer.id) }">▶</span>
+                <strong>{{ group.manufacturer.nickname || group.manufacturer.company_name }}</strong>
+                <span class="factory-country">{{ group.manufacturer.country || '' }}</span>
+                <span class="quote-count-chip">{{ group.items.filter(q => selectedForTemplate.has(q.id)).length }}/{{ group.items.length }} selected</span>
+              </div>
+              <label v-if="templateExpanded.has(group.manufacturer.id)" v-for="q in group.items" :key="q.id" class="template-option-row">
+                <span class="template-option-check"><input type="checkbox" :checked="selectedForTemplate.has(q.id)" @change="toggleTemplateSelect(q.id)" /></span>
+                <span class="template-option-label">{{ q.material_comp || q.item_description || 'Standard Option' }}<template v-if="q.specialty"> — {{ q.specialty }}</template> · {{ q.pricing_tiers?.[0]?.price || q.price_range || '—' }}</span>
+              </label>
+            </div>
+            <div v-if="groupedQuotes.filter(g => g.items.length > 0).length === 0" class="picker-empty">No quotes to pick from yet.</div>
+          </div>
+          <div class="inline-form-actions" style="padding:1rem 1.25rem 1.25rem;">
+            <button @click="showTemplateModal = false" class="btn-export">Cancel</button>
+            <button @click="generateTemplate" class="btn-primary" :disabled="selectedForTemplate.size === 0">Generate Template ({{ selectedForTemplate.size }})</button>
+          </div>
+        </template>
+
+        <!-- Step 2: edit the generated text and copy it -->
+        <template v-else>
+          <div class="picker-header">
+            <h2>Client Template</h2>
+            <button @click="showTemplateModal = false" class="modal-close">✕</button>
+          </div>
+          <p style="padding:0.75rem 1.25rem 0;margin:0;font-size:0.8rem;color:var(--text-muted);">
+            Nicknames used in place of manufacturer names, and two weeks added to every lead time as cushion. Edit freely before copying — this doesn't save anywhere.
+          </p>
+          <div style="padding:1rem 1.25rem;">
+            <textarea v-model="templateText" class="template-textarea"></textarea>
+          </div>
+          <div class="inline-form-actions" style="padding:0 1.25rem 1.25rem;">
+            <button @click="templateStep = 'pick'" class="btn-export">← Back to selection</button>
+            <button @click="copyTemplate" class="btn-primary">Copy to Clipboard</button>
+          </div>
+        </template>
+
+      </div>
+    </div>
+
     <!-- NOTIFICATION -->
     <div v-if="notification.show" class="notification-overlay">
       <div class="notification-card" :class="notification.type">
@@ -299,6 +366,7 @@ const projectName = ref('')
 const clientName = ref('')
 const notification = ref({ show: false, message: '', type: 'success' })
 const supportsLeadTimeText = ref(false)
+const supportsQuoteTimeline = ref(false)
 
 // ponytail: local state only — clears on refresh, add DB persistence if needed
 const includedManufacturers = ref([])
@@ -310,6 +378,11 @@ const activeForm = ref(null) // { manufacturerId, editingId, data }
 // manufacturer info panel toggle independently.
 const openQuotes = ref(new Set())
 const openInfo = ref(new Set())
+const selectedForTemplate = ref(new Set())
+const showTemplateModal = ref(false)
+const templateStep = ref('pick') // 'pick' | 'edit'
+const templateExpanded = ref(new Set())
+const templateText = ref('')
 
 const isQuotesOpen = (id) => openQuotes.value.has(id)
 const isInfoOpen = (id) => openInfo.value.has(id)
@@ -323,7 +396,7 @@ const toggleQuotes = (id) => toggleSet(openQuotes, id)
 const toggleInfo = (id) => toggleSet(openInfo, id)
 
 function emptyFormData() {
-  return { material_comp: '', sample_cost: null, sample_lead_time: '', bulk_lead_time: '', specialty: '', notes: '', pricing_tiers: [{ moq: '', price: '' }] }
+  return { material_comp: '', sample_cost: null, sample_lead_time: '', bulk_lead_time: '', specialty: '', notes: '', requested_at: '', received_at: '', pricing_tiers: [{ moq: '', price: '' }] }
 }
 
 const groupedQuotes = computed(() => {
@@ -385,6 +458,8 @@ function openInlineForm(manufacturerId, quoteToEdit = null) {
         bulk_lead_time: quoteToEdit.bulk_lead_time_display || '',
         specialty: quoteToEdit.specialty || '',
         notes: quoteToEdit.notes || '',
+        requested_at: quoteToEdit.requested_at || '',
+        received_at: quoteToEdit.received_at || '',
         pricing_tiers: tiers
       }
     }
@@ -439,7 +514,13 @@ function parseLeadTime(value) {
 
 function formatQuoteDate(iso) {
   if (!iso) return '—'
-  return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+  // requested_at/received_at are date-only ('YYYY-MM-DD'); parsing that as UTC and
+  // displaying in a timezone behind UTC (Bogotá, Denver) can print the day before.
+  // Parse the pieces as local instead — same fix as the shipment delivery date.
+  const datePart = iso.toString().slice(0, 10)
+  const [y, m, d] = datePart.split('-').map(Number)
+  if (!y || !m || !d) return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+  return new Date(y, m - 1, d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }
 
 function formatWeeks(value) {
@@ -448,6 +529,91 @@ function formatWeeks(value) {
   if (!raw) return '—'
   if (raw.includes('-') || isNaN(Number(raw))) return `${raw} weeks`
   return `${Number(raw)} weeks`
+}
+
+const toggleTemplateSelect = (id) => toggleSet(selectedForTemplate, id)
+
+// Sierra's cushion rule: pad every quoted lead time by 2 weeks before it goes to a
+// client. Handles "X", "X-Y" and a trailing unit (defaults to weeks, honors "days").
+// ponytail: numbers-only text is all this needs to catch; anything it can't parse
+// (e.g. "TBD", "ask again") is left untouched rather than guessed at — it's an
+// editable preview, not the final copy, so an unpadded line is easy for Sierra to
+// catch and fix by hand rather than something silently wrong.
+function addTwoWeeks(raw) {
+  if (raw == null || raw === '') return raw
+  const text = raw.toString().trim()
+  const m = text.match(/^(\d+)\s*(?:-\s*(\d+))?\s*(day|days|week|weeks)?$/i)
+  if (!m) return text
+  const unit = /day/i.test(m[3] || '') ? 'days' : 'weeks'
+  const pad = unit === 'days' ? 14 : 2
+  const lo = Number(m[1]) + pad
+  const hi = m[2] ? Number(m[2]) + pad : null
+  return hi ? `${lo}-${hi} ${unit}` : `${lo} ${unit}`
+}
+
+// One block per manufacturer, not per item — a shared header, then every selected
+// option on its own line, then a single Sample/Bulk Time for the group.
+// ponytail: doesn't try to merge options that share a composition into one summary
+// line — the form only ever captures Material/Option + Specialty per row, there is
+// no separate "which garment piece" field to group by, so guessing would either
+// duplicate the composition text or misattribute a specialty. Each line states
+// exactly what that row says; if two options really are the same fabric for two
+// pieces, Sierra can merge them by hand in the editable box.
+function buildTemplateText() {
+  const blocks = []
+  groupedQuotes.value.forEach(group => {
+    const items = group.items.filter(q => selectedForTemplate.value.has(q.id))
+    if (items.length === 0) return
+
+    const label = group.manufacturer.nickname || group.manufacturer.company_name
+    const location = group.manufacturer.city || group.manufacturer.country
+    const lines = [`Manu - ${label}${location ? ' - ' + location : ''}`, '']
+
+    const tierMoq = items.map(q => q.pricing_tiers?.[0]?.moq).find(Boolean)
+    const perColorMoq = items.map(q => q.moq_per_color).find(Boolean)
+    if (tierMoq) lines.push(`Minimum is ${tierMoq} units.`, '')
+    else if (perColorMoq) lines.push(`Minimum is ${perColorMoq} units per color.`, '')
+
+    items.forEach(q => {
+      const desc = q.material_comp || q.item_description || 'Item'
+      const label = q.specialty ? `${desc} — ${q.specialty}` : desc
+      const price = q.pricing_tiers?.[0]?.price || q.price_range || '—'
+      lines.push(`${label} - ${price}${q.sample_cost ? ` (sample cost $${q.sample_cost})` : ''}`)
+    })
+    lines.push('')
+
+    const sampleTime = items.map(q => q.sample_lead_time_display).find(Boolean)
+    const bulkTime = items.map(q => q.bulk_lead_time_display).find(Boolean)
+    lines.push(`Sample Time ${addTwoWeeks(sampleTime) || '—'}`)
+    lines.push(`Bulk Order Time ${addTwoWeeks(bulkTime) || '—'}`)
+
+    const terms = items.map(q => q.notes).find(Boolean)
+    if (terms) lines.push('', `Terms: ${terms}`)
+
+    blocks.push(lines.join('\n'))
+  })
+  return blocks.join('\n\n\n')
+}
+
+const toggleTemplateExpanded = (id) => toggleSet(templateExpanded, id)
+
+function openTemplateModal() {
+  templateStep.value = 'pick'
+  showTemplateModal.value = true
+}
+
+function generateTemplate() {
+  templateText.value = buildTemplateText()
+  templateStep.value = 'edit'
+}
+
+async function copyTemplate() {
+  try {
+    await navigator.clipboard.writeText(templateText.value)
+    showMsg('Copied to clipboard')
+  } catch (e) {
+    showMsg('Could not copy — select and copy manually', 'error')
+  }
 }
 
 async function fetchData() {
@@ -485,6 +651,7 @@ async function fetchData() {
       }
     })
     supportsLeadTimeText.value = q?.length > 0 && 'sample_lead_time_text' in q[0]
+    supportsQuoteTimeline.value = q?.length > 0 && 'requested_at' in q[0]
 
     // Remove from includedManufacturers those that now have quotes (they'll appear via groupedQuotes)
     const quotedIds = new Set(quotes.value.map(q => q.manufacturer_id))
@@ -520,6 +687,15 @@ async function saveInlineForm() {
       payload.sample_lead_time_text = d.sample_lead_time
       payload.bulk_lead_time_text = d.bulk_lead_time
     }
+    // ponytail: same detection pattern as supportsLeadTimeText, same gap — the very
+    // first quote saved into a brand-new empty project won't have anywhere to read
+    // 'requested_at' from yet, so this stays false for that one save. Re-editing it
+    // right after picks the column up correctly. Fix upstream (detect via a schema
+    // call, not existing rows) if that first-quote case ever actually bites someone.
+    if (supportsQuoteTimeline.value) {
+      payload.requested_at = d.requested_at || null
+      payload.received_at = d.received_at || null
+    }
     if (activeForm.value.editingId) {
       const { error } = await supabase.from('quotes').update(payload).eq('id', activeForm.value.editingId)
       if (error) throw error
@@ -528,6 +704,15 @@ async function saveInlineForm() {
       const { error } = await supabase.from('quotes').insert([payload])
       if (error) throw error
       showMsg('Option saved')
+    }
+    // A quote means this manufacturer is being considered for the project, so they
+    // belong in the assigned list too. Best-effort: the quote already saved, a
+    // hiccup here shouldn't make that look like it failed.
+    try {
+      await supabase.from('project_manufacturers')
+        .upsert({ project_id: projectId, manufacturer_id: activeForm.value.manufacturerId }, { onConflict: 'project_id,manufacturer_id', ignoreDuplicates: true })
+    } catch (syncErr) {
+      console.error('project_manufacturers sync failed (quote save was not affected):', syncErr)
     }
     activeForm.value = null
     fetchData()
@@ -663,6 +848,7 @@ td { padding: 1rem; border-bottom: 1px solid var(--border-light); font-size: 0.8
 /* MANUFACTURER PICKER MODAL */
 .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 1000; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(4px); }
 .picker-modal { background: var(--bg-card); border-radius: 16px; width: 90%; max-width: 480px; border: 1px solid var(--border-main); box-shadow: 0 20px 25px rgba(0,0,0,0.3); display: flex; flex-direction: column; max-height: 80vh; }
+.template-textarea { display: block; width: 100%; min-height: 320px; padding: 1rem; border: 1px solid var(--border-main); border-radius: 10px; background: var(--bg-app); color: var(--text-main); font-family: monospace; font-size: 0.85rem; line-height: 1.5; resize: vertical; box-sizing: border-box; }
 .picker-header { display: flex; justify-content: space-between; align-items: center; padding: 1.2rem 1.5rem; border-bottom: 1px solid var(--border-light); flex-shrink: 0; }
 .picker-header h2 { margin: 0; font-size: 1.1rem; color: var(--text-main); }
 .modal-close { background: var(--bg-app); border: 1px solid var(--border-main); color: var(--text-muted); width: 32px; height: 32px; border-radius: 8px; cursor: pointer; font-weight: bold; display: flex; align-items: center; justify-content: center; }
@@ -670,6 +856,16 @@ td { padding: 1rem; border-bottom: 1px solid var(--border-light); font-size: 0.8
 .picker-search input { margin: 0; }
 .picker-list { overflow-y: auto; flex: 1; padding: 0.5rem; }
 .picker-item { display: flex; align-items: center; gap: 0.8rem; padding: 0.75rem 1rem; border-radius: 10px; cursor: pointer; transition: background 0.15s; }
+.template-manu-row { display: flex; align-items: center; gap: 0.6rem; padding: 0.75rem 1rem; cursor: pointer; transition: background 0.15s; }
+.template-manu-row:hover { background: var(--bg-app); }
+.template-option-row { display: flex; align-items: flex-start; gap: 0.7rem; padding: 0.55rem 1rem 0.55rem 2.4rem; font-size: 0.85rem; color: var(--text-muted); cursor: pointer; text-align: left; }
+.template-option-row:hover { background: var(--bg-app); color: var(--text-main); }
+/* The form-wide "input, select, textarea { width: 100% }" rule above is meant for
+   text fields; it also stretches this checkbox to fill the row, which is what was
+   pushing the label off to the right. Narrow, centered column, reset back down. */
+.template-option-check { flex: 0 0 18px; display: flex; justify-content: center; padding-top: 0.15rem; }
+.template-option-check input[type="checkbox"] { width: 16px; height: 16px; margin: 0; padding: 0; border: 1.5px solid var(--border-main); border-radius: 4px; }
+.template-option-label { flex: 1; line-height: 1.4; text-align: left; }
 .picker-item:hover:not(.already-added) { background: rgba(99,102,241,0.08); }
 .picker-item.already-added { opacity: 0.55; cursor: default; }
 .picker-avatar { width: 36px; height: 36px; background: linear-gradient(135deg, var(--primary), #8b5cf6); color: white; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 1rem; flex-shrink: 0; }

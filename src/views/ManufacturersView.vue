@@ -160,6 +160,17 @@
               </label>
             </div>
 
+            <div class="cert-detail-grid mt-2">
+              <div>
+                <div class="cert-field-label">Certifications Requested</div>
+                <input type="date" v-model="form.certs_requested_at" />
+              </div>
+              <div>
+                <div class="cert-field-label">Certifications Received</div>
+                <input type="date" v-model="form.certs_received_at" />
+              </div>
+            </div>
+
             <div v-for="certName in selectedCertifications" :key="certName" class="cert-detail-row">
               <div class="cert-detail-title">{{ certName }} — certificate details <span class="text-xs text-gray-400">(optional)</span></div>
               <div class="cert-detail-grid">
@@ -278,6 +289,7 @@
                       <span v-if="m.declined_reason" class="declined-badge" :title="m.declined_reason">Not moving forward</span>
                       <span v-if="m.nda_signed" class="legal-badge nda" style="cursor:pointer;" @click.stop="openDocumentStatusModal(m, 'nda')">NDA ✓ ↓</span>
                       <span v-if="m.mma_signed" class="legal-badge mma" style="cursor:pointer;" @click.stop="openDocumentStatusModal(m, 'mma')">MMA ✓ ↓</span>
+                      <span v-if="m.certs_requested_at || m.certs_received_at" class="updated-badge" title="Certifications requested / received">Certs: {{ formatCertDate(m.certs_requested_at) }} → {{ formatCertDate(m.certs_received_at) }}</span>
                       <span v-if="m.updated_at" class="updated-badge">Updated {{ new Date(m.updated_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) }}</span>
                     </div>
                   </div>
@@ -383,6 +395,7 @@
                   <button v-if="m.email" @click="openEmailModal(m)" class="btn-action-full btn-email"><Mail :size="12" :stroke-width="2" /> EMAIL</button>
                   <a v-if="m.catalog_url" :href="m.catalog_url" target="_blank" rel="noopener noreferrer" class="btn-action-full btn-catalog"><ExternalLink :size="12" :stroke-width="2" /> CATALOG</a>
                   <button v-if="m.email" @click="openSendDocumentsModal(m)" class="btn-action-full btn-documents"><FileCheck :size="12" :stroke-width="2" /> DOCUMENTS</button>
+                  <button @click="openManuReport(m)" class="btn-action-full btn-documents"><Briefcase :size="12" :stroke-width="2" /> PROJECTS</button>
                 </div>
 
               </div>
@@ -403,6 +416,9 @@
           <h2>Verified Certifications</h2>
           <button @click="certPopup.show = false" class="modal-close">✕</button>
         </div>
+        <div v-if="certPopup.requestedAt || certPopup.receivedAt" class="cert-popup-dates">
+          Requested {{ formatCertDate(certPopup.requestedAt) }} → Received {{ formatCertDate(certPopup.receivedAt) }}
+        </div>
         <div class="cert-list-popup">
           <div v-for="c in certPopup.list" :key="c" class="cert-item-block">
             <div class="cert-item"><span class="check-icon-green">✅</span> {{ c.trim() }}</div>
@@ -411,6 +427,54 @@
               <div v-if="certPopup.details[c.trim()].number"><strong>Certificate number:</strong> {{ certPopup.details[c.trim()].number }}</div>
               <div v-if="certPopup.details[c.trim()].validFrom || certPopup.details[c.trim()].validUntil"><strong>Validity period:</strong> {{ certPopup.details[c.trim()].validFrom || '?' }} – {{ certPopup.details[c.trim()].validUntil || '?' }}</div>
               <div v-if="certPopup.details[c.trim()].authority"><strong>Certificate authority:</strong> {{ certPopup.details[c.trim()].authority }}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Manufacturer report: assigned projects, quote turnaround, cert expiry -->
+    <div v-if="manuReportModal.show" class="modal-overlay" @click.self="manuReportModal.show = false">
+      <div class="modal modal-large">
+        <div class="modal-header">
+          <h2 style="font-size:1rem;display:flex;align-items:center;gap:0.5rem;"><Briefcase :size="16" :stroke-width="1.5" /> Projects — {{ manuReportModal.name }}</h2>
+          <button @click="manuReportModal.show = false" class="modal-close">✕</button>
+        </div>
+
+        <div v-if="manuReportModal.loading" style="text-align:center;padding:2rem;color:var(--text-muted);font-style:italic;">Loading...</div>
+
+        <div v-else>
+          <div v-if="manuReportModal.expiringCerts.length > 0 && manuReportModal.hasActiveProject"
+            style="margin:1rem 1.25rem 0;padding:0.7rem 0.9rem;border-radius:8px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);color:#ef4444;font-size:0.82rem;font-weight:600;"
+          >
+            ⚠️ {{ manuReportModal.expiringCerts.join(', ') }} {{ manuReportModal.expiringCerts.length === 1 ? 'is' : 'are' }} expired or expiring soon, and this manufacturer has an active project.
+          </div>
+
+          <div style="padding:1rem 1.25rem 0.5rem;display:flex;gap:1.5rem;flex-wrap:wrap;">
+            <div>
+              <div style="font-size:0.65rem;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-muted);font-weight:700;">Avg. Quote Turnaround</div>
+              <div style="font-size:1.1rem;font-weight:700;">{{ manuReportModal.quoteTurnaroundDays != null ? manuReportModal.quoteTurnaroundDays + ' days' : '—' }}</div>
+            </div>
+            <div>
+              <div style="font-size:0.65rem;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-muted);font-weight:700;">Avg. Sample Turnaround</div>
+              <div style="font-size:1.1rem;font-weight:700;color:var(--text-muted);" title="No requested/received date is tracked for samples yet">Not tracked yet</div>
+            </div>
+            <div>
+              <div style="font-size:0.65rem;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-muted);font-weight:700;">Avg. Bulk Turnaround</div>
+              <div style="font-size:1.1rem;font-weight:700;color:var(--text-muted);" title="No requested/received date is tracked for bulk orders yet">Not tracked yet</div>
+            </div>
+          </div>
+
+          <div v-if="manuReportModal.projects.length === 0" style="text-align:center;padding:1.5rem;color:var(--text-muted);font-style:italic;">
+            Not assigned to any project yet.
+          </div>
+          <div v-else style="margin:0.5rem 1.25rem 1.25rem;display:flex;flex-direction:column;gap:0;border:1px solid var(--border-main);border-radius:8px;overflow:hidden;">
+            <div v-for="(p, idx) in manuReportModal.projects" :key="p.id"
+              style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;"
+              :style="idx < manuReportModal.projects.length - 1 ? 'border-bottom:1px solid var(--border-light);' : ''"
+            >
+              <span style="font-size:0.88rem;font-weight:600;">{{ p.project_name }}</span>
+              <span class="manu-report-stage">{{ p.status }}</span>
             </div>
           </div>
         </div>
@@ -671,7 +735,7 @@
 import { ref, computed, watch, onMounted, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
 import { supabase } from '../lib/supabase'
-import { Folder, Globe, User, Phone, Mail, Tag, FileText, Edit, Pencil, Trash2, CalendarClock, Clock, AlertTriangle, Send, CheckCircle, ClipboardList, ExternalLink, FileCheck, Truck } from 'lucide-vue-next'
+import { Folder, Globe, User, Phone, Mail, Tag, FileText, Edit, Pencil, Trash2, CalendarClock, Clock, AlertTriangle, Send, CheckCircle, ClipboardList, ExternalLink, FileCheck, Truck, Briefcase } from 'lucide-vue-next'
 import FolderCapsules from '../components/FolderCapsules.vue'
 import { FOLDER_COLORS } from '../lib/folderColors'
 import DocumentStatusModal from '../components/DocumentStatusModal.vue'
@@ -764,7 +828,7 @@ watch(selectedCertifications, (list) => {
     }
   })
 })
-const certPopup = ref({ show: false, list: [], details: {} })
+const certPopup = ref({ show: false, list: [], details: {}, requestedAt: null, receivedAt: null })
 const notesPopup = ref({ show: false, text: '' })
 const followupModal = ref({ show: false, manu: null, date: '', notes: '' })
 const sendDocumentsModal = ref({ show: false, manufacturer: null })
@@ -925,6 +989,7 @@ const form = ref({
   company_name: '', nickname: '', country: '', city: '', contact_name: '', phone: '',
   email: '', website: '', product_categories: '', certifications: '', notes: '',
   declined_reason: '', nda_signed: false, mma_signed: false, folder_id: null,
+  certs_requested_at: '', certs_received_at: '',
   certification_details: {}
 })
 
@@ -1005,9 +1070,56 @@ const filteredManufacturers = computed(() => {
   })
 })
 
+const manuReportModal = ref({ show: false, loading: false, manufacturerId: null, name: '', projects: [], quoteTurnaroundDays: null, expiringCerts: [], hasActiveProject: false })
+
+// Pulls together what Sierra asked for per manufacturer: which projects they're
+// assigned to (and each one's stage), how fast their quotes actually turn around
+// (from the requested/received dates now tracked on quotes), and whether any of
+// their certs are expired or expiring within 30 days while they're on active work.
+// ponytail: sample/bulk turnaround aren't shown as numbers because nothing tracks
+// a sample- or bulk-specific requested/received date yet — only quotes do. Add
+// those two date pairs (wherever they end up living) and this averages the same way.
+async function openManuReport(m) {
+  manuReportModal.value = { show: true, loading: true, manufacturerId: m.id, name: m.company_name, projects: [], quoteTurnaroundDays: null, expiringCerts: [], hasActiveProject: false }
+
+  // Two plain queries + a manual join, not a PostgREST embed: this table is brand
+  // new, and an embed depends on PostgREST having already picked up its foreign
+  // keys from the schema cache — a manual join works regardless of that timing.
+  const [{ data: links, error: linksErr }, { data: quotes }] = await Promise.all([
+    supabase.from('project_manufacturers').select('project_id').eq('manufacturer_id', m.id),
+    supabase.from('quotes').select('requested_at, received_at').eq('manufacturer_id', m.id),
+  ])
+  if (linksErr) console.error('project_manufacturers fetch failed:', linksErr)
+
+  const projectIds = (links || []).map(l => l.project_id)
+  const projects = projectIds.length > 0
+    ? (await supabase.from('projects').select('id, project_name, status').in('id', projectIds)).data || []
+    : []
+  manuReportModal.value.projects = projects
+  manuReportModal.value.hasActiveProject = projects.some(p => p.status !== 'Project Completion')
+
+  const turnarounds = (quotes || [])
+    .filter(q => q.requested_at && q.received_at)
+    .map(q => (new Date(q.received_at) - new Date(q.requested_at)) / 86400000)
+  manuReportModal.value.quoteTurnaroundDays = turnarounds.length > 0
+    ? Math.round(turnarounds.reduce((a, b) => a + b, 0) / turnarounds.length)
+    : null
+
+  // Plain ISO date strings sort correctly as strings — no need to parse them.
+  const in30Days = new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10)
+  const details = m.certification_details || {}
+  manuReportModal.value.expiringCerts = Object.entries(details)
+    .filter(([, d]) => d?.validUntil && d.validUntil <= in30Days)
+    .map(([name]) => name)
+
+  manuReportModal.value.loading = false
+}
+
 function showCertsPopup(m) {
   certPopup.value.list = m.certifications.split(',')
   certPopup.value.details = m.certification_details || {}
+  certPopup.value.requestedAt = m.certs_requested_at || null
+  certPopup.value.receivedAt = m.certs_received_at || null
   certPopup.value.show = true
 }
 
@@ -1072,7 +1184,9 @@ async function saveManufacturer() {
     }, {}),
     notes: form.value.notes,
     nda_signed: form.value.nda_signed,
-    mma_signed: form.value.mma_signed
+    mma_signed: form.value.mma_signed,
+    certs_requested_at: form.value.certs_requested_at || null,
+    certs_received_at: form.value.certs_received_at || null
   }
 
   let err = null
@@ -1202,6 +1316,7 @@ function resetForm() {
     email: '', website: '', catalog_url: '', product_categories: '', certifications: '',
     notes: 'MOQ: \nSLT: \nBulk: \n\n1. Certifications: \n2. Can provide traceability: \n3. QC: \n4. Allow Visits: ',
     declined_reason: '', nda_signed: false, mma_signed: false, folder_id: null,
+    certs_requested_at: '', certs_received_at: '',
     certification_details: {}
   }
   selectedCategories.value = []
@@ -1243,6 +1358,16 @@ function getTrackingUrl(s) {
   if (s.tracking_url) return s.tracking_url
   const fn = CARRIER_URLS[s.carrier]
   return fn ? fn(encodeURIComponent(s.tracking_number)) : null
+}
+
+// certs_requested_at/received_at are date-only ('YYYY-MM-DD'); parsing that as
+// UTC and displaying in a timezone behind UTC can print the day before, so the
+// pieces are parsed as local instead — same fix used for quote and shipment dates.
+function formatCertDate(dateStr) {
+  if (!dateStr) return '?'
+  const [y, m, d] = dateStr.toString().slice(0, 10).split('-').map(Number)
+  if (!y || !m || !d) return '?'
+  return new Date(y, m - 1, d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }
 
 // Active (not yet delivered) shipments, grouped by manufacturer, shown right on the card —
@@ -2192,6 +2317,9 @@ input:focus, textarea:focus, select:focus {
 .cert-detail-facts { background: var(--bg-app); border-top: 1px solid var(--border-main); padding: 0.6rem 1rem; margin: 0; border-radius: 0 0 8px 8px; font-size: 0.8rem; color: var(--text-main); display: flex; flex-direction: column; gap: 0.2rem; }
 .cert-detail-row { border: 1px solid var(--border-main); border-radius: 8px; padding: 0.6rem 0.8rem; margin-top: 0.5rem; }
 .cert-detail-title { font-size: 0.75rem; font-weight: 700; color: var(--text-muted); margin-bottom: 0.4rem; }
+.cert-field-label { font-size: 0.68rem; font-weight: 600; color: var(--text-muted); margin-bottom: 0.3rem; }
+.cert-popup-dates { padding: 0.7rem 1.5rem 0; font-size: 0.8rem; font-weight: 600; color: var(--text-muted); }
+.manu-report-stage { font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted); border: 1px solid var(--border-main); border-radius: 6px; padding: 2px 8px; white-space: nowrap; }
 .cert-detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
 .cert-detail-grid input { padding: 0.45rem 0.6rem; border: 1px solid var(--border-main); border-radius: 6px; background: var(--bg-app); color: var(--text-main); font-size: 0.82rem; font-family: inherit; }
 .modal-field { margin-bottom: 1.2rem; }

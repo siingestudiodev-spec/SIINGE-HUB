@@ -1,0 +1,26 @@
+-- ============================================================
+-- Certificate expiration alerts
+-- Run the block below in the Supabase SQL editor AFTER deploying
+-- the check-cert-expirations edge function:
+--   supabase functions deploy check-cert-expirations
+-- Replace <SERVICE_ROLE_KEY> with the value from
+-- Supabase Dashboard > Settings > API > service_role secret.
+-- ============================================================
+--
+-- SELECT cron.schedule(
+--   'cert-expiration-check',      -- job name
+--   '0 13 * * *',                 -- 08:00 Bogotá (UTC-5) = 13:00 UTC
+--   $$
+--   SELECT net.http_post(
+--     url     := 'https://dshnhzgnfgtwqobqazxu.supabase.co/functions/v1/check-cert-expirations',
+--     headers := '{"Content-Type":"application/json","Authorization":"Bearer <SERVICE_ROLE_KEY>"}'::jsonb,
+--     body    := '{}'::jsonb
+--   );
+--   $$
+-- );
+--
+-- To verify the job was created:
+--   SELECT * FROM cron.job;
+--
+-- To remove the job:
+--   SELECT cron.unschedule('cert-expiration-check');
