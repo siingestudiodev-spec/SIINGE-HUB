@@ -173,7 +173,7 @@
                       <select v-model="sampleDraft[q.id].shipment_id">
                         <option value="">— none —</option>
                         <option v-for="sh in shipmentsForManufacturer(q.manufacturer_id)" :key="sh.id" :value="sh.id">
-                          {{ sh.carrier || 'Shipment' }} {{ sh.tracking_number }}{{ sh.description ? ' · ' + sh.description : '' }}
+                          {{ sh.carrier || 'Shipment' }} {{ sh.tracking_number }}{{ sh.description ? ' · ' + sh.description : '' }}{{ sh.manufacturer_id ? '' : ' (unassigned)' }}
                         </option>
                       </select>
                     </label>
@@ -596,8 +596,11 @@ async function copyTemplate() {
 // ---- Samples -------------------------------------------------------------------
 const samplesFor = (quoteId) => samples.value.filter(s => s.quote_id === quoteId)
 
+// Shipments already tagged to this manufacturer, plus every untagged one in the
+// project. Plenty of tracking numbers were logged before shipments could be assigned
+// to a manufacturer at all; filtering those out would make them unlinkable forever.
 const shipmentsForManufacturer = (manufacturerId) =>
-  shipments.value.filter(s => s.manufacturer_id === manufacturerId)
+  shipments.value.filter(s => s.manufacturer_id === manufacturerId || !s.manufacturer_id)
 
 // A linked shipment is the source of truth for arrival; the manual date is the
 // fallback for samples that showed up without a tracking number.
@@ -631,6 +634,18 @@ async function addSample(q) {
       received_at: draft.shipment_id ? null : (draft.received_at || null),
     }])
     if (error) throw error
+
+    // Linking an untagged shipment to this sample says whose shipment it is, so fill
+    // the blank in — that's what puts it on the manufacturer's card. Only ever writes
+    // over a null, never reassigns a shipment that already names a manufacturer.
+    const linked = shipments.value.find(s => s.id === draft.shipment_id)
+    if (linked && !linked.manufacturer_id && q.manufacturer_id) {
+      const { error: tagErr } = await supabase.from('project_shipments')
+        .update({ manufacturer_id: q.manufacturer_id }).eq('id', linked.id)
+      if (tagErr) console.error('Could not tag the shipment to the manufacturer:', tagErr)
+      else linked.manufacturer_id = q.manufacturer_id
+    }
+
     sampleDraft.value[q.id] = emptySampleDraft()
     await fetchSamples()
     showMsg('Sample added')
