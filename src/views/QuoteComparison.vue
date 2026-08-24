@@ -20,8 +20,9 @@
       <table>
         <thead>
           <tr>
-            <th>MATERIAL / OPTION</th>
+            <th>ITEM / OPTION</th>
             <th>PRICING TIERS (MOQ ➔ Price)</th>
+            <th>Incoterm</th>
             <th>Sample Cost</th>
             <th>Sample Time</th>
             <th>Bulk Time</th>
@@ -34,7 +35,7 @@
         <tbody v-for="group in groupedQuotes" :key="group.manufacturer.id" class="factory-group" :class="{ 'is-discarded': group.discarded }">
           <!-- Manufacturer header -->
           <tr class="factory-group-header">
-            <td colspan="8">
+            <td colspan="9">
               <div class="factory-header-cell">
                 <button @click="toggleQuotes(group.manufacturer.id)" class="btn-collapse" :title="isQuotesOpen(group.manufacturer.id) ? 'Collapse quotes' : 'Expand quotes'">
                   <span class="collapse-arrow" :class="{ open: isQuotesOpen(group.manufacturer.id) }">▶</span>
@@ -64,7 +65,7 @@
 
           <!-- Manufacturer info (collapsed by default, opens on the name) -->
           <tr v-if="isInfoOpen(group.manufacturer.id)" class="factory-info-row">
-            <td colspan="8">
+            <td colspan="9">
               <div class="factory-info-grid">
                 <div v-if="group.manufacturer.city || group.manufacturer.country"><span class="fi-label">Location</span>{{ [group.manufacturer.city, group.manufacturer.country].filter(Boolean).join(', ') }}</div>
                 <div v-if="group.manufacturer.contact_name"><span class="fi-label">Contact</span>{{ group.manufacturer.contact_name }}</div>
@@ -81,71 +82,15 @@
 
           <!-- Inline NEW quote form (appears right after header) -->
           <tr v-if="activeForm?.manufacturerId === group.manufacturer.id && !activeForm.editingId" class="inline-form-row">
-            <td colspan="8">
-              <div class="inline-form">
-                <div class="inline-form-grid">
-                  <div class="input-field">
-                    <label>Material / Option *</label>
-                    <input v-model="activeForm.data.material_comp" placeholder="e.g. 100% Cotton, Recycled Poly..." />
-                  </div>
-                  <div class="input-field">
-                    <label>Specialty / Process</label>
-                    <input v-model="activeForm.data.specialty" placeholder="e.g. Screen print, Embroidery..." />
-                  </div>
-                  <div class="input-field">
-                    <label>Sample Cost (USD)</label>
-                    <input v-model.number="activeForm.data.sample_cost" type="number" step="0.01" />
-                  </div>
-                  <div class="input-field">
-                    <label>Sample Lead Time</label>
-                    <input v-model="activeForm.data.sample_lead_time" placeholder="e.g. 3-5 weeks" />
-                  </div>
-                  <div class="input-field">
-                    <label>Bulk Lead Time</label>
-                    <input v-model="activeForm.data.bulk_lead_time" placeholder="e.g. 6-8 weeks" />
-                  </div>
-                  <div class="input-field">
-                    <label>Notes</label>
-                    <input v-model="activeForm.data.notes" placeholder="Additional details..." />
-                  </div>
-                  <div class="input-field">
-                    <label>Date Requested</label>
-                    <input type="date" v-model="activeForm.data.requested_at" />
-                  </div>
-                  <div class="input-field">
-                    <label>Date Received</label>
-                    <input type="date" v-model="activeForm.data.received_at" />
-                  </div>
-                </div>
-                <div class="tiers-section mt-3">
-                  <label class="section-label">Pricing Tiers (MOQ & Price)</label>
-                  <div class="tiers-list">
-                    <div v-for="(tier, i) in activeForm.data.pricing_tiers" :key="i" class="tier-row">
-                      <div class="tier-input-group">
-                        <span class="tier-prefix">MOQ:</span>
-                        <input v-model="tier.moq" placeholder="e.g. 100" />
-                      </div>
-                      <div class="tier-icon">➔</div>
-                      <div class="tier-input-group">
-                        <span class="tier-prefix">Price:</span>
-                        <input v-model="tier.price" placeholder="e.g. $5.00" />
-                      </div>
-                      <button @click="removeTier(i)" class="btn-remove-tier" v-if="activeForm.data.pricing_tiers.length > 1">✕</button>
-                    </div>
-                  </div>
-                  <button @click="addTier" class="btn-add-tier">+ Add Tier</button>
-                </div>
-                <div class="inline-form-actions mt-3">
-                  <button @click="activeForm = null" class="btn-export">Cancel</button>
-                  <button @click="saveInlineForm" class="btn-primary" :disabled="saving">{{ saving ? 'Saving...' : 'Save Option' }}</button>
-                </div>
-              </div>
+            <td colspan="9">
+              <QuoteForm :data="activeForm.data" :saving="saving" :editing="false"
+                         @save="saveInlineForm" @cancel="activeForm = null" @apply-all="applyIncotermToAll" />
             </td>
           </tr>
 
           <!-- Empty group hint -->
           <tr v-if="group.items.length === 0 && activeForm?.manufacturerId !== group.manufacturer.id" class="empty-group-row">
-            <td colspan="8" class="empty-group-cell">No options yet — click "+ Add Option" to start</td>
+            <td colspan="9" class="empty-group-cell">No options yet — click "+ Add Option" to start</td>
           </tr>
 
           <!-- Quote rows + inline edit form -->
@@ -155,6 +100,7 @@
               <td class="indent-cell">
                 <span class="variant-icon">↳</span>
                 <strong>{{ q.material_comp || q.item_description || 'Standard Option' }}</strong>
+                <div v-if="q.composition" class="text-xs text-gray-400 mt-1 ml-4">{{ q.composition }}</div>
                 <div v-if="q.specialty" class="text-xs text-gray-400 mt-1 ml-4">{{ q.specialty }}</div>
               </td>
               <td>
@@ -173,6 +119,11 @@
                   </template>
                 </div>
               </td>
+              <td class="incoterm-cell">
+                <span v-if="q.incoterm" class="incoterm-chip">{{ q.incoterm }}</span>
+                <span v-else>—</span>
+                <div v-if="q.port" class="incoterm-port">{{ q.port }}</div>
+              </td>
               <td>{{ q.sample_cost ? '$' + q.sample_cost.toFixed(2) : '—' }}</td>
               <td>{{ formatWeeks(q.sample_lead_time_display) }}</td>
               <td>{{ formatWeeks(q.bulk_lead_time_display) }}</td>
@@ -183,65 +134,60 @@
               </td>
               <td class="text-right">
                 <div class="table-actions">
+                  <button @click="toggleSamples(q.id)" class="btn-icon btn-sample-icon" :class="{ 'has-samples': samplesFor(q.id).length > 0 }" :title="`Samples requested for this option (${samplesFor(q.id).length})`">
+                    <Package :size="13" :stroke-width="1.5" /><span v-if="samplesFor(q.id).length" class="sample-count">{{ samplesFor(q.id).length }}</span>
+                  </button>
                   <button @click="openInlineForm(group.manufacturer.id, q)" class="btn-icon btn-edit-icon" title="Edit"><Pencil :size="13" :stroke-width="1.5" /></button>
                   <button @click="confirmDelete(q.id)" class="btn-icon btn-delete-icon" title="Delete"><Trash2 :size="13" :stroke-width="1.5" /></button>
                 </div>
               </td>
             </tr>
 
-            <!-- Inline EDIT form (appears right after the quote being edited) -->
-            <tr v-if="activeForm?.manufacturerId === group.manufacturer.id && activeForm.editingId === q.id" class="inline-form-row">
-              <td colspan="8">
-                <div class="inline-form">
-                  <div class="inline-form-grid">
-                    <div class="input-field">
-                      <label>Material / Option *</label>
-                      <input v-model="activeForm.data.material_comp" placeholder="e.g. 100% Cotton, Recycled Poly..." />
-                    </div>
-                    <div class="input-field">
-                      <label>Specialty / Process</label>
-                      <input v-model="activeForm.data.specialty" placeholder="e.g. Screen print, Embroidery..." />
-                    </div>
-                    <div class="input-field">
-                      <label>Sample Cost (USD)</label>
-                      <input v-model.number="activeForm.data.sample_cost" type="number" step="0.01" />
-                    </div>
-                    <div class="input-field">
-                      <label>Sample Lead Time</label>
-                      <input v-model="activeForm.data.sample_lead_time" placeholder="e.g. 3-5 weeks" />
-                    </div>
-                    <div class="input-field">
-                      <label>Bulk Lead Time</label>
-                      <input v-model="activeForm.data.bulk_lead_time" placeholder="e.g. 6-8 weeks" />
-                    </div>
-                    <div class="input-field">
-                      <label>Notes</label>
-                      <input v-model="activeForm.data.notes" placeholder="Additional details..." />
-                    </div>
+            <!-- Samples requested for this specific quoted option -->
+            <tr v-if="isSamplesOpen(q.id)" class="samples-row">
+              <td colspan="9">
+                <div class="samples-block">
+                  <div class="samples-title">Samples for “{{ q.material_comp || q.item_description || 'this option' }}”</div>
+
+                  <div v-if="samplesFor(q.id).length === 0" class="samples-empty">No samples requested yet.</div>
+
+                  <div v-for="s in samplesFor(q.id)" :key="s.id" class="sample-line">
+                    <span class="sample-dates">
+                      Requested {{ formatQuoteDate(s.requested_at) }} → Received {{ formatQuoteDate(sampleReceivedAt(s)) }}
+                    </span>
+                    <span v-if="s.shipment" class="sample-tracking">
+                      <a v-if="getTrackingUrl(s.shipment)" :href="getTrackingUrl(s.shipment)" target="_blank" rel="noopener">
+                        {{ s.shipment.carrier || 'Shipment' }} {{ s.shipment.tracking_number }} ↗
+                      </a>
+                      <span v-else>{{ s.shipment.carrier || 'Shipment' }} {{ s.shipment.tracking_number }}</span>
+                      <span v-if="!s.shipment.delivered_at" class="sample-intransit">in transit</span>
+                    </span>
+                    <span v-else class="sample-no-tracking">no tracking linked</span>
+                    <button @click="deleteSample(s.id)" class="btn-icon btn-delete-icon" title="Remove sample"><Trash2 :size="12" :stroke-width="1.5" /></button>
                   </div>
-                  <div class="tiers-section mt-3">
-                    <label class="section-label">Pricing Tiers</label>
-                    <div class="tiers-list">
-                      <div v-for="(tier, i) in activeForm.data.pricing_tiers" :key="i" class="tier-row">
-                        <div class="tier-input-group">
-                          <span class="tier-prefix">MOQ:</span>
-                          <input v-model="tier.moq" placeholder="e.g. 100" />
-                        </div>
-                        <div class="tier-icon">➔</div>
-                        <div class="tier-input-group">
-                          <span class="tier-prefix">Price:</span>
-                          <input v-model="tier.price" placeholder="e.g. $5.00" />
-                        </div>
-                        <button @click="removeTier(i)" class="btn-remove-tier" v-if="activeForm.data.pricing_tiers.length > 1">✕</button>
-                      </div>
-                    </div>
-                    <button @click="addTier" class="btn-add-tier">+ Add Tier</button>
-                  </div>
-                  <div class="inline-form-actions mt-3">
-                    <button @click="activeForm = null" class="btn-export">Cancel</button>
-                    <button @click="saveInlineForm" class="btn-primary" :disabled="saving">{{ saving ? 'Saving...' : 'Update Option' }}</button>
+
+                  <div class="sample-add">
+                    <label>Requested<input type="date" v-model="sampleDraft[q.id].requested_at" /></label>
+                    <label>Received<input type="date" v-model="sampleDraft[q.id].received_at" :disabled="!!sampleDraft[q.id].shipment_id" :title="sampleDraft[q.id].shipment_id ? 'Comes from the linked shipment' : ''" /></label>
+                    <label>Tracking
+                      <select v-model="sampleDraft[q.id].shipment_id">
+                        <option value="">— none —</option>
+                        <option v-for="sh in shipmentsForManufacturer(q.manufacturer_id)" :key="sh.id" :value="sh.id">
+                          {{ sh.carrier || 'Shipment' }} {{ sh.tracking_number }}{{ sh.description ? ' · ' + sh.description : '' }}
+                        </option>
+                      </select>
+                    </label>
+                    <button @click="addSample(q)" class="btn-add-tier" :disabled="savingSample">+ Add Sample</button>
                   </div>
                 </div>
+              </td>
+            </tr>
+
+            <!-- Inline EDIT form (appears right after the quote being edited) -->
+            <tr v-if="activeForm?.manufacturerId === group.manufacturer.id && activeForm.editingId === q.id" class="inline-form-row">
+              <td colspan="9">
+                <QuoteForm :data="activeForm.data" :saving="saving" :editing="true"
+                           @save="saveInlineForm" @cancel="activeForm = null" @apply-all="applyIncotermToAll" />
               </td>
             </tr>
           </template>
@@ -285,14 +231,16 @@
     </div>
 
     <!-- CLIENT TEMPLATE -->
-    <div v-if="showTemplateModal" class="modal-overlay" @click.self="showTemplateModal = false">
+    <!-- Only the ✕ and Esc close the edit step: a stray click on the backdrop used to
+         throw away a template someone had been editing for ten minutes. -->
+    <div v-if="showTemplateModal" class="modal-overlay" @click.self="templateStep === 'pick' && closeTemplateModal()">
       <div class="picker-modal" style="max-width:640px;">
 
         <!-- Step 1: pick which options go into the template -->
         <template v-if="templateStep === 'pick'">
           <div class="picker-header">
             <h2>Build Client Template</h2>
-            <button @click="showTemplateModal = false" class="modal-close">✕</button>
+            <button @click="closeTemplateModal" class="modal-close">✕</button>
           </div>
           <p style="padding:0.75rem 1.25rem 0;margin:0;font-size:0.8rem;color:var(--text-muted);">
             Click a manufacturer to see their options, then check the ones to include.
@@ -313,7 +261,7 @@
             <div v-if="groupedQuotes.filter(g => g.items.length > 0).length === 0" class="picker-empty">No quotes to pick from yet.</div>
           </div>
           <div class="inline-form-actions" style="padding:1rem 1.25rem 1.25rem;">
-            <button @click="showTemplateModal = false" class="btn-export">Cancel</button>
+            <button @click="closeTemplateModal" class="btn-export">Cancel</button>
             <button @click="generateTemplate" class="btn-primary" :disabled="selectedForTemplate.size === 0">Generate Template ({{ selectedForTemplate.size }})</button>
           </div>
         </template>
@@ -322,15 +270,17 @@
         <template v-else>
           <div class="picker-header">
             <h2>Client Template</h2>
-            <button @click="showTemplateModal = false" class="modal-close">✕</button>
+            <button @click="closeTemplateModal" class="modal-close" title="Close (saves your draft)">✕</button>
           </div>
           <p style="padding:0.75rem 1.25rem 0;margin:0;font-size:0.8rem;color:var(--text-muted);">
-            Nicknames used in place of manufacturer names, and two weeks added to every lead time as cushion. Edit freely before copying — this doesn't save anywhere.
+            Nicknames used in place of manufacturer names, and two weeks added to every lead time as cushion.
+            Closing with ✕ or Esc saves this draft — clicking outside won't discard it.
           </p>
           <div style="padding:1rem 1.25rem;">
             <textarea v-model="templateText" class="template-textarea"></textarea>
           </div>
           <div class="inline-form-actions" style="padding:0 1.25rem 1.25rem;">
+            <button @click="discardTemplate" class="btn-export btn-discard-template">Discard draft</button>
             <button @click="templateStep = 'pick'" class="btn-export">← Back to selection</button>
             <button @click="copyTemplate" class="btn-primary">Copy to Clipboard</button>
           </div>
@@ -351,10 +301,12 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { supabase } from '../lib/supabase'
-import { User, Globe, Pencil, Trash2 } from 'lucide-vue-next'
+import { User, Globe, Pencil, Trash2, Package } from 'lucide-vue-next'
+import QuoteForm from '../components/QuoteForm.vue'
+import { buildTemplateText as buildTemplateTextFrom } from '../lib/quoteTemplate.js'
 
 const route = useRoute()
 const projectId = route.params.id
@@ -383,9 +335,18 @@ const showTemplateModal = ref(false)
 const templateStep = ref('pick') // 'pick' | 'edit'
 const templateExpanded = ref(new Set())
 const templateText = ref('')
+const hasSavedDraft = ref(false)
+
+// Samples requested per quoted option, plus this project's shipments to link them to.
+const samples = ref([])
+const shipments = ref([])
+const openSamples = ref(new Set())
+const sampleDraft = ref({})
+const savingSample = ref(false)
 
 const isQuotesOpen = (id) => openQuotes.value.has(id)
 const isInfoOpen = (id) => openInfo.value.has(id)
+const isSamplesOpen = (id) => openSamples.value.has(id)
 
 function toggleSet(setRef, id) {
   const next = new Set(setRef.value)
@@ -394,9 +355,17 @@ function toggleSet(setRef, id) {
 }
 const toggleQuotes = (id) => toggleSet(openQuotes, id)
 const toggleInfo = (id) => toggleSet(openInfo, id)
+function toggleSamples(quoteId) {
+  if (!sampleDraft.value[quoteId]) sampleDraft.value[quoteId] = emptySampleDraft()
+  toggleSet(openSamples, quoteId)
+}
+
+function emptySampleDraft() {
+  return { requested_at: '', received_at: '', shipment_id: '' }
+}
 
 function emptyFormData() {
-  return { material_comp: '', sample_cost: null, sample_lead_time: '', bulk_lead_time: '', specialty: '', notes: '', requested_at: '', received_at: '', pricing_tiers: [{ moq: '', price: '' }] }
+  return { material_comp: '', composition: '', sample_cost: null, sample_lead_time: '', bulk_lead_time: '', specialty: '', notes: '', incoterm: '', port: '', requested_at: '', received_at: '', pricing_tiers: [{ moq: '', price: '' }] }
 }
 
 const groupedQuotes = computed(() => {
@@ -453,11 +422,14 @@ function openInlineForm(manufacturerId, quoteToEdit = null) {
       editingId: quoteToEdit.id,
       data: {
         material_comp: quoteToEdit.material_comp || quoteToEdit.item_description || '',
+        composition: quoteToEdit.composition || '',
         sample_cost: quoteToEdit.sample_cost,
         sample_lead_time: quoteToEdit.sample_lead_time_display || '',
         bulk_lead_time: quoteToEdit.bulk_lead_time_display || '',
         specialty: quoteToEdit.specialty || '',
         notes: quoteToEdit.notes || '',
+        incoterm: quoteToEdit.incoterm || '',
+        port: quoteToEdit.port || '',
         requested_at: quoteToEdit.requested_at || '',
         received_at: quoteToEdit.received_at || '',
         pricing_tiers: tiers
@@ -490,9 +462,20 @@ async function toggleDiscard(mfgId, currentlyDiscarded) {
   quotes.value = quotes.value.map(q => q.manufacturer_id === mfgId ? { ...q, discarded: !currentlyDiscarded, discarded_reason: reason } : q)
 }
 
-function addTier() { activeForm.value.data.pricing_tiers.push({ moq: '', price: '' }) }
-function removeTier(i) {
-  if (activeForm.value.data.pricing_tiers.length > 1) activeForm.value.data.pricing_tiers.splice(i, 1)
+// A factory that quotes several items usually quotes one shipping term for the lot.
+// This writes the term the form is showing onto every saved row for that manufacturer,
+// so it doesn't have to be retyped option by option.
+async function applyIncotermToAll() {
+  if (!activeForm.value) return
+  const { incoterm, port } = activeForm.value.data
+  const mfgId = activeForm.value.manufacturerId
+  const { error } = await supabase.from('quotes')
+    .update({ incoterm: incoterm || null, port: port || null })
+    .eq('project_id', projectId)
+    .eq('manufacturer_id', mfgId)
+  if (error) return showMsg('Error applying incoterm: ' + error.message, 'error')
+  quotes.value = quotes.value.map(q => q.manufacturer_id === mfgId ? { ...q, incoterm: incoterm || null, port: port || null } : q)
+  showMsg('Incoterm applied to every option for this manufacturer')
 }
 
 function showMsg(msg, type = 'success') {
@@ -533,78 +516,72 @@ function formatWeeks(value) {
 
 const toggleTemplateSelect = (id) => toggleSet(selectedForTemplate, id)
 
-// Sierra's cushion rule: pad every quoted lead time by 2 weeks before it goes to a
-// client. Handles "X", "X-Y" and a trailing unit (defaults to weeks, honors "days").
-// ponytail: numbers-only text is all this needs to catch; anything it can't parse
-// (e.g. "TBD", "ask again") is left untouched rather than guessed at — it's an
-// editable preview, not the final copy, so an unpadded line is easy for Sierra to
-// catch and fix by hand rather than something silently wrong.
-function addTwoWeeks(raw) {
-  if (raw == null || raw === '') return raw
-  const text = raw.toString().trim()
-  const m = text.match(/^(\d+)\s*(?:-\s*(\d+))?\s*(day|days|week|weeks)?$/i)
-  if (!m) return text
-  const unit = /day/i.test(m[3] || '') ? 'days' : 'weeks'
-  const pad = unit === 'days' ? 14 : 2
-  const lo = Number(m[1]) + pad
-  const hi = m[2] ? Number(m[2]) + pad : null
-  return hi ? `${lo}-${hi} ${unit}` : `${lo} ${unit}`
-}
-
-// One block per manufacturer, not per item — a shared header, then every selected
-// option on its own line, then a single Sample/Bulk Time for the group.
-// ponytail: doesn't try to merge options that share a composition into one summary
-// line — the form only ever captures Material/Option + Specialty per row, there is
-// no separate "which garment piece" field to group by, so guessing would either
-// duplicate the composition text or misattribute a specialty. Each line states
-// exactly what that row says; if two options really are the same fabric for two
-// pieces, Sierra can merge them by hand in the editable box.
+// The client-facing text is built by src/lib/quoteTemplate.js — pure functions with a
+// runnable check beside them (node src/lib/quoteTemplate.test.js). This only maps the
+// on-screen selection into the shape that module expects.
 function buildTemplateText() {
-  const blocks = []
-  groupedQuotes.value.forEach(group => {
-    const items = group.items.filter(q => selectedForTemplate.value.has(q.id))
-    if (items.length === 0) return
-
-    const label = group.manufacturer.nickname || group.manufacturer.company_name
-    const location = group.manufacturer.city || group.manufacturer.country
-    const lines = [`Manu - ${label}${location ? ' - ' + location : ''}`, '']
-
-    const tierMoq = items.map(q => q.pricing_tiers?.[0]?.moq).find(Boolean)
-    const perColorMoq = items.map(q => q.moq_per_color).find(Boolean)
-    if (tierMoq) lines.push(`Minimum is ${tierMoq} units.`, '')
-    else if (perColorMoq) lines.push(`Minimum is ${perColorMoq} units per color.`, '')
-
-    items.forEach(q => {
-      const desc = q.material_comp || q.item_description || 'Item'
-      const label = q.specialty ? `${desc} — ${q.specialty}` : desc
-      const price = q.pricing_tiers?.[0]?.price || q.price_range || '—'
-      lines.push(`${label} - ${price}${q.sample_cost ? ` (sample cost $${q.sample_cost})` : ''}`)
-    })
-    lines.push('')
-
-    const sampleTime = items.map(q => q.sample_lead_time_display).find(Boolean)
-    const bulkTime = items.map(q => q.bulk_lead_time_display).find(Boolean)
-    lines.push(`Sample Time ${addTwoWeeks(sampleTime) || '—'}`)
-    lines.push(`Bulk Order Time ${addTwoWeeks(bulkTime) || '—'}`)
-
-    const terms = items.map(q => q.notes).find(Boolean)
-    if (terms) lines.push('', `Terms: ${terms}`)
-
-    blocks.push(lines.join('\n'))
-  })
-  return blocks.join('\n\n\n')
+  const groups = groupedQuotes.value.map(group => ({
+    label: group.manufacturer.nickname || group.manufacturer.company_name,
+    location: group.manufacturer.city || group.manufacturer.country,
+    items: group.items.filter(q => selectedForTemplate.value.has(q.id)),
+  }))
+  return buildTemplateTextFrom(groups)
 }
 
 const toggleTemplateExpanded = (id) => toggleSet(templateExpanded, id)
 
+// Reopen straight into the saved draft if there is one; otherwise start at selection.
 function openTemplateModal() {
-  templateStep.value = 'pick'
+  templateStep.value = hasSavedDraft.value && templateText.value ? 'edit' : 'pick'
   showTemplateModal.value = true
 }
 
 function generateTemplate() {
   templateText.value = buildTemplateText()
   templateStep.value = 'edit'
+}
+
+// Closing is the save point: whatever is on screen is what comes back next time.
+async function closeTemplateModal() {
+  showTemplateModal.value = false
+  if (templateStep.value !== 'edit' && !hasSavedDraft.value) return
+  await saveTemplateDraft()
+}
+
+async function saveTemplateDraft() {
+  const { error } = await supabase.from('project_quote_templates').upsert({
+    project_id: projectId,
+    selected_quote_ids: [...selectedForTemplate.value],
+    template_text: templateText.value,
+    updated_at: new Date().toISOString(),
+  }, { onConflict: 'project_id' })
+  if (error) return showMsg('Could not save the template draft: ' + error.message, 'error')
+  hasSavedDraft.value = true
+}
+
+async function discardTemplate() {
+  if (!confirm('Discard this saved draft and start over?')) return
+  const { error } = await supabase.from('project_quote_templates').delete().eq('project_id', projectId)
+  if (error) return showMsg('Could not discard the draft: ' + error.message, 'error')
+  hasSavedDraft.value = false
+  templateText.value = ''
+  selectedForTemplate.value = new Set()
+  templateStep.value = 'pick'
+}
+
+async function loadTemplateDraft() {
+  const { data, error } = await supabase.from('project_quote_templates')
+    .select('selected_quote_ids, template_text').eq('project_id', projectId).maybeSingle()
+  if (error || !data) return
+  templateText.value = data.template_text || ''
+  const ids = Array.isArray(data.selected_quote_ids) ? data.selected_quote_ids : []
+  selectedForTemplate.value = new Set(ids)
+  hasSavedDraft.value = true
+}
+
+// Esc closes the template modal (and saves), matching the ✕.
+function onKeydown(e) {
+  if (e.key === 'Escape' && showTemplateModal.value) closeTemplateModal()
 }
 
 async function copyTemplate() {
@@ -614,6 +591,80 @@ async function copyTemplate() {
   } catch (e) {
     showMsg('Could not copy — select and copy manually', 'error')
   }
+}
+
+// ---- Samples -------------------------------------------------------------------
+const samplesFor = (quoteId) => samples.value.filter(s => s.quote_id === quoteId)
+
+const shipmentsForManufacturer = (manufacturerId) =>
+  shipments.value.filter(s => s.manufacturer_id === manufacturerId)
+
+// A linked shipment is the source of truth for arrival; the manual date is the
+// fallback for samples that showed up without a tracking number.
+function sampleReceivedAt(s) {
+  return s.shipment?.delivered_at || s.received_at
+}
+
+const CARRIER_URLS = {
+  DHL: (n) => `https://www.dhl.com/en/express/tracking.html?AWB=${n}`,
+  FedEx: (n) => `https://www.fedex.com/fedextrack/?trknbr=${n}`,
+  UPS: (n) => `https://www.ups.com/track?tracknum=${n}`,
+  USPS: (n) => `https://tools.usps.com/go/TrackConfirmAction?tLabels=${n}`,
+  '17TRACK': (n) => `https://t.17track.net/en#nums=${n}`,
+}
+function getTrackingUrl(s) {
+  if (!s) return null
+  if (s.tracking_url) return s.tracking_url
+  const fn = CARRIER_URLS[s.carrier]
+  return fn ? fn(encodeURIComponent(s.tracking_number)) : null
+}
+
+async function addSample(q) {
+  const draft = sampleDraft.value[q.id]
+  if (!draft?.requested_at) return showMsg('Pick the date the sample was requested', 'error')
+  savingSample.value = true
+  try {
+    const { error } = await supabase.from('quote_samples').insert([{
+      quote_id: q.id,
+      shipment_id: draft.shipment_id || null,
+      requested_at: draft.requested_at,
+      received_at: draft.shipment_id ? null : (draft.received_at || null),
+    }])
+    if (error) throw error
+    sampleDraft.value[q.id] = emptySampleDraft()
+    await fetchSamples()
+    showMsg('Sample added')
+  } catch (err) {
+    showMsg('Could not add the sample: ' + err.message, 'error')
+  } finally {
+    savingSample.value = false
+  }
+}
+
+async function deleteSample(id) {
+  if (!confirm('Remove this sample?')) return
+  const { error } = await supabase.from('quote_samples').delete().eq('id', id)
+  if (error) return showMsg('Could not remove the sample: ' + error.message, 'error')
+  samples.value = samples.value.filter(s => s.id !== id)
+}
+
+async function fetchSamples() {
+  const quoteIds = quotes.value.map(q => q.id)
+  if (quoteIds.length === 0) { samples.value = []; return }
+  const { data, error } = await supabase.from('quote_samples')
+    .select('*').in('quote_id', quoteIds).order('requested_at', { ascending: true })
+  if (error) return
+  const shipMap = {}
+  shipments.value.forEach(s => { shipMap[s.id] = s })
+  samples.value = (data || []).map(s => ({ ...s, shipment: s.shipment_id ? shipMap[s.shipment_id] || null : null }))
+}
+
+async function fetchShipments() {
+  const { data } = await supabase.from('project_shipments')
+    .select('id, manufacturer_id, carrier, tracking_number, tracking_url, description, delivered_at')
+    .eq('project_id', projectId)
+    .order('created_at', { ascending: false })
+  shipments.value = data || []
 }
 
 async function fetchData() {
@@ -656,6 +707,10 @@ async function fetchData() {
     // Remove from includedManufacturers those that now have quotes (they'll appear via groupedQuotes)
     const quotedIds = new Set(quotes.value.map(q => q.manufacturer_id))
     includedManufacturers.value = includedManufacturers.value.filter(m => !quotedIds.has(m.id))
+
+    // Shipments first: samples resolve their linked tracking out of that list.
+    await fetchShipments()
+    await fetchSamples()
   } catch (err) {
     showMsg('Unexpected error: ' + err.message, 'error')
   } finally {
@@ -673,11 +728,14 @@ async function saveInlineForm() {
       manufacturer_id: activeForm.value.manufacturerId,
       item_description: d.material_comp || '',
       material_comp: d.material_comp || '',
+      composition: d.composition || null,
       sample_cost: d.sample_cost,
       sample_lead_time: parseLeadTime(d.sample_lead_time),
       bulk_lead_time: parseLeadTime(d.bulk_lead_time),
       specialty: d.specialty,
       notes: d.notes,
+      incoterm: d.incoterm || null,
+      port: d.port || null,
       project_id: projectId,
       pricing_tiers: validTiers,
       price_range: validTiers[0]?.price || '',
@@ -735,7 +793,12 @@ function exportExcel() {
   alert('Export to Excel functionality triggered!')
 }
 
-onMounted(fetchData)
+onMounted(() => {
+  fetchData()
+  loadTemplateDraft()
+  window.addEventListener('keydown', onKeydown)
+})
+onUnmounted(() => window.removeEventListener('keydown', onKeydown))
 </script>
 
 <style scoped>
@@ -746,24 +809,10 @@ h1 { font-size: 1.8rem; font-weight: 800; color: var(--text-main); margin: 0; }
 .subtitle { color: var(--text-muted); font-size: 0.95rem; margin-top: 0.2rem; }
 .header-actions { display: flex; gap: 1rem; }
 
-/* FORM */
-.input-field label, .section-label { display: block; font-size: 0.75rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-bottom: 0.4rem; }
+/* FORM — the quote form's own styling lives in QuoteForm.vue; what's left here is
+   for the picker search, the template textarea and the sample rows. */
 input, select, textarea { width: 100%; padding: 0.6rem 0.8rem; border: 1.5px solid var(--border-main); border-radius: 8px; font-size: 0.9rem; transition: border-color 0.2s; background: var(--bg-app); color: var(--text-main); box-sizing: border-box; }
 input:focus, select:focus, textarea:focus { border-color: var(--primary); outline: none; box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.1); }
-.mt-3 { margin-top: 1rem; }
-.mt-4 { margin-top: 1.5rem; }
-
-/* TIERS */
-.tiers-section { background: rgba(0,0,0,0.15); border: 1px dashed var(--border-main); padding: 1rem; border-radius: 10px; }
-.tiers-list { display: flex; flex-direction: column; gap: 0.8rem; margin-bottom: 1rem; }
-.tier-row { display: flex; align-items: center; gap: 0.8rem; flex-wrap: wrap; }
-.tier-input-group { display: flex; align-items: center; background: var(--bg-app); border: 1px solid var(--border-main); border-radius: 8px; overflow: hidden; flex: 1; min-width: 150px; }
-.tier-prefix { padding: 0 0.8rem; font-size: 0.75rem; font-weight: 800; color: var(--text-muted); text-transform: uppercase; background: rgba(255,255,255,0.05); border-right: 1px solid var(--border-main); height: 100%; display: flex; align-items: center; }
-.tier-input-group input { border: none; border-radius: 0; background: transparent; }
-.tier-input-group input:focus { box-shadow: none; }
-.tier-icon { color: var(--text-muted); font-size: 1.2rem; }
-.btn-remove-tier { background: transparent; color: var(--danger-text); border: 1px solid var(--danger-text); border-radius: 6px; width: 34px; height: 34px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-weight: bold; transition: 0.2s; }
-.btn-remove-tier:hover { background: var(--danger-bg); }
 .btn-add-tier { background: rgba(99, 102, 241, 0.1); color: var(--primary); border: 1px dashed var(--primary); padding: 0.5rem 1rem; border-radius: 8px; cursor: pointer; font-size: 0.8rem; font-weight: 700; width: max-content; transition: 0.2s; }
 .btn-add-tier:hover { background: var(--primary); color: white; }
 
@@ -823,6 +872,35 @@ td { padding: 1rem; border-bottom: 1px solid var(--border-light); font-size: 0.8
 .notes-cell { font-style: italic; color: var(--text-muted); max-width: 250px; }
 .date-cell { color: var(--text-muted); font-size: 0.78rem; white-space: nowrap; }
 
+/* INCOTERM */
+.incoterm-cell { white-space: nowrap; }
+.incoterm-chip { display: inline-block; font-size: 0.72rem; font-weight: 800; letter-spacing: 0.05em; color: #a78bfa; background: rgba(139, 92, 246, 0.12); border: 1px solid rgba(139, 92, 246, 0.35); padding: 0.15rem 0.45rem; border-radius: 5px; }
+.incoterm-port { font-size: 0.72rem; color: var(--text-muted); margin-top: 0.2rem; }
+
+/* SAMPLES */
+.btn-sample-icon { position: relative; color: var(--text-muted); }
+.btn-sample-icon:hover { background: rgba(99,102,241,0.15); border-color: var(--primary); }
+.btn-sample-icon.has-samples { color: var(--primary); border-color: var(--primary); }
+.sample-count { font-size: 0.62rem; font-weight: 800; margin-left: 2px; vertical-align: super; }
+.samples-row td { background: rgba(0,0,0,0.12); padding: 0.9rem 1.5rem !important; }
+.samples-block { display: flex; flex-direction: column; gap: 0.5rem; }
+.samples-title { font-size: 0.7rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); }
+.samples-empty { font-size: 0.82rem; color: var(--text-muted); font-style: italic; }
+.sample-line { display: flex; align-items: center; gap: 0.7rem; flex-wrap: wrap; font-size: 0.82rem; color: var(--text-body); }
+.sample-dates { white-space: nowrap; }
+.sample-tracking a { color: #3b82f6; text-decoration: none; font-family: monospace; font-size: 0.78rem; }
+.sample-tracking a:hover { text-decoration: underline; }
+.sample-intransit { font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #f59e0b; background: rgba(245,158,11,0.12); padding: 2px 6px; border-radius: 10px; margin-left: 0.4rem; }
+.sample-no-tracking { font-size: 0.75rem; color: var(--text-muted); font-style: italic; }
+.sample-add { display: flex; align-items: flex-end; gap: 0.6rem; flex-wrap: wrap; padding-top: 0.4rem; border-top: 1px dashed var(--border-main); }
+.sample-add label { display: flex; flex-direction: column; gap: 0.2rem; font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); }
+.sample-add input, .sample-add select { padding: 0.4rem 0.55rem; font-size: 0.8rem; width: auto; min-width: 140px; }
+.sample-add input:disabled { opacity: 0.45; cursor: not-allowed; }
+.sample-add .btn-add-tier { padding: 0.45rem 0.9rem; }
+.sample-add .btn-add-tier:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-discard-template { color: var(--danger-text); border-color: var(--danger-text); margin-right: auto; }
+.btn-discard-template:hover { background: var(--danger-bg); }
+
 /* PRICING TIERS DISPLAY */
 .tiers-display { display: flex; flex-direction: column; gap: 0.4rem; }
 .tier-pill { display: inline-flex; align-items: center; background: rgba(34, 197, 94, 0.1); border: 1px solid rgba(34, 197, 94, 0.3); border-radius: 6px; overflow: hidden; width: max-content; font-size: 0.8rem; }
@@ -831,8 +909,6 @@ td { padding: 1rem; border-bottom: 1px solid var(--border-light); font-size: 0.8
 
 /* INLINE FORM */
 .inline-form-row { background: rgba(99,102,241,0.02); }
-.inline-form { padding: 1.5rem; border-top: 2px dashed var(--primary); }
-.inline-form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.8rem; }
 .inline-form-actions { display: flex; justify-content: flex-end; gap: 0.8rem; }
 
 /* EMPTY STATES */

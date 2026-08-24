@@ -24,6 +24,10 @@
     </div>
 
     <div class="filters-bar">
+      <select v-model="filterYear" class="filter-select">
+        <option value="">All Years</option>
+        <option v-for="y in availableYears" :key="y" :value="y">{{ y }}</option>
+      </select>
       <select v-model="filterMonth" class="filter-select">
         <option value="">All Months</option>
         <option v-for="m in monthOptions" :key="m.value" :value="m.value">{{ m.label }}</option>
@@ -32,7 +36,10 @@
         <option value="">All Countries</option>
         <option v-for="c in availableCountries" :key="c" :value="c">{{ c }}</option>
       </select>
-      <button v-if="filterMonth || filterCountry" @click="clearFilters" class="btn-clear">✕ Clear</button>
+      <label class="hide-past-toggle">
+        <input type="checkbox" v-model="hidePast" /> Hide past
+      </label>
+      <button v-if="filterYear || filterMonth || filterCountry || hidePast" @click="clearFilters" class="btn-clear">✕ Clear</button>
       <span class="results-count">{{ filteredEvents.length }} event{{ filteredEvents.length !== 1 ? 's' : '' }}</span>
     </div>
 
@@ -170,8 +177,10 @@ const showForm = ref(false)
 const editingId = ref(null)
 
 const currentView = ref('list')
+const filterYear = ref('')
 const filterMonth = ref('')
 const filterCountry = ref('')
+const hidePast = ref(false)
 
 // --- MODAL VARIABLES ---
 const showNoteModal = ref(false)
@@ -317,13 +326,20 @@ const availableCountries = computed(() => {
   return [...new Set(countries)].sort()
 })
 
+const availableYears = computed(() => {
+  const years = events.value.map(e => e.start_date?.slice(0, 4)).filter(Boolean)
+  return [...new Set(years)].sort()
+})
+
 const filteredEvents = computed(() => {
   let list = events.value.filter(e => {
+    const matchYear = !filterYear.value || (e.start_date && e.start_date.slice(0, 4) === filterYear.value)
     const matchMonth = !filterMonth.value || (e.start_date && e.start_date.slice(5, 7) === filterMonth.value)
     const matchCountry = !filterCountry.value || e.country === filterCountry.value
-    return matchMonth && matchCountry
+    const matchPast = !hidePast.value || !isPast(e.start_date, e.end_date)
+    return matchYear && matchMonth && matchCountry && matchPast
   })
-  
+
   return list.sort(sortEvents)
 })
 
@@ -345,7 +361,7 @@ const kanbanGroups = computed(() => {
   }, {})
 })
 
-function clearFilters() { filterMonth.value = ''; filterCountry.value = '' }
+function clearFilters() { filterYear.value = ''; filterMonth.value = ''; filterCountry.value = ''; hidePast.value = false }
 function openAddForm() { editingId.value = null; form.value = emptyForm(); showForm.value = true }
 function editEvent(e) { editingId.value = e.id; form.value = { ...e }; showForm.value = true; window.scrollTo({ top: 0, behavior: 'smooth' }) }
 function cancelForm() { showForm.value = false; editingId.value = null }
@@ -438,6 +454,10 @@ h1 { font-size: 2rem; font-weight: 700; color: var(--text-main); }
 .filters-bar { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1.5rem; flex-wrap: wrap; }
 .filter-select { padding: 0.6rem 1rem; border: 1px solid var(--border-main); border-radius: 10px; font-size: 0.9rem; color: var(--text-main); background: var(--bg-card); cursor: pointer; }
 .btn-clear { background: var(--border-light); color: var(--text-muted); border: none; padding: 0.6rem 1rem; border-radius: 10px; cursor: pointer; font-size: 0.85rem; }
+/* The global "input, select, textarea { width: 100% }" rule below would stretch this
+   checkbox across the bar; pin it back down like the quote-template checkbox. */
+.hide-past-toggle { display: flex; align-items: center; gap: 0.4rem; font-size: 0.85rem; color: var(--text-muted); cursor: pointer; user-select: none; white-space: nowrap; }
+.hide-past-toggle input[type="checkbox"] { width: 15px; height: 15px; padding: 0; margin: 0; cursor: pointer; }
 .results-count { margin-left: auto; font-size: 0.85rem; color: var(--text-muted); font-weight: 600; }
 
 /* FORM */
