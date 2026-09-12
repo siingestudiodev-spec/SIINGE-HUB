@@ -21,6 +21,9 @@ import TripMapView from '../views/TripMapView.vue'
 
 const routes = [
   { path: '/login', component: LoginView },
+  // Recovery email lands here: same component, password-reset mode. No auth meta, and
+  // not /login either, since the guard bounces /login away once a session exists.
+  { path: '/reset-password', component: LoginView },
   { path: '/', redirect: '/manufacturers' },
   { 
     path: '/manufacturers', 

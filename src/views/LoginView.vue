@@ -6,12 +6,30 @@
         <img :src="logoImage" alt="SIINGE STUDIO" class="logo" />
         <h1 class="display display--lg">SIINGE STUDIO</h1>
         <p class="eyebrow" style="margin-top: 8px;">Manufacturers Hub</p>
-        <p class="eyebrow subtitle">Sign in to your workspace</p>
+        <p class="eyebrow subtitle">{{ recovery ? 'Choose a new password' : 'Sign in to your workspace' }}</p>
       </div>
 
-      <div v-if="message" class="alert">{{ message }}</div>
+      <div v-if="message" class="alert" :class="{ 'alert--ok': ok }">{{ message }}</div>
 
-      <form @submit.prevent="handleLogin">
+      <!-- Landed here from the recovery email: Supabase already opened a session, just set the password. -->
+      <form v-if="recovery && linkOk" @submit.prevent="handleReset">
+        <div class="field">
+          <label>New password</label>
+          <input v-model="password" type="password" placeholder="••••••••" required minlength="6" />
+        </div>
+        <div class="field">
+          <label>Confirm password</label>
+          <input v-model="confirm" type="password" placeholder="••••••••" required minlength="6" />
+        </div>
+        <button type="submit" class="btn-login" :disabled="loading">
+          <span>{{ loading ? 'Saving...' : 'Update password' }}</span>
+          <ArrowRight v-if="!loading" :size="14" :stroke-width="1.5" />
+        </button>
+      </form>
+
+      <RouterLink v-else-if="recovery" to="/login" class="btn-login">Back to sign in</RouterLink>
+
+      <form v-else @submit.prevent="handleLogin">
         <div class="field">
           <label>Email</label>
           <input v-model="email" type="email" placeholder="you@siingestudio.com" required />
@@ -24,23 +42,40 @@
           <span>{{ loading ? 'Signing in...' : 'Sign In' }}</span>
           <ArrowRight v-if="!loading" :size="14" :stroke-width="1.5" />
         </button>
+        <button type="button" class="btn-link" @click="handleForgot" :disabled="loading">Forgot your password?</button>
       </form>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, computed, onMounted } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import { supabase } from '../lib/supabase'
 import { ArrowRight } from 'lucide-vue-next'
 import logoImage from '../assets/siinge-logo.png'
 
 const router = useRouter()
+const route = useRoute()
 const email = ref('')
 const password = ref('')
+const confirm = ref('')
 const loading = ref(false)
 const message = ref('')
+const ok = ref(false)
+const linkOk = ref(true)
+
+// Same card, two jobs: /login signs in, /reset-password finishes a recovery link.
+const recovery = computed(() => route.path === '/reset-password')
+
+onMounted(async () => {
+  if (!recovery.value) return
+  // getSession() waits for the token in the URL to be consumed, so no session means a dead link.
+  const { data: { session } } = await supabase.auth.getSession()
+  if (session) return
+  linkOk.value = false
+  message.value = 'This link expired or was already used. Request a new one from the sign-in page.'
+})
 
 async function handleLogin() {
   loading.value = true
@@ -49,7 +84,28 @@ async function handleLogin() {
     email: email.value,
     password: password.value
   })
-  if (error) { message.value = error.message }
+  if (error) { message.value = error.message; ok.value = false }
+  else { router.push('/manufacturers') }
+  loading.value = false
+}
+
+async function handleForgot() {
+  if (!email.value) { message.value = 'Type your email above, then click again.'; ok.value = false; return }
+  loading.value = true
+  const { error } = await supabase.auth.resetPasswordForEmail(email.value, {
+    redirectTo: `${window.location.origin}/reset-password`
+  })
+  // Supabase answers the same whether or not the address exists, so neither do we.
+  message.value = error ? error.message : 'If that email has an account, the reset link is on its way.'
+  ok.value = !error
+  loading.value = false
+}
+
+async function handleReset() {
+  if (password.value !== confirm.value) { message.value = 'Passwords do not match.'; ok.value = false; return }
+  loading.value = true
+  const { error } = await supabase.auth.updateUser({ password: password.value })
+  if (error) { message.value = error.message; ok.value = false }
   else { router.push('/manufacturers') }
   loading.value = false
 }
@@ -141,6 +197,20 @@ input:focus { outline: none; border-color: var(--text-main); }
   gap: 0.5rem;
 }
 .btn-login:hover { opacity: 0.88; }
+.btn-login { text-decoration: none; }
+.btn-link {
+  display: block;
+  width: 100%;
+  margin-top: var(--s-3);
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: var(--fs-12);
+  cursor: pointer;
+  text-decoration: underline;
+}
+.btn-link:hover { color: var(--text-main); }
+.btn-link:disabled { opacity: 0.45; cursor: not-allowed; }
 .btn-login:disabled { opacity: 0.45; cursor: not-allowed; }
 .alert {
   background: var(--danger-bg);
@@ -150,4 +220,5 @@ input:focus { outline: none; border-color: var(--text-main); }
   margin-bottom: var(--s-4);
   font-size: var(--fs-13);
 }
+.alert--ok { background: var(--success-bg); color: var(--success-text); }
 </style>
