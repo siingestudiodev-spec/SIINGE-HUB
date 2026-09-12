@@ -211,7 +211,7 @@
                   <div v-if="p.contact_name"><User :size="12" :stroke-width="1.5" /> {{ p.contact_name }}<button @click.stop="quickSetPrimary(p, null)" class="btn-primary-star" :class="{ 'is-primary': !p.primary_contact_id }" :title="!p.primary_contact_id ? 'Primary contact' : 'Set as primary'">★</button></div>
                   <div v-if="p.phone"><Phone :size="12" :stroke-width="1.5" /> {{ p.phone }}</div>
                   <div v-if="p.email">{{ p.email }}</div>
-                  <div v-if="p.address"><MapPin :size="12" :stroke-width="1.5" /> {{ p.address }}</div>
+                  <div v-if="p.address"><MapPin :size="12" :stroke-width="1.5" /> <a :href="'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(p.address)" target="_blank" rel="noopener" :title="p.address">{{ p.address }}</a></div>
                   <div v-if="p.website"><a :href="p.website" target="_blank"><Globe :size="12" :stroke-width="1.5" /> {{ p.website }}</a></div>
                   <template v-if="p.sourcing_contacts?.length">
                     <div class="more-contacts-label"><User :size="12" :stroke-width="1.5" /> More contacts</div>

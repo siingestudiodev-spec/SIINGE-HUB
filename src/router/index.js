@@ -14,6 +14,10 @@ import FollowUpsView from '../views/FollowUpsView.vue'
 import PortalSignView from '../views/PortalSignView.vue'
 import LogsView from '../views/LogsView.vue'
 import TrackingView from '../views/TrackingView.vue'
+import LandedCostView from '../views/LandedCostView.vue'
+import TripsView from '../views/TripsView.vue'
+import TripSetupView from '../views/TripSetupView.vue'
+import TripMapView from '../views/TripMapView.vue'
 
 const routes = [
   { path: '/login', component: LoginView },
@@ -38,10 +42,15 @@ const routes = [
     component: ProjectSourcingView, 
     meta: { requiresAuth: true } 
   }, 
-  { 
-    path: '/projects/:id/quotes', 
-    component: QuoteComparison, 
-    meta: { requiresAuth: true } 
+  {
+    path: '/projects/:id/quotes',
+    component: QuoteComparison,
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/landed-cost',
+    component: LandedCostView,
+    meta: { requiresAuth: true }
   },
   { 
     path: '/sourcing', 
@@ -74,6 +83,21 @@ const routes = [
     meta: { requiresAuth: true }
   },
   {
+    path: '/trip-map',
+    component: TripsView,
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/trip-map/:id/setup',
+    component: TripSetupView,
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/trip-map/:id',
+    component: TripMapView,
+    meta: { requiresAuth: true }
+  },
+  {
     // PORTAL PÚBLICO PARA FIRMAR DOCUMENTOS
     path: '/portal/sign',
     component: PortalSignView,
@@ -88,7 +112,7 @@ const router = createRouter({
 
 router.beforeEach(async (to) => {
   const { data: { session } } = await supabase.auth.getSession()
-  
+
   // Si la ruta requiere auth y no hay sesión, al login
   if (to.meta.requiresAuth && !session) return '/login'
   

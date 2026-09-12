@@ -117,6 +117,7 @@
             </div>
             <div class="input-group"><input v-model="form.country" placeholder="Country" /></div>
             <div class="input-group"><input v-model="form.city" placeholder="City" /></div>
+            <div class="input-group" style="grid-column: 1 / -1;"><input v-model="form.address" placeholder="Street address (used by the Trip Map)" /></div>
             <div class="input-group" style="display:flex;align-items:center;gap:4px;">
               <button type="button" @click="primarySelection = 'default'" :class="['btn-primary-star', primarySelection === 'default' ? 'is-primary' : '']" :title="primarySelection === 'default' ? 'Primary contact' : 'Set as primary'">★</button>
               <input v-model="form.contact_name" placeholder="Contact Name" style="flex:1;" />
@@ -308,6 +309,10 @@
                     </div>
                     <div class="info-row" v-if="m.website">
                       <span class="info-icon"><Globe :size="12" :stroke-width="1.5" /></span><a :href="m.website" target="_blank">Website</a>
+                    </div>
+                    <div class="info-row align-start" v-if="m.address">
+                      <span class="info-icon mt-1"><MapPin :size="12" :stroke-width="1.5" /></span>
+                      <a class="truncate-text" :href="'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(m.address)" target="_blank" rel="noopener" :title="m.address">{{ m.address }}</a>
                     </div>
                     <template v-if="m.manufacturer_contacts?.length">
                       <div class="info-row" style="margin-top:4px;"><span class="info-icon"><User :size="12" :stroke-width="1.5" /></span><span style="font-size:0.7rem;color:var(--text-muted);font-weight:600;text-transform:uppercase;">More contacts</span></div>
@@ -735,7 +740,7 @@
 import { ref, computed, watch, onMounted, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
 import { supabase } from '../lib/supabase'
-import { Folder, Globe, User, Phone, Mail, Tag, FileText, Edit, Pencil, Trash2, CalendarClock, Clock, AlertTriangle, Send, CheckCircle, ClipboardList, ExternalLink, FileCheck, Truck, Briefcase } from 'lucide-vue-next'
+import { Folder, Globe, User, Phone, Mail, Tag, FileText, Edit, Pencil, Trash2, CalendarClock, Clock, AlertTriangle, Send, CheckCircle, ClipboardList, ExternalLink, FileCheck, Truck, Briefcase, MapPin } from 'lucide-vue-next'
 import FolderCapsules from '../components/FolderCapsules.vue'
 import { FOLDER_COLORS } from '../lib/folderColors'
 import DocumentStatusModal from '../components/DocumentStatusModal.vue'
@@ -986,7 +991,7 @@ const logContactModal = ref({
 })
 
 const form = ref({
-  company_name: '', nickname: '', country: '', city: '', contact_name: '', phone: '',
+  company_name: '', nickname: '', country: '', city: '', address: '', contact_name: '', phone: '',
   email: '', website: '', product_categories: '', certifications: '', notes: '',
   declined_reason: '', nda_signed: false, mma_signed: false, folder_id: null,
   certs_requested_at: '', certs_received_at: '',
@@ -1168,6 +1173,7 @@ async function saveManufacturer() {
     folder_id: form.value.folder_id === '' ? null : form.value.folder_id,
     country: form.value.country,
     city: form.value.city,
+    address: form.value.address?.trim() || null,
     declined_reason: form.value.declined_reason?.trim() || null,
     contact_name: form.value.contact_name,
     phone: form.value.phone,
@@ -1312,7 +1318,7 @@ async function editManufacturer(m) {
 
 function resetForm() {
   form.value = {
-    company_name: '', nickname: '', country: '', city: '', contact_name: '', phone: '',
+    company_name: '', nickname: '', country: '', city: '', address: '', contact_name: '', phone: '',
     email: '', website: '', catalog_url: '', product_categories: '', certifications: '',
     notes: 'MOQ: \nSLT: \nBulk: \n\n1. Certifications: \n2. Can provide traceability: \n3. QC: \n4. Allow Visits: ',
     declined_reason: '', nda_signed: false, mma_signed: false, folder_id: null,

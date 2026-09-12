@@ -137,6 +137,7 @@
                   <button @click="toggleSamples(q.id)" class="btn-icon btn-sample-icon" :class="{ 'has-samples': samplesFor(q.id).length > 0 }" :title="`Samples requested for this option (${samplesFor(q.id).length})`">
                     <Package :size="13" :stroke-width="1.5" /><span v-if="samplesFor(q.id).length" class="sample-count">{{ samplesFor(q.id).length }}</span>
                   </button>
+                  <router-link :to="`/landed-cost?quote=${q.id}`" class="btn-icon btn-landed-icon" title="Landed cost — what this lands at after duty and freight"><Calculator :size="13" :stroke-width="1.5" /></router-link>
                   <button @click="openInlineForm(group.manufacturer.id, q)" class="btn-icon btn-edit-icon" title="Edit"><Pencil :size="13" :stroke-width="1.5" /></button>
                   <button @click="confirmDelete(q.id)" class="btn-icon btn-delete-icon" title="Delete"><Trash2 :size="13" :stroke-width="1.5" /></button>
                 </div>
@@ -304,7 +305,7 @@
 import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { supabase } from '../lib/supabase'
-import { User, Globe, Pencil, Trash2, Package } from 'lucide-vue-next'
+import { User, Globe, Pencil, Trash2, Package, Calculator } from 'lucide-vue-next'
 import QuoteForm from '../components/QuoteForm.vue'
 import { buildTemplateText as buildTemplateTextFrom } from '../lib/quoteTemplate.js'
 
@@ -934,6 +935,8 @@ td { padding: 1rem; border-bottom: 1px solid var(--border-light); font-size: 0.8
 .table-actions { display: flex; gap: 0.5rem; justify-content: flex-end; }
 .btn-icon { background: var(--bg-app); border: 1px solid var(--border-main); cursor: pointer; padding: 0.4rem; border-radius: 6px; transition: 0.2s; }
 .btn-edit-icon:hover { background: rgba(99,102,241,0.15); border-color: var(--primary); }
+.btn-landed-icon { display: inline-flex; align-items: center; color: var(--text-muted); text-decoration: none; }
+.btn-landed-icon:hover { background: rgba(34,197,94,0.12); border-color: var(--success-text); color: var(--success-text); }
 .btn-delete-icon:hover { background: rgba(239,68,68,0.12); border-color: var(--danger-text); }
 
 /* MANUFACTURER PICKER MODAL */

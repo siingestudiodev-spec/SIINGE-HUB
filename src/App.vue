@@ -34,6 +34,12 @@
         <router-link to="/tracking" class="nav-item" :class="{ active: isActive('/tracking') }">
           <Truck :size="14" :stroke-width="1.5" /><span>Tracking</span>
         </router-link>
+        <router-link to="/trip-map" class="nav-item" :class="{ active: isActive('/trip-map') }">
+          <MapPin :size="14" :stroke-width="1.5" /><span>Map</span>
+        </router-link>
+        <router-link to="/landed-cost" class="nav-item" :class="{ active: isActive('/landed-cost') }">
+          <Calculator :size="14" :stroke-width="1.5" /><span>Landed Cost</span>
+        </router-link>
         <router-link to="/logs" class="nav-item" :class="{ active: isActive('/logs') }">
           <ScrollText :size="14" :stroke-width="1.5" /><span>Logs</span>
         </router-link>
@@ -87,7 +93,7 @@ import { ref, onMounted, computed, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useThemeStore } from './stores/themeStore'
 import { supabase } from './lib/supabase'
-import { Factory, ClipboardList, Search, Mail, Calendar, PartyPopper, Phone, Bell, Sun, Moon, LogOut, ScrollText, Truck } from 'lucide-vue-next'
+import { Factory, ClipboardList, Search, Mail, Calendar, PartyPopper, Phone, Bell, Sun, Moon, LogOut, ScrollText, Truck, Calculator, MapPin } from 'lucide-vue-next'
 import logo from './assets/siinge-mark.png'
 
 const router = useRouter()
@@ -265,6 +271,18 @@ async function logout() {
   color: var(--primary);
   border-bottom-color: var(--primary);
   font-weight: 600;
+}
+
+@media (max-width: 900px) {
+  .top-navbar { padding: 0 0.75rem; gap: 0.75rem; }
+  .brand-name { display: none; }
+  /* the menu scrolls sideways so the notification/theme/logout buttons keep their place */
+  .navbar-menu { overflow-x: auto; scrollbar-width: none; flex-wrap: nowrap; }
+  .navbar-menu::-webkit-scrollbar { display: none; }
+  .nav-item { padding: 0.5rem 0.6rem; }
+  .nav-item span { display: none; }
+  .nav-item.active span { display: inline; }
+  .navbar-right { flex: none; }
 }
 
 /* SECCIÓN DERECHA */
