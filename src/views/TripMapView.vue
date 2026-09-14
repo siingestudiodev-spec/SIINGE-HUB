@@ -394,6 +394,11 @@
           <span>They confirmed this meeting</span>
         </label>
 
+        <label class="tm-mchk">
+          <input type="checkbox" v-model="apptModal.filming" />
+          <span>They approve filming on site</span>
+        </label>
+
         <label>Note</label>
         <textarea v-model="apptModal.note" rows="2" placeholder="Who we are seeing, what we are showing, a different address…"></textarea>
 

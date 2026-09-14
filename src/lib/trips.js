@@ -165,7 +165,8 @@ export function stayOf(places, legId) {
 export function blankAppt(patch = {}) {
   return {
     id: 'a' + Math.random().toString(36).slice(2, 9),
-    key: '', legId: '', date: '', time: '', confirmed: false, note: '',
+    // filming: per visit, not per manufacturer — consent is given for the day they let us in.
+    key: '', legId: '', date: '', time: '', confirmed: false, filming: false, note: '',
     ...patch,
   }
 }
