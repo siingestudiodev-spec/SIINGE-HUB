@@ -335,7 +335,7 @@
     </div>
 
     <!-- PLACE MODAL -->
-    <div v-if="placeModal" class="tm-modal-back" @click.self="placeModal = null">
+    <div v-if="placeModal" class="tm-modal-back" @click.self="closePlaceModal">
       <div class="tm-modal">
         <h3>{{ placeModal._new ? 'New place' : 'Edit place' }}</h3>
         <label>Name</label>
@@ -383,7 +383,7 @@
         <label>Note</label>
         <textarea v-model="placeModal.note" rows="2" placeholder="Booking ref, hall number, who to ask for…"></textarea>
         <div class="tm-macts">
-          <button @click="placeModal = null">Cancel</button>
+          <button @click="closePlaceModal">Cancel</button>
           <button class="primary" :disabled="!placeValid" @click="savePlace">Save</button>
         </div>
       </div>
@@ -1087,7 +1087,8 @@ const placeValid = computed(() => {
 const finding = ref(false)
 const findMsg = ref('')
 const findHits = ref([])
-function clearFind() { finding.value = false; findMsg.value = ''; findHits.value = [] }
+function clearFind() { finding.value = false; findMsg.value = ''; findHits.value = []; clearDraftPin() }
+function closePlaceModal() { placeModal.value = null; clearFind() }
 
 async function findAddress() {
   const q = String(placeModal.value.address || '').trim()
@@ -1108,6 +1109,23 @@ function useHit(h) {
   if (!String(placeModal.value.label || '').trim()) placeModal.value.label = h.city || h.label
   findHits.value = []
   findMsg.value = 'Pinned at ' + h.label
+  showDraftPin(h.lat, h.lon)
+}
+
+/* The pin lands on the map the moment the address resolves, so Save only confirms what you
+   already see. It is swapped for the real marker by renderMarkers() once the place is saved. */
+let draftPin = null
+function showDraftPin(lat, lon) {
+  if (!map) return
+  clearDraftPin()
+  draftPin = L.marker([lat, lon], { icon: pinIcon('tm-draft', true), zIndexOffset: 900 })
+    .bindTooltip('New place', { direction: 'top', offset: [0, -10], permanent: true })
+    .addTo(map)
+  map.setView([lat, lon], 15)
+}
+function clearDraftPin() {
+  if (draftPin && map) map.removeLayer(draftPin)
+  draftPin = null
 }
 
 function openPlaceModal(pre) {
@@ -1135,7 +1153,7 @@ function savePlace() {
   delete rec._new
   const i = config.value.places.findIndex(x => x.id === rec.id)
   if (i >= 0) config.value.places[i] = rec; else config.value.places.push(rec)
-  placeModal.value = null
+  closePlaceModal()
   afterPlaceChange(rec.legId)
   if (selected.value && selected.value.key === 'c:' + rec.id) selected.value = recByKey.value['c:' + rec.id]
 }
@@ -1653,6 +1671,7 @@ onBeforeUnmount(() => {
 #tm-root .tm-pin.tone-out { background: var(--text-subtle); opacity: .4; }
 #tm-root .tm-pin.tone-cst { background: #7c5cbf; }
 #tm-root .tm-pin.tm-base { background: var(--primary); border: 2.5px solid var(--bg-card); box-shadow: 0 0 0 2px var(--primary); }
+#tm-root .tm-pin.tm-draft { background: var(--primary); border: 2.5px solid var(--bg-card); box-shadow: 0 0 0 3px var(--primary); }
 #tm-root .tm-pin.in-route { outline: 2px solid var(--primary); outline-offset: 1px; }
 /* a booked meeting rings the pin: amber while pending, green once confirmed */
 #tm-root .tm-pin.appt { box-shadow: 0 0 0 3px var(--caution); }
