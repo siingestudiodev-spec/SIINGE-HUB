@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict'
 import {
   legFreeDays, apptDateWarning, agendaDays, apptStats,
-  legForDate, normalizeData, stayOf, hav, apptLegFor,
+  legForDate, normalizeData, stayOf, hav, apptLegFor, tripICS,
 } from './trips.js'
 
 const TRIP = {
@@ -85,5 +85,31 @@ assert.equal(stayOf([{ kind: 'stay', legId: 'l1', lat: null }], 'l1'), null, 'an
 
 // --- sanity on the distance the whole plan is built from ---
 assert.ok(Math.abs(hav({ lat: 41.15, lon: -8.61 }, { lat: 40.85, lon: 14.27 }) - 1917) < 15, 'Porto→Naples ≈ 1917 km')
+
+// --- calendar export ---
+const CRLF = String.fromCharCode(13, 10)
+const ICS_TRIP = { name: 'Europe 2026', legs: [{ id: 'l1', city: 'Naples', country: 'Italy' }] }
+const ics = tripICS(ICS_TRIP, [
+  { id: 'a1', key: 'm:1', legId: 'l1', date: '2026-09-28', time: '10:30', confirmed: true, filming: true, note: 'Bring the tech pack; ask about MOQ' },
+  { id: 'a2', key: 'm:2', legId: 'l1', date: '2026-09-29', time: '', confirmed: false, filming: false, note: '' },
+  { id: 'a3', key: 'm:3', legId: 'l1', date: '2026-09-29', time: '23:30', confirmed: false, filming: false, note: '' },
+  { id: 'a4', key: 'm:4', legId: 'l1', date: '', time: '09:00' },
+], k => ({ 'm:1': 'Alphadventure, SL', 'm:2': 'Maglificio', 'm:3': 'Late Co' }[k] || k))
+
+assert.ok(ics.startsWith('BEGIN:VCALENDAR' + CRLF), 'opens with the calendar header')
+assert.ok(ics.endsWith('END:VCALENDAR' + CRLF), 'closes it')
+assert.equal((ics.match(/BEGIN:VEVENT/g) || []).length, 3, 'a meeting with no date is not an event')
+assert.ok(ics.includes('DTSTART:20260928T103000' + CRLF + 'DTEND:20260928T113000'), 'a booked hour')
+assert.ok(ics.includes('DTSTART;VALUE=DATE:20260929' + CRLF + 'DTEND;VALUE=DATE:20260930'), 'no time yet: all-day')
+assert.ok(ics.includes('DTEND:20260930T003000'), '23:30 rolls its end into the next day')
+// long values get folded across lines, so content checks run on the unfolded copy
+const flat = ics.split(CRLF + ' ').join('')
+assert.ok(flat.includes('SUMMARY:Alphadventure\\, SL'), 'commas in a name are escaped')
+assert.ok(flat.includes('Bring the tech pack\\; ask about MOQ'), 'semicolons too')
+assert.ok(flat.includes('LOCATION:Naples\\, Italy'))
+assert.ok(ics.includes('STATUS:CONFIRMED') && ics.includes('STATUS:TENTATIVE'))
+assert.ok(flat.includes('Filming approved on site') && flat.includes('Filming not approved'))
+assert.ok(!/[^\r]\n/.test(ics), 'every line break is a CRLF')
+for (const line of ics.split(CRLF)) assert.ok(line.length <= 75, 'folded under 75: ' + line)
 
 console.log('trips.js: all checks passed')

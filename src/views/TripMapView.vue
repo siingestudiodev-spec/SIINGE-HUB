@@ -221,6 +221,9 @@
                 <button class="tm-appt-ic" @click="editAppt(a)" title="Edit"><Pencil :size="11" /></button>
               </div>
             </div>
+            <button v-if="agenda.length" class="tm-more" @click="downloadICS">
+              <CalendarDays :size="12" /> Send the agenda to Google Calendar
+            </button>
           </div>
         </section>
 
@@ -425,7 +428,7 @@ import {
 import {
   Trips, legFreeDays, fmtRange, fmtDay, fmtDayList, fmtWeekday, inTripRegion, tripCountries,
   PLACE_KINDS, blankPlace, blankAppt, stayOf, apptStats, agendaDays, legForDate, apptDateWarning,
-  apptLegFor, normalizeData,
+  apptLegFor, normalizeData, tripICS,
 } from '../lib/trips'
 
 const route = useRoute()
@@ -681,6 +684,13 @@ function saveAppt() {
   // a booked visit belongs on that city's driving route
   if (rec.legId && !inRoute(rec.legId, rec.key)) toggleRoute(rec.legId, rec.key, true)
   else { renderMarkers(); drawRoutes(); saveConfig() }
+}
+/** Google Calendar (and Apple, and Outlook) import .ics: Settings > Import & export > Import. */
+function downloadICS() {
+  const a = document.createElement('a')
+  a.href = URL.createObjectURL(new Blob([tripICS(trip.value, config.value.appointments, labelOfKey)], { type: 'text/calendar' }))
+  a.download = (trip.value.name || 'trip').replace(/[^A-Za-z0-9]+/g, '-').toLowerCase() + '-agenda.ics'
+  a.click()
 }
 function toggleConfirmed(a) {
   const t = config.value.appointments.find(x => x.id === a.id)
