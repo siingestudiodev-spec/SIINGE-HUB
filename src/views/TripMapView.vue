@@ -178,6 +178,7 @@
                 <span class="tm-place-nm" @click="selectByKey('c:' + p.id)">{{ p.label || 'Untitled place' }}</span>
                 <span class="tm-place-k">{{ PLACE_KINDS[p.kind] }}</span>
               </div>
+              <div v-if="p.address" class="tm-place-addr">{{ p.address }}</div>
               <div class="tm-place-bot">
                 <span class="tm-place-leg">{{ (legById(p.legId) || {}).city || 'no city' }}</span>
                 <span v-if="p.from || p.to" class="tm-place-dt">{{ fmtRange(p.from, p.to) }}</span>
@@ -186,7 +187,10 @@
                 <button class="tm-place-btn" @click="startPlaceMove(p)">move pin</button>
               </div>
             </div>
-            <button class="tm-more" @click="startAddPlace('stay')">+ Add a place</button>
+            <button class="tm-more" @click="openPlaceModal({ kind: 'stay', legId: openLeg || (legs[0] || {}).id || '' })">
+              + Add a place by address
+            </button>
+            <button class="tm-more" @click="startAddPlace('stay')">+ Add one by clicking the map</button>
           </div>
         </section>
 
@@ -336,6 +340,22 @@
         <h3>{{ placeModal._new ? 'New place' : 'Edit place' }}</h3>
         <label>Name</label>
         <input v-model="placeModal.label" placeholder="Hotel NH Porto, Milano Unica, a contact's office…" />
+
+        <label>Address</label>
+        <div class="tm-find">
+          <input v-model="placeModal.address" placeholder="Calle de la Cabeza, 11, Madrid"
+                 @keyup.enter.prevent="findAddress" />
+          <button type="button" @click="findAddress" :disabled="finding || !String(placeModal.address || '').trim()">
+            {{ finding ? '…' : 'Find on map' }}
+          </button>
+        </div>
+        <p v-if="findMsg" class="tm-mnote">{{ findMsg }}</p>
+        <div v-if="findHits.length" class="tm-hits">
+          <button v-for="(h, i) in findHits" :key="i" type="button" class="tm-hit" @click="useHit(h)">
+            {{ h.label }}
+          </button>
+        </div>
+
         <div class="tm-mrow">
           <div><label>What is it</label>
             <select v-model="placeModal.kind">
@@ -428,7 +448,7 @@ import {
 import {
   Trips, legFreeDays, fmtRange, fmtDay, fmtDayList, fmtWeekday, inTripRegion, tripCountries,
   PLACE_KINDS, blankPlace, blankAppt, stayOf, apptStats, agendaDays, legForDate, apptDateWarning,
-  apptLegFor, normalizeData, tripICS,
+  apptLegFor, normalizeData, tripICS, geocode,
 } from '../lib/trips'
 
 const route = useRoute()
@@ -1062,8 +1082,37 @@ const placeValid = computed(() => {
   const m = placeModal.value
   return !!(m && String(m.label || '').trim() && !isNaN(parseFloat(m.lat)) && !isNaN(parseFloat(m.lon)))
 })
+/* Type the address instead of hunting for the spot on the map: Nominatim turns it into a pin.
+   ponytail: same free endpoint as the rest of the app, one lookup per click. */
+const finding = ref(false)
+const findMsg = ref('')
+const findHits = ref([])
+function clearFind() { finding.value = false; findMsg.value = ''; findHits.value = [] }
+
+async function findAddress() {
+  const q = String(placeModal.value.address || '').trim()
+  if (!q) return
+  finding.value = true
+  findMsg.value = ''
+  findHits.value = await geocode(q)
+  finding.value = false
+  if (!findHits.value.length) {
+    findMsg.value = 'No match. Drop the venue name and leave street, number and city — "Calle de la Cabeza, 11, Madrid".'
+  } else if (findHits.value.length === 1) {
+    useHit(findHits.value[0])
+  }
+}
+function useHit(h) {
+  placeModal.value.lat = h.lat
+  placeModal.value.lon = h.lon
+  if (!String(placeModal.value.label || '').trim()) placeModal.value.label = h.city || h.label
+  findHits.value = []
+  findMsg.value = 'Pinned at ' + h.label
+}
+
 function openPlaceModal(pre) {
   const leg = legById((pre && pre.legId) || '')
+  clearFind()
   placeModal.value = blankPlace({
     _new: true,
     from: leg ? leg.from : '',
@@ -1071,13 +1120,14 @@ function openPlaceModal(pre) {
     ...pre,
   })
 }
-function editPlace(p) { placeModal.value = { ...p, _new: false } }
+function editPlace(p) { clearFind(); placeModal.value = { ...p, _new: false } }
 function savePlace() {
   const m = placeModal.value
   if (!placeValid.value) return
   const rec = blankPlace({
     ...m,
     label: String(m.label).trim(),
+    address: String(m.address || '').trim(),
     note: String(m.note || '').trim(),
     lat: parseFloat(m.lat),
     lon: parseFloat(m.lon),
@@ -1348,6 +1398,7 @@ onBeforeUnmount(() => {
 .tm-place-nm { flex: 1; font-size: var(--fs-13); font-weight: 600; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tm-place-nm:hover { color: var(--primary); }
 .tm-place-k { font-family: var(--font-mono); font-size: 0.6rem; color: var(--text-subtle); flex: none; }
+.tm-place-addr { font-size: 0.7rem; color: var(--text-subtle); margin-top: 3px; line-height: 1.4; }
 .tm-place-bot { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin-top: 5px; font-size: var(--fs-12); }
 .tm-place-leg { color: var(--text-muted); }
 .tm-place-dt { font-family: var(--font-mono); font-size: 0.66rem; color: var(--text-subtle); }
@@ -1515,6 +1566,21 @@ onBeforeUnmount(() => {
 .tm-mstatic { font-size: var(--fs-14); font-weight: 700; padding: 4px 0 2px; }
 .tm-mrow { display: flex; gap: 8px; flex-wrap: wrap; }
 .tm-mrow > * { flex: 1; min-width: 130px; }
+.tm-find { display: flex; gap: 6px; align-items: center; }
+.tm-find input { flex: 1; min-width: 0; }
+.tm-find button {
+  flex: none; padding: 0 0.7rem; align-self: stretch; font-size: 0.68rem; cursor: pointer;
+  border: 1px solid var(--border-main); border-radius: var(--r-1); background: var(--bg-app); color: var(--text-main);
+}
+.tm-find button:hover:not(:disabled) { border-color: var(--primary); }
+.tm-find button:disabled { opacity: 0.45; cursor: not-allowed; }
+.tm-hits { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; }
+.tm-hit {
+  text-align: left; font-size: 0.7rem; line-height: 1.4; padding: 5px 7px; cursor: pointer;
+  border: 1px solid var(--border-light); border-radius: var(--r-1);
+  background: var(--bg-app); color: var(--text-muted);
+}
+.tm-hit:hover { border-color: var(--primary); color: var(--text-main); }
 .tm-mnote { font-size: 0.7rem; color: var(--text-subtle); margin: 6px 0 0; line-height: 1.5; }
 .tm-mwarn {
   font-size: var(--fs-12); margin: 6px 0 0; padding: 6px 8px; border-radius: var(--r-2);

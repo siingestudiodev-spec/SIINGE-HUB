@@ -150,7 +150,7 @@ export const PLACE_KINDS = { stay: 'Staying here', venue: 'Fair / showroom / off
 export function blankPlace(patch = {}) {
   return {
     id: 'p' + Math.random().toString(36).slice(2, 9),
-    label: '', kind: 'stay', lat: null, lon: null,
+    label: '', kind: 'stay', address: '', lat: null, lon: null,
     legId: '', from: '', to: '', note: '',
     ...patch,
   }
