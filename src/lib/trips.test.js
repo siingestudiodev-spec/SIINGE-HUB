@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict'
 import {
   legFreeDays, apptDateWarning, agendaDays, apptStats,
-  legForDate, normalizeData, stayOf, hav, apptLegFor, tripICS,
+  legForDate, normalizeData, stayOf, hav, apptLegFor, tripICS, gcalLink,
 } from './trips.js'
 
 const TRIP = {
@@ -111,5 +111,18 @@ assert.ok(ics.includes('STATUS:CONFIRMED') && ics.includes('STATUS:TENTATIVE'))
 assert.ok(flat.includes('Filming approved on site') && flat.includes('Filming not approved'))
 assert.ok(!/[^\r]\n/.test(ics), 'every line break is a CRLF')
 for (const line of ics.split(CRLF)) assert.ok(line.length <= 75, 'folded under 75: ' + line)
+
+// --- one meeting straight into Google Calendar ---
+const gc = new URL(gcalLink(ICS_TRIP, { id: 'a1', key: 'm:1', legId: 'l1', date: '2026-09-28', time: '10:30', confirmed: true, note: 'Bring the tech pack' }, 'Alphadventure, SL', 'Via Roma 11'))
+assert.equal(gc.origin + gc.pathname, 'https://calendar.google.com/calendar/render')
+assert.equal(gc.searchParams.get('action'), 'TEMPLATE')
+assert.equal(gc.searchParams.get('text'), 'Alphadventure, SL', 'the name goes in raw, URLSearchParams encodes it')
+assert.equal(gc.searchParams.get('dates'), '20260928T103000/20260928T113000')
+assert.equal(gc.searchParams.get('location'), 'Via Roma 11, Naples, Italy', 'street address first, so Google can map it')
+assert.match(gc.searchParams.get('details'), /Confirmed/)
+const allDay = new URL(gcalLink(ICS_TRIP, { id: 'a2', key: 'm:2', legId: 'l1', date: '2026-09-29', time: '' }, 'Maglificio'))
+assert.equal(allDay.searchParams.get('dates'), '20260929/20260930', 'no time yet: a whole-day block')
+assert.equal(allDay.searchParams.get('location'), 'Naples, Italy', 'no street address, still the city')
+assert.equal(gcalLink(ICS_TRIP, { id: 'a3', date: '' }, 'x'), '', 'nothing to add without a date')
 
 console.log('trips.js: all checks passed')

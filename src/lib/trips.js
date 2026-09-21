@@ -220,7 +220,7 @@ export function agendaDays(appts) {
 
 // The .ics builder lives on its own so the Vercel calendar feed can import it without
 // dragging the Supabase client (and import.meta.env) into a Node function.
-export { tripICS } from './ics.js'
+export { tripICS, gcalLink } from './ics.js'
 
 export function fmtWeekday(d) {
   if (!d) return ''

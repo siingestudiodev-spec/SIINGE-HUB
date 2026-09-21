@@ -86,7 +86,7 @@
                     <span class="tm-appt-t">{{ a.time || '—' }}</span>
                     <span class="tm-appt-nm" @click="selectByKey(a.key)">{{ labelOfKey(a.key) }}</span>
                     <span class="tm-appt-st">{{ a.confirmed ? 'confirmed' : 'pending' }}</span>
-                    <button class="tm-appt-ic" @click="editAppt(a)" title="Edit"><Pencil :size="11" /></button>
+                    <a class="tm-appt-ic" :href="gcalOf(a)" target="_blank" rel="noopener" title="Add this meeting to Google Calendar"><CalendarCheck :size="11" /></a><button class="tm-appt-ic" @click="editAppt(a)" title="Edit"><Pencil :size="11" /></button>
                   </div>
                 </div>
                 <button class="tm-madd" @click="newAppt(null, leg.id)">
@@ -222,7 +222,7 @@
                 <span class="tm-appt-t">{{ a.time || '—' }}</span>
                 <span class="tm-appt-nm" @click="selectByKey(a.key)">{{ labelOfKey(a.key) }}</span>
                 <span class="tm-appt-st">{{ a.confirmed ? 'confirmed' : 'pending' }}</span>
-                <button class="tm-appt-ic" @click="editAppt(a)" title="Edit"><Pencil :size="11" /></button>
+                <a class="tm-appt-ic" :href="gcalOf(a)" target="_blank" rel="noopener" title="Add this meeting to Google Calendar"><CalendarCheck :size="11" /></a><button class="tm-appt-ic" @click="editAppt(a)" title="Edit"><Pencil :size="11" /></button>
               </div>
             </div>
             <button v-if="agenda.length" class="tm-more" @click="downloadICS">
@@ -310,7 +310,7 @@
             </button>
             <span class="tm-appt-t">{{ fmtDay(a.date) }}<template v-if="a.time"> {{ a.time }}</template></span>
             <span class="tm-appt-st">{{ a.confirmed ? 'confirmed' : 'pending' }}</span>
-            <button class="tm-appt-ic" @click="editAppt(a)" title="Edit"><Pencil :size="11" /></button>
+            <a class="tm-appt-ic" :href="gcalOf(a)" target="_blank" rel="noopener" title="Add this meeting to Google Calendar"><CalendarCheck :size="11" /></a><button class="tm-appt-ic" @click="editAppt(a)" title="Edit"><Pencil :size="11" /></button>
             <button class="tm-appt-ic" @click="deleteAppt(a.id)" title="Delete"><X :size="11" /></button>
           </div>
           <button class="tm-appt-add" :disabled="!legs.length" @click="newAppt(selected)">
@@ -443,12 +443,12 @@ import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import {
   Crosshair, X, Navigation, Trash2, ChevronDown, Settings,
-  Check, CalendarPlus, CalendarDays, Clock, Hotel, MapPin, Map as MapIcon, Pencil, LayoutList,
+  Check, CalendarPlus, CalendarDays, CalendarCheck, Clock, Hotel, MapPin, Map as MapIcon, Pencil, LayoutList,
 } from 'lucide-vue-next'
 import {
   Trips, legFreeDays, fmtRange, fmtDay, fmtDayList, fmtWeekday, inTripRegion, tripCountries,
   PLACE_KINDS, blankPlace, blankAppt, stayOf, apptStats, agendaDays, legForDate, apptDateWarning,
-  apptLegFor, normalizeData, tripICS, geocode,
+  apptLegFor, normalizeData, tripICS, gcalLink, geocode,
 } from '../lib/trips'
 
 const route = useRoute()
@@ -711,6 +711,12 @@ function downloadICS() {
   a.href = URL.createObjectURL(new Blob([tripICS(trip.value, config.value.appointments, labelOfKey)], { type: 'text/calendar' }))
   a.download = (trip.value.name || 'trip').replace(/[^A-Za-z0-9]+/g, '-').toLowerCase() + '-agenda.ics'
   a.click()
+}
+/** One meeting into Google Calendar prefilled. The address comes from the supplier record
+    when we have one, so Google can map it instead of just naming the city. */
+function gcalOf(a) {
+  const r = recByKey.value[a.key] || {}
+  return gcalLink(trip.value, a, labelOfKey(a.key), r.address || '')
 }
 function toggleConfirmed(a) {
   const t = config.value.appointments.find(x => x.id === a.id)
@@ -1399,6 +1405,8 @@ onBeforeUnmount(() => {
   width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;
 }
 .tm-appt-ic:hover { color: var(--text-main); }
+a.tm-appt-ic { text-decoration: none; }
+a.tm-appt-ic:hover { color: var(--primary); }
 .tm-appt-add {
   display: flex; align-items: center; gap: 5px; margin-top: 6px; width: 100%; justify-content: center;
   font-size: var(--fs-12); padding: 9px; border: 1px dashed var(--border-main); border-radius: var(--r-2);
