@@ -320,20 +320,15 @@ onMounted(async () => {
       document.value = validation.document
       documentType.value = validation.document.documentType
 
-      // Check if already signed
-      const { data } = await supabase
-        .from('manufacturer_documents')
-        .select('signed_date, is_used, created_at')
-        .eq('token', token)
-        .single()
-
-      if (data && data.is_used) {
+      // Check if already signed — validateToken already brought these back, so the
+      // portal no longer queries manufacturer_documents a second time
+      if (validation.document.isUsed) {
         isAlreadySigned.value = true
-        signedDate.value = data.signed_date
+        signedDate.value = validation.document.signedDate
       }
 
       // Generate PDF with date
-      const sendDate = data?.created_at || new Date().toISOString()
+      const sendDate = validation.document.createdAt || new Date().toISOString()
       pdfUrl.value = await generatePDFWithDate(documentType.value, sendDate)
     }
   } catch (err) {
@@ -362,9 +357,11 @@ async function submitSignature() {
 
   submitting.value = true
   try {
-    // Save signature with form data
+    // One call: the signature, the signed flag on the manufacturer and the log row.
+    // The portal used to write those three itself, which is why anon could reach
+    // manufacturers and manufacturer_email_logs at all.
     await saveSignature(
-      document.value.id,
+      route.query.token,
       capturedSignature.value,
       document.value.companyEmail,
       formData.value.signerName,
@@ -375,20 +372,6 @@ async function submitSignature() {
         signerTitle: formData.value.signerTitle
       }
     )
-
-    // Mark NDA/MMA as signed on the manufacturer record
-    const signedField = documentType.value === 'nda' ? 'nda_signed' : 'mma_signed'
-    await supabase
-      .from('manufacturers')
-      .update({ [signedField]: true })
-      .eq('id', document.value.manufacturerId)
-
-    // Log the signing event
-    await supabase.from('manufacturer_email_logs').insert([{
-      manufacturer_id: document.value.manufacturerId,
-      template_name: `${documentType.value.toUpperCase()} signed by ${formData.value.signerName || document.value.companyEmail}`,
-      sent_at: new Date().toISOString(),
-    }])
 
     // Generate and upload signed PDF
     await generateAndUploadSignedPDF(

@@ -13,6 +13,7 @@ import TestingView from '../views/TestingView.vue'
 import FollowUpsView from '../views/FollowUpsView.vue'
 import PortalSignView from '../views/PortalSignView.vue'
 import LogsView from '../views/LogsView.vue'
+import ActivityView from '../views/ActivityView.vue'
 import TrackingView from '../views/TrackingView.vue'
 import LandedCostView from '../views/LandedCostView.vue'
 import TripsView from '../views/TripsView.vue'
@@ -78,6 +79,11 @@ const routes = [
   {
     path: '/logs',
     component: LogsView,
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/activity',
+    component: ActivityView,
     meta: { requiresAuth: true }
   },
   {

@@ -33,22 +33,25 @@ export async function generateDocumentToken(manufacturerId, documentType) {
 
 /**
  * Valida un token (sin marcarlo como usado)
+ *
+ * El portal corre sin sesión, así que ya no puede leer manufacturer_documents: la tabla
+ * entera era enumerable con la anon key, y con ella todos los tokens de firma y las
+ * firmas guardadas. El RPC recibe el token como argumento y devuelve solo esa fila, sin
+ * el token y sin signature_base64.
+ *
  * @param {UUID} token - Token del documento
  * @returns {Promise<{valid, reason, document}>}
  */
 export async function validateToken(token) {
-  const { data, error } = await supabase
-    .from('manufacturer_documents')
-    .select('*, manufacturers(company_name, email)')
-    .eq('token', token)
-    .single()
+  const { data, error } = await supabase.rpc('signing_document', { p_token: token })
+  const row = Array.isArray(data) ? data[0] : data
 
-  if (error || !data) {
+  if (error || !row) {
     return { valid: false, reason: 'Token not found' }
   }
 
   // Validar expiración
-  const expiresAt = new Date(data.token_expires_at)
+  const expiresAt = new Date(row.token_expires_at)
   const now = new Date()
   if (expiresAt < now) {
     return { valid: false, reason: 'Token has expired' }
@@ -58,19 +61,28 @@ export async function validateToken(token) {
   return {
     valid: true,
     document: {
-      id: data.id,
-      manufacturerId: data.manufacturer_id,
-      documentType: data.document_type,
-      companyName: data.manufacturers.company_name,
-      companyEmail: data.manufacturers.email,
-      expiresAt: data.token_expires_at,
+      id: row.id,
+      manufacturerId: row.manufacturer_id,
+      documentType: row.document_type,
+      companyName: row.company_name,
+      companyEmail: row.company_email,
+      expiresAt: row.token_expires_at,
+      isUsed: row.is_used,
+      signedDate: row.signed_date,
+      createdAt: row.created_at,
     },
   }
 }
 
 /**
  * Guarda la firma y marca el token como usado
- * @param {UUID} documentId - ID del documento
+ *
+ * Una sola llamada hace las tres escrituras que el portal hacía por su cuenta: la firma,
+ * la bandera nda_signed/mma_signed del fabricante y la fila del log. Ninguna de esas
+ * tablas es alcanzable ya sin sesión, y el RPC vuelve a validar el token antes de
+ * escribir — el navegador no es una fuente confiable.
+ *
+ * @param {UUID} token - Token del documento
  * @param {string} signatureBase64 - Imagen de firma en base64
  * @param {string} signedByEmail - Email de quien firma
  * @param {string} signedByName - Nombre de quien firma (opcional)
@@ -78,39 +90,26 @@ export async function validateToken(token) {
  * @returns {Promise<success>}
  */
 export async function saveSignature(
-  documentId,
+  token,
   signatureBase64,
   signedByEmail,
   signedByName = null,
   formData = {}
 ) {
-  const signedDate = new Date().toISOString()
-
-  const updateData = {
-    signature_base64: signatureBase64,
-    signed_by_email: signedByEmail,
-    signed_by_name: signedByName,
-    signed_date: signedDate,
-    is_used: true,
-    updated_at: signedDate,
-  }
-
-  // Add form data if provided
-  if (formData.effectiveDate) updateData.effective_date = formData.effectiveDate
-  if (formData.companyName) updateData.signer_company_name = formData.companyName
-  if (formData.country) updateData.signer_country = formData.country
-  if (formData.address) updateData.signer_address = formData.address
-  if (formData.signerTitle) updateData.signed_by_title = formData.signerTitle
-
-  const { data, error } = await supabase
-    .from('manufacturer_documents')
-    .update(updateData)
-    .eq('id', documentId)
-    .select('id')
+  const { data, error } = await supabase.rpc('record_signature', {
+    p_token: token,
+    p_signature: signatureBase64,
+    p_email: signedByEmail,
+    p_name: signedByName,
+    p_title: formData.signerTitle ?? null,
+    p_company: formData.companyName ?? null,
+    p_country: formData.country ?? null,
+    p_address: formData.address ?? null,
+  })
 
   if (error) throw error
-  // RLS puede filtrar la fila y devolver 0 filas sin error: eso es un fallo, no un éxito
-  if (!data?.length) throw new Error('Signature was not saved (document not updatable)')
+  // El RPC devuelve el id del documento; sin él, el token no era válido
+  if (!data) throw new Error('Signature was not saved (invalid or expired token)')
   return true
 }
 
