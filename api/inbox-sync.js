@@ -39,7 +39,10 @@ async function rest(path, init) {
     },
   })
   if (!r.ok) throw new Error(`supabase ${r.status}: ${await r.text()}`)
-  return r.status === 204 ? null : r.json()
+  // Inserts and updates come back 201/204 with an empty body unless representation is
+  // asked for, and an empty body is not JSON.
+  const text = await r.text()
+  return text ? JSON.parse(text) : null
 }
 
 // Who is allowed into the table, and which hub record each address belongs to.
@@ -122,7 +125,9 @@ async function syncFolder(client, folder, mailbox, contacts, ownAddress, dryRun)
 
     // A changed uidValidity means the server renumbered everything; the old high-water
     // mark is meaningless and the folder has to be walked again.
-    let lastUid = cursor.uidValidity === box.uidValidity ? cursor.lastUid : 0
+    // uidValidity arrives as a BigInt, which JSON cannot carry — compare as text.
+    const validity = String(box.uidValidity)
+    let lastUid = cursor.uidValidity === validity ? cursor.lastUid : 0
 
     const search = lastUid === 0
       ? { since: new Date(Date.now() - FIRST_RUN_DAYS * 86400000) }
@@ -194,7 +199,7 @@ async function syncFolder(client, folder, mailbox, contacts, ownAddress, dryRun)
       if (direction === 'in') await stampReply(match, at)
     }
 
-    if (!dryRun) await writeCursor(key, { uidValidity: box.uidValidity, lastUid })
+    if (!dryRun) await writeCursor(key, { uidValidity: validity, lastUid })
   } finally {
     lock.release()
   }
