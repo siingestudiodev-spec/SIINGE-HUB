@@ -255,9 +255,14 @@ export async function runSync({ dryRun = false } = {}) {
 
 export default async function handler(req, res) {
   // Names only, never values: "not configured" on its own turns every misconfiguration
-  // into a guessing game against a five-minute deploy cycle.
-  const missing = ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY', 'TITAN_IMAP_USER', 'TITAN_IMAP_PASS']
-    .filter(k => !process.env[k])
+  // into a guessing game against a deploy cycle. Checked through the same expressions
+  // the code actually uses, so SUPABASE_URL is not reported missing when the VITE_
+  // fallback is doing the job.
+  const missing = []
+  if (!API) missing.push('SUPABASE_URL or VITE_SUPABASE_URL')
+  if (!KEY) missing.push('SUPABASE_SERVICE_ROLE_KEY')
+  if (!process.env.TITAN_IMAP_USER) missing.push('TITAN_IMAP_USER')
+  if (!process.env.TITAN_IMAP_PASS) missing.push('TITAN_IMAP_PASS')
   if (missing.length) {
     return res.status(500).json({ error: 'inbox sync is not configured', missing })
   }
