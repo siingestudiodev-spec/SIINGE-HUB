@@ -249,8 +249,12 @@ export async function runSync({ dryRun = false } = {}) {
 }
 
 export default async function handler(req, res) {
-  if (!API || !KEY || !process.env.TITAN_IMAP_USER || !process.env.TITAN_IMAP_PASS) {
-    return res.status(500).json({ error: 'inbox sync is not configured' })
+  // Names only, never values: "not configured" on its own turns every misconfiguration
+  // into a guessing game against a five-minute deploy cycle.
+  const missing = ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY', 'TITAN_IMAP_USER', 'TITAN_IMAP_PASS']
+    .filter(k => !process.env[k])
+  if (missing.length) {
+    return res.status(500).json({ error: 'inbox sync is not configured', missing })
   }
 
   // The mailbox is not public. Only a signed-in hub user can trigger a sync.
