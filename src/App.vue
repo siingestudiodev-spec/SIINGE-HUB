@@ -40,6 +40,9 @@
         <router-link to="/landed-cost" class="nav-item" :class="{ active: isActive('/landed-cost') }">
           <Calculator :size="14" :stroke-width="1.5" /><span>Landed Cost</span>
         </router-link>
+        <router-link to="/sop" class="nav-item" :class="{ active: isActive('/sop') }">
+          <ListChecks :size="14" :stroke-width="1.5" /><span>SOP</span>
+        </router-link>
         <router-link to="/activity" class="nav-item" :class="{ active: isActive('/activity') }">
           <Inbox :size="14" :stroke-width="1.5" /><span>Activity</span>
         </router-link>
@@ -96,7 +99,7 @@ import { ref, onMounted, computed, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useThemeStore } from './stores/themeStore'
 import { supabase } from './lib/supabase'
-import { Factory, ClipboardList, Search, Mail, Calendar, PartyPopper, Phone, Bell, Sun, Moon, LogOut, ScrollText, Truck, Calculator, MapPin, Inbox } from 'lucide-vue-next'
+import { Factory, ClipboardList, Search, Mail, Calendar, PartyPopper, Phone, Bell, Sun, Moon, LogOut, ScrollText, Truck, Calculator, MapPin, Inbox, ListChecks } from 'lucide-vue-next'
 import logo from './assets/siinge-mark.png'
 
 const router = useRouter()
