@@ -12,6 +12,9 @@
         </span>
         <input type="date" v-model="day" class="filter-input" :max="today()" />
         <button v-if="day !== today()" @click="day = today()" class="btn-range">Today</button>
+        <button @click="sync" class="btn-range" :disabled="syncing">
+          {{ syncing ? 'Reading mailbox…' : 'Sync mailbox' }}
+        </button>
       </div>
     </div>
 
@@ -33,6 +36,28 @@
         <span class="tag">manual</span> nothing here can see it ·
         the rest show what the data says and wait for you
       </p>
+
+      <!-- The detail behind "Identify emails requiring a response". -->
+      <div class="block waiting">
+        <button class="waiting-head" @click="showWaiting = !showWaiting">
+          <span class="block-title">Waiting on you</span>
+          <span class="waiting-count" :class="{ zero: !data.pending.length }">{{ data.pending.length }}</span>
+          <span class="waiting-toggle">{{ showWaiting ? 'hide' : 'show' }}</span>
+        </button>
+        <template v-if="showWaiting">
+          <p v-if="!data.pending.length" class="block-obj">
+            {{ data.inbound.length ? 'Nobody is waiting on a reply.' : 'No mailbox data yet — hit Sync mailbox.' }}
+          </p>
+          <div v-for="p in data.pending" :key="p.key" class="pend">
+            <div class="pend-top">
+              <span class="pend-company" :class="{ unknown: !p.company }">{{ p.company || 'Not in the hub' }}</span>
+              <span class="pend-waited" :class="ageClass(p.waitedMs)">{{ p.waited }}</span>
+            </div>
+            <div class="pend-who">{{ p.name ? `${p.name} · ${p.from}` : p.from }}</div>
+            <div class="pend-subject">{{ p.subject }}</div>
+          </div>
+        </template>
+      </div>
 
       <div v-for="s in sections" :key="s.id" class="block">
         <div class="block-head">
@@ -65,8 +90,7 @@
       </div>
 
       <p class="foot">
-        Waiting on a reply or building today's report?
-        <router-link to="/activity">Activity</router-link>.
+        Ready to write it up? <router-link to="/activity">Reports</router-link>.
       </p>
     </template>
   </div>
@@ -85,6 +109,8 @@ const me = ref('')
 const day = ref(today())
 const tab = ref('daily')
 const loading = ref(true)
+const syncing = ref(false)
+const showWaiting = ref(true)
 const note = ref('')
 const data = ref({ inbound: [], outbound: [], audits: [], pending: [], followupsDue: 0, silent: 0 })
 const checkedDaily = ref({})
@@ -144,6 +170,32 @@ async function toggle(id, on) {
   note.value = error ? `Could not save: ${error.message}` : ''
 }
 
+async function sync() {
+  syncing.value = true
+  note.value = ''
+  try {
+    const { data: { session } } = await supabase.auth.getSession()
+    const res = await fetch('/api/inbox-sync', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${session?.access_token}` },
+    })
+    const body = await res.json()
+    if (!res.ok) throw new Error(body.missing ? `missing on Vercel: ${body.missing.join(', ')}` : body.error)
+    const stored = (body.folders || []).reduce((n, f) => n + (f.stored || 0), 0)
+    note.value = `Stored ${stored} messages` + (body.more ? ' — more waiting, run it again.' : '.')
+    await load()
+  } catch (e) {
+    note.value = `Sync failed: ${e.message}`
+  } finally {
+    syncing.value = false
+  }
+}
+
+const ageClass = ms => {
+  const d = ms / 86400000
+  return d >= 7 ? 'age-bad' : d >= 2 ? 'age-warn' : 'age-ok'
+}
+
 watch([day, tab], load)
 
 onMounted(async () => {
@@ -191,6 +243,21 @@ onMounted(async () => {
 .item-ev.good { color: #16a34a; }
 .tag { font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.04em; border: 1px solid var(--border-main); color: var(--text-muted); border-radius: 3px; padding: 0 4px; }
 .tag.auto { border-color: #16a34a; color: #16a34a; }
+.waiting { border: 1px solid var(--border-main); border-radius: 8px; padding: 0.7rem 1rem; }
+.waiting-head { display: flex; align-items: center; gap: 0.5rem; width: 100%; background: none; border: 0; padding: 0; cursor: pointer; text-align: left; }
+.waiting-count { background: #fee2e2; color: #991b1b; border-radius: 10px; padding: 1px 8px; font-size: 0.72rem; font-weight: 700; }
+.waiting-count.zero { background: #dcfce7; color: #166534; }
+.waiting-toggle { margin-left: auto; font-size: 0.72rem; color: var(--text-muted); }
+.pend { border-top: 1px solid var(--border-light); padding: 0.55rem 0 0.2rem; }
+.pend-top { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; }
+.pend-company { font-weight: 600; font-size: 0.88rem; color: var(--text-main); }
+.pend-company.unknown { color: var(--text-muted); font-style: italic; font-weight: 500; }
+.pend-waited { font-size: 0.7rem; font-weight: 700; padding: 2px 8px; border-radius: 10px; white-space: nowrap; }
+.age-ok { background: #dcfce7; color: #166534; }
+.age-warn { background: #fef3c7; color: #92400e; }
+.age-bad { background: #fee2e2; color: #991b1b; }
+.pend-who { font-size: 0.73rem; color: var(--text-muted); }
+.pend-subject { font-size: 0.82rem; color: var(--text-main); margin-top: 0.2rem; }
 .ali { margin: 0.3rem 0 0; padding-left: 1.1rem; }
 .ali li { font-size: 0.83rem; color: var(--text-main); padding: 0.12rem 0; }
 .foot { font-size: 0.8rem; color: var(--text-muted); border-top: 1px solid var(--border-main); padding-top: 1rem; margin-top: 2rem; }
