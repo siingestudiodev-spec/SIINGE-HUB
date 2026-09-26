@@ -40,7 +40,7 @@
         <router-link to="/landed-cost" class="nav-item" :class="{ active: isActive('/landed-cost') }">
           <Calculator :size="14" :stroke-width="1.5" /><span>Landed Cost</span>
         </router-link>
-        <router-link to="/sop" class="nav-item" :class="{ active: isActive('/sop') }">
+        <router-link v-if="showSop" to="/sop" class="nav-item" :class="{ active: isActive('/sop') }">
           <ListChecks :size="14" :stroke-width="1.5" /><span>SOP</span>
         </router-link>
         <router-link to="/activity" class="nav-item" :class="{ active: isActive('/activity') }">
@@ -99,6 +99,7 @@ import { ref, onMounted, computed, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useThemeStore } from './stores/themeStore'
 import { supabase } from './lib/supabase'
+import { canSeeSop } from './lib/access'
 import { Factory, ClipboardList, Search, Mail, Calendar, PartyPopper, Phone, Bell, Sun, Moon, LogOut, ScrollText, Truck, Calculator, MapPin, Inbox, ListChecks } from 'lucide-vue-next'
 import logo from './assets/siinge-mark.png'
 
@@ -107,6 +108,7 @@ const route = useRoute()
 const themeStore = useThemeStore()
 const session = ref(null)
 const isDark = computed(() => themeStore.isDark)
+const showSop = computed(() => canSeeSop(session.value?.user?.email))
 
 const notifications = ref([])
 const showNotifs = ref(false)

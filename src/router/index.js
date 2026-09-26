@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { supabase } from '../lib/supabase'
+import { canSeeSop } from '../lib/access'
 import ManufacturersView from '../views/ManufacturersView.vue'
 import TemplatesView from '../views/TemplatesView.vue'
 import ProjectsView from '../views/ProjectsView.vue'
@@ -90,7 +91,7 @@ const routes = [
   {
     path: '/sop',
     component: SopView,
-    meta: { requiresAuth: true }
+    meta: { requiresAuth: true, sopOnly: true }
   },
   {
     path: '/tracking',
@@ -130,6 +131,9 @@ router.beforeEach(async (to) => {
 
   // Si la ruta requiere auth y no hay sesión, al login
   if (to.meta.requiresAuth && !session) return '/login'
+
+  // El SOP es de una sola cuenta: escribir la URL a mano tampoco entra
+  if (to.meta.sopOnly && !canSeeSop(session?.user?.email)) return '/manufacturers'
   
   // Si ya hay sesión y trata de entrar al login, lo mandamos a la app
   if (to.path === '/login' && session) return '/manufacturers'
