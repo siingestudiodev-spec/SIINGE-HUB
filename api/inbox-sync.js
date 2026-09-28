@@ -10,8 +10,16 @@
 // even less.
 //
 // Needs on Vercel: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, TITAN_IMAP_USER, TITAN_IMAP_PASS
+import { timingSafeEqual } from 'node:crypto'
 import { ImapFlow } from 'imapflow'
 import { simpleParser } from 'mailparser'
+
+// Same constant-time comparison the calendar feed uses for its token.
+function sameSecret(given, expected) {
+  if (!expected) return false
+  const a = Buffer.from(String(given)), b = Buffer.from(String(expected))
+  return a.length === b.length && timingSafeEqual(a, b)
+}
 
 const API = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL
 const KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -267,13 +275,17 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'inbox sync is not configured', missing })
   }
 
-  // The mailbox is not public. Only a signed-in hub user can trigger a sync.
+  // The mailbox is not public. Either a signed-in hub user asked for this, or it is the
+  // nightly cron carrying CRON_SECRET — nothing else gets in.
   const token = (req.headers.authorization || '').replace(/^Bearer\s+/i, '')
   if (!token) return res.status(401).json({ error: 'missing session token' })
-  const who = await fetch(`${API}/auth/v1/user`, {
-    headers: { apikey: KEY, Authorization: `Bearer ${token}` },
-  })
-  if (!who.ok) return res.status(401).json({ error: 'invalid session' })
+
+  if (!sameSecret(token, process.env.CRON_SECRET)) {
+    const who = await fetch(`${API}/auth/v1/user`, {
+      headers: { apikey: KEY, Authorization: `Bearer ${token}` },
+    })
+    if (!who.ok) return res.status(401).json({ error: 'invalid session' })
+  }
 
   try {
     return res.status(200).json(await runSync())

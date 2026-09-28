@@ -1,6 +1,6 @@
 // Run with: node src/lib/dailyReport.test.js
 import assert from 'node:assert/strict'
-import { ymd, relDate, isSend, timelines, historySentence, tallySentence, hubChanges, buildReport } from './dailyReport.js'
+import { ymd, relDate, isSend, timelines, historySentence, tallySentence, hubChanges, buildReport, changedFields, recordLines } from './dailyReport.js'
 
 const NOW = '2026-09-22T23:00:00Z' // 6:00 PM in Bogotá
 const TODAY = '2026-09-22'
@@ -54,9 +54,9 @@ const INBOUND = [{
 }]
 
 const AUDITS = [
-  { id: 'a1', created_at: '2026-09-22T14:10:00Z', action: 'INSERT', table_name: 'manufacturers', new_data: { company_name: 'Yuuker' } },
-  { id: 'a2', created_at: '2026-09-22T14:58:00Z', action: 'INSERT', table_name: 'manufacturers', new_data: { company_name: 'Ningbo Seduno' } },
-  { id: 'a3', created_at: '2026-09-22T18:00:00Z', action: 'UPDATE', table_name: 'quotes', new_data: { article_number: 'SS27-014' } },
+  { id: 'a1', record_id: 'yuuker', created_at: '2026-09-22T14:10:00Z', action: 'INSERT', table_name: 'manufacturers', new_data: { company_name: 'Yuuker' } },
+  { id: 'a2', record_id: 'seduno', created_at: '2026-09-22T14:58:00Z', action: 'INSERT', table_name: 'manufacturers', new_data: { company_name: 'Ningbo Seduno' } },
+  { id: 'a3', record_id: 'q1', created_at: '2026-09-22T18:00:00Z', action: 'UPDATE', table_name: 'quotes', new_data: { article_number: 'SS27-014' } },
 ]
 
 // --- pieces ---
@@ -89,29 +89,75 @@ const report = buildReport({
 assert.match(report, /^DAILY REPORT — Tuesday, September 22, 2026$/m)
 assert.match(report, /^production@siinge\.studio$/m)
 
-assert.match(report, /^FIRST CONTACT — 2 companies$/m)
-assert.match(report, /^ {2}First contacted today at 9:14 AM — "Introduction: SIINGE Studio, private label"$/m)
-assert.match(report, /^ {2}Sent to jane@yuuker\.cn\. Delivered, not opened yet\.$/m)
-assert.match(report, /^ {2}First contact logged today — Called, asked for catalog$/m)
+// --- what went out ---
+assert.match(report, /^EMAILS SENT — 4 emails$/m)
+assert.match(report, /^ {2}Yuuker · first contact$/m)
+assert.match(report, /^ {2}9:14 AM — "Introduction: SIINGE Studio, private label" → jane@yuuker\.cn$/m)
+assert.match(report, /^ {2}Delivered, not opened yet\.$/m)
+assert.match(report, /^ {2}Ningbo Seduno · first contact$/m)
+assert.match(report, /^ {2}10:00 AM — logged: Called, asked for catalog$/m, 'a phone call is not an email')
+assert.match(report, /^ {2}Alphadventure · follow-up$/m)
+assert.match(report, /^ {2}First contacted Aug 4, followed up Aug 11, Aug 25 and today\. 4 emails, no reply in 49 days\.$/m)
+assert.doesNotMatch(report, /^ {2}Yuuker · first contact\n.*\n.*\n {2}First contacted/m, 'a first contact has no history to recite')
 
-assert.match(report, /^FOLLOW-UPS — 2 companies$/m)
-assert.match(report, /^ {2}First contacted Aug 4, followed up Aug 11, Aug 25 and today\.$/m)
-assert.match(report, /^ {2}4 emails, no reply in 49 days\.$/m)
-assert.match(report, /^ {2}Last email: "Checking in on the knit program" — Delivered, not opened yet\.$/m)
-assert.match(report, /^ {2}Last email: "Knit program for SS27" — Delivered, opened at 11:02 AM\.$/m, 'Sunrise opened the follow-up')
-
-assert.match(report, /^REPLIES RECEIVED — 1 reply$/m)
-assert.match(report, /^ {2}Xena Xu \(xena-xu@helun-knitting\.com\.cn\) — Sunrise Textiles$/m)
-assert.match(report, /^ {2}Replied at 2:31 PM to the email sent Sep 15\.$/m)
+// --- what came in, and whether it still owes an answer ---
+assert.match(report, /^EMAILS RECEIVED — 1 email$/m)
+assert.match(report, /^ {2}Xena Xu — Sunrise Textiles · needs reply$/m)
+assert.match(report, /^ {2}2:31 PM — "Re: Knit program for SS27"$/m)
 assert.match(report, /^ {2}"We can do 300 pcs minimum per color, lead time 45 days after sample approval\."$/m)
+
+// an email answered later the same day reads as handled, not as a pending one
+const answered = buildReport({
+  from: TODAY, to: TODAY, now: NOW, emails: [...EMAILS, email('e99', 'sunrise', 'Sunrise Textiles', '2026-09-22T20:00:00Z')],
+  inbound: INBOUND, audits: [],
+})
+assert.match(answered, /^ {2}Xena Xu — Sunrise Textiles · answered$/m)
+
+// an auto-reply is reported, but never as something owing an answer
+const auto = buildReport({
+  from: TODAY, to: TODAY, now: NOW, emails: EMAILS, audits: [],
+  inbound: [{ ...INBOUND[0], subject: '自动答复: out of office', body_text: 'away' }],
+})
+assert.match(auto, /· auto-reply$/m)
+assert.doesNotMatch(auto, /"away"/, 'nobody needs the text of a robot')
 
 // only Alphadventure has been waiting more than a week; Sunrise answered, the rest are new
 assert.match(report, /^NO REPLY YET — 1 company$/m)
 assert.match(report, /^ {2}Alphadventure \(49d\)$/m)
 
-assert.match(report, /^HUB CHANGES — 3 records$/m)
+// --- named record by record, with the fields that moved ---
+assert.match(report, /^RECORDS UPDATED — 3 changes$/m)
 assert.match(report, /^ {2}2 manufacturers added and 1 quote updated\.$/m)
-assert.match(report, /^ {2}Added: Yuuker and Ningbo Seduno\.$/m)
+assert.match(report, /^ {2}Yuuker — added$/m)
+assert.match(report, /^ {2}Ningbo Seduno — added$/m)
+assert.match(report, /^ {2}SS27-014 \(quote\) — updated$/m)
+
+// --- the fields themselves, when an update carries both sides ---
+assert.deepEqual(
+  changedFields({
+    old_data: { email: 'a@x.com', phone: '1', updated_at: 'then' },
+    new_data: { email: 'b@x.com', phone: '1', updated_at: 'now' },
+  }),
+  ['email'],
+  'only real changes, and never the bookkeeping columns',
+)
+assert.deepEqual(
+  recordLines([{
+    table_name: 'manufacturers', record_id: 'm1', action: 'UPDATE',
+    old_data: { company_name: 'Alphadventure', email: 'a@x.com', followup_due_at: null },
+    new_data: { company_name: 'Alphadventure', email: 'b@x.com', followup_due_at: '2026-10-01' },
+  }]),
+  ['  Alphadventure — email and followup_due_at'],
+)
+// three edits to one record collapse into one line
+assert.deepEqual(
+  recordLines([
+    { table_name: 'quotes', record_id: 'q1', action: 'UPDATE', old_data: { article_number: 'A', price: 1 }, new_data: { article_number: 'A', price: 2 } },
+    { table_name: 'quotes', record_id: 'q1', action: 'UPDATE', old_data: { article_number: 'A', price: 2 }, new_data: { article_number: 'A', price: 3 } },
+    { table_name: 'quotes', record_id: 'q1', action: 'UPDATE', old_data: { article_number: 'A', moq: 100 }, new_data: { article_number: 'A', moq: 300 } },
+  ]),
+  ['  A (quote) — price and moq'],
+)
 
 // the scheduled reminder must not surface anywhere in the prose
 assert.doesNotMatch(report, /Sep 29/)

@@ -3,6 +3,7 @@
 // them directly — and api/daily-report.js emails the same text the /activity screen
 // shows, so the two copies of the wording can never drift apart.
 import { joinPieces } from './quoteTemplate.js'
+import { isNoise } from './needsReply.js'
 
 // The studio runs on Bogotá time. Every date here is a Bogotá date: an email sent at
 // 8pm must not be filed under tomorrow.
@@ -138,6 +139,41 @@ const snippet = text => {
 
 const heading = (title, n, one, many) => `${title} — ${n} ${n === 1 ? one : many}`
 
+// Which fields an UPDATE actually touched. "Alphadventure — updated" says nothing;
+// "Alphadventure — email, followup_due_at" says what you did.
+// ponytail: names only, no before/after. A report is read on a phone, and the values
+// are one click away in the log.
+const NOISE_FIELDS = new Set(['updated_at', 'created_at', 'id'])
+export function changedFields(log) {
+  if (!log.old_data || !log.new_data) return []
+  return Object.keys(log.new_data)
+    .filter(k => !NOISE_FIELDS.has(k))
+    .filter(k => JSON.stringify(log.old_data[k]) !== JSON.stringify(log.new_data[k]))
+}
+
+// One line per record touched, collapsing repeated edits to the same row.
+export function recordLines(audits) {
+  const byRecord = new Map()
+  for (const a of audits) {
+    const key = `${a.table_name}:${a.record_id}`
+    const name = recordName(a.new_data) || recordName(a.old_data) || a.record_id || '(unnamed)'
+    const hit = byRecord.get(key) || { name, table: a.table_name, added: false, removed: false, fields: new Set() }
+    if (a.action === 'INSERT') hit.added = true
+    else if (a.action === 'DELETE') hit.removed = true
+    else for (const f of changedFields(a)) hit.fields.add(f)
+    hit.name = name
+    byRecord.set(key, hit)
+  }
+  return [...byRecord.values()].map(r => {
+    const what = r.removed ? 'deleted'
+      : r.added ? 'added'
+      : r.fields.size ? joinPieces([...r.fields].slice(0, 5)) + (r.fields.size > 5 ? ` and ${r.fields.size - 5} more` : '')
+      : 'updated'
+    const kind = TABLES[r.table] && r.table !== 'manufacturers' ? ` (${TABLES[r.table]})` : ''
+    return `  ${r.name}${kind} — ${what}`
+  })
+}
+
 /**
  * from / to are Bogotá dates as "YYYY-MM-DD". `emails` must carry the full history of
  * every company touched in the range, not just the rows that fall inside it.
@@ -149,14 +185,22 @@ export function buildReport({ from, to, now = new Date().toISOString(), user = n
 
   const all = timelines(emails, now)
   const touched = all.filter(t => t.sends.some(r => inRange(r.sent_at)))
-  const opened = touched.filter(t => inRange(firstOf(t).sent_at))
-  const chased = touched.filter(t => !inRange(firstOf(t).sent_at))
-  const replies = inbound.filter(r => inRange(r.received_at))
-                         .sort((a, b) => Date.parse(a.received_at) - Date.parse(b.received_at))
-  const changes = hubChanges(audits.filter(a => inRange(a.created_at)))
+  const received = inbound.filter(r => inRange(r.received_at))
+                          .sort((a, b) => Date.parse(a.received_at) - Date.parse(b.received_at))
+  const auditsInRange = audits.filter(a => inRange(a.created_at))
+  const sentCount = touched.reduce((n, t) => n + t.sends.filter(r => inRange(r.sent_at)).length, 0)
 
-  const byId = new Map(emails.map(r => [r.id, r]))
   const byEntity = new Map(all.map(t => [`${t.kind}:${t.entityId}`, t.name]))
+
+  // When we last wrote to each company, so an incoming message can say whether it was
+  // already handled.
+  const lastOut = new Map()
+  for (const r of emails) {
+    if (!isSend(r, now)) continue
+    const key = `${r.kind}:${r.entity_id}`
+    const ms = Date.parse(r.sent_at)
+    if (!lastOut.has(key) || ms > lastOut.get(key)) lastOut.set(key, ms)
+  }
 
   const head = from === to
     ? `DAILY REPORT — ${TITLE.format(new Date(from + 'T12:00:00Z'))}`
@@ -170,34 +214,39 @@ export function buildReport({ from, to, now = new Date().toISOString(), user = n
     out.push(...body)
   }
 
-  section('FIRST CONTACT', opened.length, 'company', 'companies', opened.flatMap(t => {
-    const s = firstOf(t)
-    const lines = [`  ${t.name}`]
-    if (isEmail(s)) {
-      lines.push(`  First contacted ${relDate(s.sent_at, today)} at ${timeOf(s.sent_at)} — "${s.subject}"`)
-      const cc = s.cc_email ? `, cc ${s.cc_email}` : ''
-      lines.push(`  Sent to ${s.to_email || '(address not recorded)'}${cc}. ${statusLine(s)}`)
-    } else {
-      lines.push(`  First contact logged ${relDate(s.sent_at, today)} — ${s.template_name}`)
+  // What went out, company by company, with the thread's history underneath so a
+  // follow-up is never just "we emailed them again".
+  section('EMAILS SENT', sentCount, 'email', 'emails', touched.flatMap(t => {
+    const mine = t.sends.filter(r => inRange(r.sent_at))
+    const isFirst = inRange(firstOf(t).sent_at)
+    const lines = [`  ${t.name} · ${isFirst ? 'first contact' : 'follow-up'}`]
+    for (const s of mine) {
+      if (isEmail(s)) {
+        const cc = s.cc_email ? `, cc ${s.cc_email}` : ''
+        lines.push(`  ${timeOf(s.sent_at)} — "${s.subject}" → ${s.to_email || '(address not recorded)'}${cc}`)
+        lines.push(`  ${statusLine(s)}`)
+      } else {
+        lines.push(`  ${timeOf(s.sent_at)} — logged: ${s.template_name}`)
+      }
     }
+    if (!isFirst) lines.push(`  ${historySentence(t, today)} ${tallySentence(t, today)}`)
     return [...lines, '']
   }))
 
-  section('FOLLOW-UPS', chased.length, 'company', 'companies', chased.flatMap(t => {
-    const last = [...t.sends].reverse().find(r => inRange(r.sent_at))
-    const lines = [`  ${t.name}`, `  ${historySentence(t, today)}`, `  ${tallySentence(t, today)}`]
-    if (isEmail(last)) lines.push(`  Last email: "${last.subject}" — ${statusLine(last)}`)
-    return [...lines, '']
-  }))
-
-  section('REPLIES RECEIVED', replies.length, 'reply', 'replies', replies.flatMap(r => {
-    const who = r.from_name ? `${r.from_name} (${r.from_email})` : r.from_email
-    const company = byEntity.get(`${r.matched_kind}:${r.matched_entity_id}`)
-    const sent = byId.get(r.matched_log_id)
-    const to = sent ? ` to the email sent ${relDate(sent.sent_at, today)}` : ''
-    const lines = [`  ${who}${company ? ` — ${company}` : ''}`,
-                   `  Replied at ${timeOf(r.received_at)}${to}.`]
-    if (r.body_text) lines.push(`  "${snippet(r.body_text)}"`)
+  // What came in, and whether it still owes an answer. That verdict is the whole point
+  // of reading the mailbox.
+  section('EMAILS RECEIVED', received.length, 'email', 'emails', received.flatMap(r => {
+    const key = `${r.matched_kind}:${r.matched_entity_id}`
+    const company = byEntity.get(key)
+    const who = r.from_name ? `${r.from_name}` : r.from_email
+    const state = isNoise(r) ? 'auto-reply'
+      : (lastOut.get(key) ?? -Infinity) > Date.parse(r.received_at) ? 'answered'
+      : 'needs reply'
+    const lines = [
+      `  ${who}${company ? ` — ${company}` : ''} · ${state}`,
+      `  ${timeOf(r.received_at)} — "${r.subject || '(no subject)'}"`,
+    ]
+    if (r.body_text && state !== 'auto-reply') lines.push(`  "${snippet(r.body_text)}"`)
     return [...lines, '']
   }))
 
@@ -211,10 +260,13 @@ export function buildReport({ from, to, now = new Date().toISOString(), user = n
   section('NO REPLY YET', silent.length, 'company', 'companies',
     ['  ' + silent.map(x => `${x.name} (${x.age}d)`).join(' · '), ''])
 
-  section('HUB CHANGES', changes.total, 'record', 'records', [
+  // Named record by record, with the fields that moved. A tally of "7 updated" is not
+  // a record of what you did.
+  const changes = hubChanges(auditsInRange)
+  section('RECORDS UPDATED', changes.total, 'change', 'changes', [
     '  ' + joinPieces(changes.parts) + '.',
-    ...(changes.added.length ? ['  Added: ' + joinPieces(changes.added.slice(0, 6)) +
-      (changes.added.length > 6 ? ` and ${changes.added.length - 6} more` : '') + '.'] : []),
+    '',
+    ...recordLines(auditsInRange),
     '',
   ])
 
