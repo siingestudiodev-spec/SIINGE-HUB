@@ -59,6 +59,41 @@
         </template>
       </div>
 
+      <!-- WhatsApp: exported by hand, read in the browser, never uploaded anywhere. -->
+      <div class="block waiting">
+        <button class="waiting-head" @click="showWa = !showWa">
+          <span class="block-title">WhatsApp</span>
+          <span v-if="chats.length" class="waiting-count" :class="{ zero: !waPending }">{{ waPending }}</span>
+          <span class="waiting-toggle">{{ showWa ? 'hide' : 'show' }}</span>
+        </button>
+        <template v-if="showWa">
+          <p class="block-obj">
+            In WhatsApp open a chat → ⋮ → More → Export chat → Without media, then drop the
+            .txt here. Nothing is uploaded: the file is read in this browser and forgotten
+            when you leave.
+          </p>
+
+          <label class="drop" :class="{ over: dragging }"
+                 @dragover.prevent="dragging = true"
+                 @dragleave.prevent="dragging = false"
+                 @drop.prevent="onDrop">
+            <input type="file" accept=".txt,text/plain" multiple @change="onPick" hidden />
+            <span>Drop exported chats here, or click to choose</span>
+          </label>
+
+          <p v-if="waError" class="block-rule">{{ waError }}</p>
+
+          <div v-for="c in chats" :key="c.filename" class="pend">
+            <div class="pend-top">
+              <span class="pend-company">{{ c.contact }}</span>
+              <span class="pend-waited" :class="waClass(c)">{{ waLabel(c) }}</span>
+            </div>
+            <div class="pend-who">{{ c.messages }} messages · last from {{ c.lastFrom }}</div>
+            <div class="pend-subject">{{ clip(c.lastText, 160) }}</div>
+          </div>
+        </template>
+      </div>
+
       <div v-for="s in sections" :key="s.id" class="block">
         <div class="block-head">
           <span class="block-title">{{ s.title }}</span>
@@ -102,6 +137,8 @@ import { supabase } from '../lib/supabase'
 import { loadActivity, loadSopSheets, saveSopSheet } from '../lib/activityData'
 import { ymd } from '../lib/dailyReport'
 import { DAILY, WEEKLY, ALIBABA_CHECKLIST, signals, status, progress, weekOf } from '../lib/sop'
+import { readChatFile } from '../lib/whatsappChat'
+import { waitedLabel } from '../lib/needsReply'
 
 const today = () => new Date().toLocaleDateString('en-CA', { timeZone: 'America/Bogota' })
 
@@ -111,6 +148,7 @@ const tab = ref('daily')
 const loading = ref(true)
 const syncing = ref(false)
 const showWaiting = ref(true)
+const showWa = ref(false)
 const note = ref('')
 const data = ref({ inbound: [], outbound: [], audits: [], pending: [], followupsDue: 0, silent: 0 })
 const checkedDaily = ref({})
@@ -196,6 +234,36 @@ const ageClass = ms => {
   return d >= 7 ? 'age-bad' : d >= 2 ? 'age-warn' : 'age-ok'
 }
 
+// --- WhatsApp: exported chats, read locally, kept only for this visit ---
+const chats = ref([])
+const dragging = ref(false)
+const waError = ref('')
+const waPending = computed(() => chats.value.filter(c => c.pending !== false).length)
+
+async function readFiles(files) {
+  waError.value = ''
+  const txt = [...files].filter(f => /\.txt$/i.test(f.name))
+  if (!txt.length) return (waError.value = 'Those were not .txt exports. Export without media.')
+  const read = await Promise.all(txt.map(async f => readChatFile(f.name, await f.text())))
+  const empty = read.filter(c => c.empty).map(c => c.filename)
+  if (empty.length) waError.value = `Could not read: ${empty.join(', ')}`
+  // Waiting first, longest wait on top.
+  chats.value = read.filter(c => !c.empty).sort((a, b) =>
+    (b.pending === false ? -1 : 1) - (a.pending === false ? -1 : 1) || b.waitedMs - a.waitedMs)
+}
+
+const onDrop = e => { dragging.value = false; readFiles(e.dataTransfer.files) }
+const onPick = e => readFiles(e.target.files)
+
+// pending === null means the export's filename did not name the contact, so who spoke
+// last cannot be turned into a verdict.
+const waLabel = c => c.pending === null ? 'unknown' : c.pending ? waitedLabel(c.waitedMs) : 'answered'
+const waClass = c => c.pending === false ? 'age-ok' : c.pending === null ? 'age-warn' : ageClass(c.waitedMs)
+const clip = (t, n) => {
+  const flat = (t || '').replace(/\s+/g, ' ').trim()
+  return flat.length > n ? flat.slice(0, n) + '…' : flat
+}
+
 watch([day, tab], load)
 
 onMounted(async () => {
@@ -248,6 +316,8 @@ onMounted(async () => {
 .waiting-count { background: #fee2e2; color: #991b1b; border-radius: 10px; padding: 1px 8px; font-size: 0.72rem; font-weight: 700; }
 .waiting-count.zero { background: #dcfce7; color: #166534; }
 .waiting-toggle { margin-left: auto; font-size: 0.72rem; color: var(--text-muted); }
+.drop { display: block; border: 1px dashed var(--border-main); border-radius: 8px; padding: 1.1rem; text-align: center; font-size: 0.8rem; color: var(--text-muted); cursor: pointer; margin: 0.5rem 0; }
+.drop.over { border-color: #16a34a; color: #16a34a; }
 .pend { border-top: 1px solid var(--border-light); padding: 0.55rem 0 0.2rem; }
 .pend-top { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; }
 .pend-company { font-weight: 600; font-size: 0.88rem; color: var(--text-main); }
