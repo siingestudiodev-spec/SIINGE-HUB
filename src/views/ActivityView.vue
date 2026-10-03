@@ -58,17 +58,27 @@
       </div>
 
       <div class="rep-filters">
-        <button @click="setRange(0)" class="btn-range" :class="{ on: preset === 0 }">Today</button>
-        <button @click="setRange(1)" class="btn-range" :class="{ on: preset === 1 }">Yesterday</button>
-        <button @click="setRange(6)" class="btn-range" :class="{ on: preset === 6 }">7 days</button>
-        <input type="date" v-model="from" class="filter-input" :max="to" />
-        <input type="date" v-model="to" class="filter-input" :min="from" />
-        <input v-model="title" class="filter-input title" placeholder="Title (optional)" />
-        <select v-model="source" class="filter-input">
-          <option value="all">Hub logs + mailbox</option>
-          <option value="hub">Hub logs only</option>
+        <select v-model="kind" class="filter-input">
+          <option value="daily">Daily activity</option>
+          <option value="outreach">Outreach — who we contacted and when</option>
         </select>
+        <template v-if="kind === 'daily'">
+          <button @click="setRange(0)" class="btn-range" :class="{ on: preset === 0 }">Today</button>
+          <button @click="setRange(1)" class="btn-range" :class="{ on: preset === 1 }">Yesterday</button>
+          <button @click="setRange(6)" class="btn-range" :class="{ on: preset === 6 }">7 days</button>
+          <input type="date" v-model="from" class="filter-input" :max="to" />
+          <input type="date" v-model="to" class="filter-input" :min="from" />
+          <select v-model="source" class="filter-input">
+            <option value="all">Hub logs + mailbox</option>
+            <option value="hub">Hub logs only</option>
+          </select>
+        </template>
+        <input v-model="title" class="filter-input title" placeholder="Title (optional)" />
       </div>
+      <p v-if="kind === 'outreach'" class="loghint">
+        Every company on record, no date range. Initial reach and follow-ups only —
+        no subjects, no delivery detail.
+      </p>
 
       <p v-if="note" class="rep-note">{{ note }}</p>
       <div v-if="loading" class="rep-empty">Loading…</div>
@@ -125,7 +135,7 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import { supabase } from '../lib/supabase'
-import { buildReport, timelines, ymd } from '../lib/dailyReport'
+import { buildReport, buildOutreachReport, isOutreach, timelines, ymd } from '../lib/dailyReport'
 import { loadActivity } from '../lib/activityData'
 
 const today = () => new Date().toLocaleDateString('en-CA', { timeZone: 'America/Bogota' })
@@ -173,6 +183,7 @@ async function compose() {
   excluded.value = new Set()
   body.value = ''
   generated.value = ''
+  kind.value = 'daily'
   setRange(0)
   await Promise.all([loadRange(), loadCompanies()])
 }
@@ -197,9 +208,22 @@ const sends = computed(() => source.value === 'hub'
   : data.value.outbound)
 const replies = computed(() => (source.value === 'hub' ? [] : data.value.inbound))
 
+const kind = ref('daily')
+
+// The roster ignores the range entirely, so its chips are every company with outreach
+// on record, not just the ones touched this week.
+const outreachGroups = computed(() =>
+  timelines(sends.value.filter(isOutreach), new Date().toISOString())
+    .sort((a, b) => a.name.localeCompare(b.name)))
+
 // One chip per thing the report would talk about.
 const candidates = computed(() => {
   const now = new Date().toISOString()
+  if (kind.value === 'outreach') {
+    return outreachGroups.value.map(t => ({
+      key: `${t.kind}:${t.entityId}`, kind: 'outreach', name: t.name,
+    }))
+  }
   const companies = timelines(sends.value, now)
     .filter(t => t.sends.some(r => inRange(r.sent_at)))
     .map(t => ({
@@ -215,14 +239,18 @@ const candidates = computed(() => {
   return [...companies, ...inboundChips, ...changes]
 })
 
-const preview = computed(() => buildReport({
-  from: from.value,
-  to: to.value,
-  user: me.value,
-  emails: sends.value.filter(r => !excluded.value.has(`${r.kind}:${r.entity_id}`)),
-  inbound: replies.value.filter(r => !excluded.value.has(`reply:${r.id}`)),
-  audits: excluded.value.has('hub-changes') ? [] : data.value.audits,
-}))
+const kept = computed(() => sends.value.filter(r => !excluded.value.has(`${r.kind}:${r.entity_id}`)))
+
+const preview = computed(() => kind.value === 'outreach'
+  ? buildOutreachReport({ user: me.value, emails: kept.value })
+  : buildReport({
+      from: from.value,
+      to: to.value,
+      user: me.value,
+      emails: kept.value,
+      inbound: replies.value.filter(r => !excluded.value.has(`reply:${r.id}`)),
+      audits: excluded.value.has('hub-changes') ? [] : data.value.audits,
+    }))
 
 function togglePick(key) {
   const next = new Set(excluded.value)
@@ -286,11 +314,17 @@ async function addLog() {
 // must not quietly rewrite itself when tomorrow's sync changes the underlying rows.
 async function save() {
   saving.value = true
+  // A roster has no range of its own, so it records the one it actually covers:
+  // the oldest outreach on it through today.
+  const dates = kept.value.filter(isOutreach).map(r => ymd(r.sent_at)).sort()
+  const span = kind.value === 'outreach'
+    ? { from_day: dates[0] || today(), to_day: today() }
+    : { from_day: from.value, to_day: to.value }
+
   const { error } = await supabase.from('reports').insert([{
     user_email: me.value,
     title: title.value.trim() || null,
-    from_day: from.value,
-    to_day: to.value,
+    ...span,
     body: body.value,
     included: candidates.value.filter(c => !excluded.value.has(c.key)).map(c => c.key),
   }])

@@ -174,6 +174,44 @@ export function recordLines(audits) {
   })
 }
 
+// Outreach rows are the ones whose template says so. "[Follow-up] call Allan" is a
+// scheduled reminder and fails the anchor, as it should.
+const OUTREACH = /^(initial\s*reach|follow[-\s]?up)\b/i
+export const isOutreach = row => OUTREACH.test((row.template_name || '').trim())
+
+// A roster is scanned rather than read, so every date is absolute — "yesterday" is
+// noise in a list of 26 companies. And an outreach row is an email by definition of its
+// template, whatever detail the log happened to keep, so it never reads as "logged".
+function outreachSentence(t) {
+  const [first, ...rest] = t.sends
+  const d = r => SHORT.format(new Date(r.sent_at))
+  const s = `First contacted ${d(first)}`
+  return (rest.length ? `${s}, followed up ${joinPieces(rest.map(d))}` : s) + '.'
+}
+
+/**
+ * Who we have reached out to and when — every company, no date range, no subjects and
+ * no delivery detail. One line of history each.
+ */
+export function buildOutreachReport({ now = new Date().toISOString(), user = null, emails = [] }) {
+  const today = ymd(now)
+  const groups = timelines(emails.filter(r => isSend(r, now) && isOutreach(r)), now)
+    .sort((a, b) => a.name.localeCompare(b.name))
+
+  const out = [`OUTREACH REPORT — ${TITLE.format(new Date(today + 'T12:00:00Z'))}`, user || 'All users', '']
+  if (!groups.length) {
+    out.push('', 'No outreach on record.')
+    return out.join('\n').trimEnd() + '\n'
+  }
+
+  const firsts = groups.length
+  const followUps = groups.reduce((n, t) => n + t.sends.length - 1, 0)
+  out.push('', `${firsts} ${firsts === 1 ? 'company' : 'companies'} · ${followUps} follow-${followUps === 1 ? 'up' : 'ups'}`, '')
+
+  for (const t of groups) out.push(`  ${t.name}`, `  ${outreachSentence(t)}`, '')
+  return out.join('\n').trimEnd() + '\n'
+}
+
 /**
  * from / to are Bogotá dates as "YYYY-MM-DD". `emails` must carry the full history of
  * every company touched in the range, not just the rows that fall inside it.

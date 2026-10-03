@@ -1,6 +1,6 @@
 // Run with: node src/lib/dailyReport.test.js
 import assert from 'node:assert/strict'
-import { ymd, relDate, isSend, timelines, historySentence, tallySentence, hubChanges, buildReport, changedFields, recordLines } from './dailyReport.js'
+import { ymd, relDate, isSend, timelines, historySentence, tallySentence, hubChanges, buildReport, changedFields, recordLines, buildOutreachReport, isOutreach } from './dailyReport.js'
 
 const NOW = '2026-09-22T23:00:00Z' // 6:00 PM in Bogotá
 const TODAY = '2026-09-22'
@@ -179,5 +179,38 @@ assert.match(report, /^ {2}1 contact logged by hand$/m,
 
 // a quiet day carries no sources block to misread
 assert.doesNotMatch(quiet, /SOURCES/)
+
+// --- the outreach roster: every company, no range, no detail ---
+assert.equal(isOutreach({ template_name: 'Initial Reach' }), true)
+assert.equal(isOutreach({ template_name: 'Follow-up' }), true)
+assert.equal(isOutreach({ template_name: 'follow up' }), true)
+assert.equal(isOutreach({ template_name: '[Follow-up] call Allan' }), false, 'a reminder is not outreach')
+assert.equal(isOutreach({ template_name: 'Custom Email' }), false)
+assert.equal(isOutreach({ template_name: 'Called, asked for catalog' }), false)
+
+const OUTREACH_ROWS = [
+  email('o1', 'adal', 'Adalberto Textile Solutions', '2026-05-28T19:00:00Z', { template_name: 'Initial Reach', subject: null }),
+  email('o2', 'adal', 'Adalberto Textile Solutions', '2026-09-14T19:00:00Z', { template_name: 'Follow-up', subject: null }),
+  email('o3', 'adal', 'Adalberto Textile Solutions', '2026-09-21T19:00:00Z', { template_name: 'Follow-up', subject: null }),
+  email('o4', 'barata', 'Barata Garcia', '2026-09-09T19:00:00Z', { template_name: 'Initial Reach', subject: null }),
+  // neither of these belongs in an outreach roster
+  email('o5', 'adal', 'Adalberto Textile Solutions', '2026-09-22T19:00:00Z', { template_name: 'Custom Email' }),
+  email('o6', 'adal', 'Adalberto Textile Solutions', '2026-09-29T13:00:00Z', { template_name: '[Follow-up] call', subject: null }),
+]
+
+const roster = buildOutreachReport({ now: NOW, user: 'production@siinge.studio', emails: OUTREACH_ROWS })
+assert.match(roster, /^OUTREACH REPORT — Tuesday, September 22, 2026$/m)
+assert.match(roster, /^2 companies · 2 follow-ups$/m)
+assert.match(roster, /^ {2}Adalberto Textile Solutions$/m)
+assert.match(roster, /^ {2}First contacted May 28, followed up Sep 14 and Sep 21\.$/m)
+assert.match(roster, /^ {2}Barata Garcia$/m)
+assert.match(roster, /^ {2}First contacted Sep 9\.$/m)
+// alphabetical, so a roster of 26 can be read down
+assert.ok(roster.indexOf('Adalberto') < roster.indexOf('Barata'))
+// no subjects, no delivery lines, no bodies
+assert.doesNotMatch(roster, /Delivered|opened|Knit program|SOURCES|→/)
+assert.doesNotMatch(roster, /Custom Email|\[Follow-up\]/)
+
+assert.match(buildOutreachReport({ now: NOW, emails: [] }), /No outreach on record\./)
 
 console.log('dailyReport: all checks passed')
