@@ -171,11 +171,11 @@ assert.doesNotMatch(quiet, /FIRST CONTACT/)
 
 // --- the reader has to be able to tell proof from hearsay ---
 assert.match(report, /^SOURCES$/m)
-assert.match(report, /^ {2}3 emails sent through the hub, delivery tracked$/m)
-assert.match(report, /^ {2}1 email received, read from the mailbox$/m)
-assert.match(report, /^ {2}3 record changes from the audit log$/m)
-assert.match(report, /^ {2}1 contact logged by hand, not verifiable from the system$/m,
-  'the phone call must not pass for a tracked email')
+assert.match(report, /^ {2}3 emails sent through the hub$/m)
+assert.match(report, /^ {2}1 email received$/m)
+assert.match(report, /^ {2}3 record changes in the hub$/m)
+assert.match(report, /^ {2}1 contact logged by hand$/m,
+  'the phone call must not be counted as a sent email')
 
 // a quiet day carries no sources block to misread
 assert.doesNotMatch(quiet, /SOURCES/)

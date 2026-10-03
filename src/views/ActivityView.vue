@@ -26,7 +26,6 @@
               <p class="card-meta">
                 {{ span(r) }} · saved {{ when(r.created_at) }}
                 <span v-if="r.user_email !== me"> · {{ r.user_email }}</span>
-                <span v-if="r.generated && r.generated !== r.body" class="badge">edited by hand</span>
               </p>
             </div>
             <div class="card-actions">
@@ -110,8 +109,8 @@
         </div>
 
         <div class="edit-head">
-          <span>{{ dirty ? 'Edited by hand' : 'Generated from the data' }}</span>
-          <button v-if="dirty" @click="regenerate" class="btn-quiet">Discard edits</button>
+          <span>Write over anything. The draft stops updating once you do.</span>
+          <button v-if="dirty" @click="regenerate" class="btn-quiet">Back to the draft</button>
         </div>
         <textarea v-model="body" class="report editable" rows="22" spellcheck="false"></textarea>
       </template>
@@ -220,9 +219,9 @@ function togglePick(key) {
 
 // The text is the thing being saved, so once you touch it the generator stops writing
 // over your words. Changing a chip after that would silently undo an edit.
-// `generated` is the last machine draft; `body` is what will be saved. Comparing the two
-// is what "edited by hand" means — comparing against the live preview would call every
-// date change an edit of yours.
+// `generated` holds the last machine draft so "Back to the draft" has something to
+// return to; `body` is what gets saved. Comparing against the live preview instead
+// would treat every date change as your edit and stop refreshing the draft.
 const body = ref('')
 const generated = ref('')
 const dirty = computed(() => body.value !== generated.value)
@@ -274,15 +273,12 @@ async function addLog() {
 // must not quietly rewrite itself when tomorrow's sync changes the underlying rows.
 async function save() {
   saving.value = true
-  // Both texts are kept: what the data said, and what you sent. A reader can tell they
-  // differ without taking anyone's word for it.
   const { error } = await supabase.from('reports').insert([{
     user_email: me.value,
     title: title.value.trim() || null,
     from_day: from.value,
     to_day: to.value,
     body: body.value,
-    generated: generated.value,
     included: candidates.value.filter(c => !excluded.value.has(c.key)).map(c => c.key),
   }])
   saving.value = false
@@ -354,7 +350,6 @@ onMounted(async () => {
 .k-reply { color: #2563eb; }
 .k-first-contact { color: #16a34a; }
 .pick-name { font-weight: 500; }
-.badge { margin-left: 0.4rem; font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.04em; border: 1px solid #d97706; color: #d97706; border-radius: 3px; padding: 0 4px; }
 .logbox { border: 1px dashed var(--border-main); border-radius: 8px; padding: 0.7rem 0.9rem; margin-bottom: 1rem; }
 .logform { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-top: 0.6rem; }
 .logform .grow { flex: 1; min-width: 240px; }

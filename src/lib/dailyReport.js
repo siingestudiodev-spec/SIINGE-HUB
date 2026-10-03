@@ -275,15 +275,13 @@ export function buildReport({ from, to, now = new Date().toISOString(), user = n
     return out.join('\n').trimEnd() + '\n'
   }
 
-  // Where each number came from, and which ones nothing in the system can back up.
-  // A report that mixes tracked email with somebody's note about a phone call, without
-  // saying which is which, is worth less than either on its own.
+  // Where the numbers above came from, so the reader knows what they are looking at.
   const sentRows = touched.flatMap(t => t.sends.filter(r => inRange(r.sent_at)))
   const src = [
-    [sentRows.filter(isEmail).length, 'email', 'emails', 'sent through the hub, delivery tracked'],
-    [received.length, 'email', 'emails', 'received, read from the mailbox'],
-    [auditsInRange.length, 'record change', 'record changes', 'from the audit log'],
-    [sentRows.filter(r => !isEmail(r)).length, 'contact', 'contacts', 'logged by hand, not verifiable from the system'],
+    [sentRows.filter(isEmail).length, 'email', 'emails', 'sent through the hub'],
+    [received.length, 'email', 'emails', 'received'],
+    [auditsInRange.length, 'record change', 'record changes', 'in the hub'],
+    [sentRows.filter(r => !isEmail(r)).length, 'contact', 'contacts', 'logged by hand'],
   ].filter(([n]) => n > 0)
 
   out.push('', '', 'SOURCES', '')
