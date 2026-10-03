@@ -213,4 +213,13 @@ assert.doesNotMatch(roster, /Custom Email|\[Follow-up\]/)
 
 assert.match(buildOutreachReport({ now: NOW, emails: [] }), /No outreach on record\./)
 
+// --- a folder-scoped report says so, or 26 rows read as the whole database ---
+const scoped = buildOutreachReport({ now: NOW, user: 'me@x.com', emails: OUTREACH_ROWS, scope: 'Europe Trip · Porto' })
+assert.match(scoped, /^OUTREACH REPORT — Tuesday, September 22, 2026\nEurope Trip · Porto\nme@x\.com$/m)
+
+// the scope line must not throw off the empty-day guard
+const emptyScoped = buildReport({ from: '2026-09-21', to: '2026-09-21', now: NOW, emails: EMAILS, scope: 'Europe Trip · Porto' })
+assert.match(emptyScoped, /^Europe Trip · Porto$/m)
+assert.match(emptyScoped, /^Nothing recorded for this day\.$/m)
+
 console.log('dailyReport: all checks passed')

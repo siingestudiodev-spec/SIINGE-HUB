@@ -193,12 +193,14 @@ function outreachSentence(t) {
  * Who we have reached out to and when — every company, no date range, no subjects and
  * no delivery detail. One line of history each.
  */
-export function buildOutreachReport({ now = new Date().toISOString(), user = null, emails = [] }) {
+export function buildOutreachReport({ now = new Date().toISOString(), user = null, emails = [], scope = null }) {
   const today = ymd(now)
   const groups = timelines(emails.filter(r => isSend(r, now) && isOutreach(r)), now)
     .sort((a, b) => a.name.localeCompare(b.name))
 
-  const out = [`OUTREACH REPORT — ${TITLE.format(new Date(today + 'T12:00:00Z'))}`, user || 'All users', '']
+  // Without the folder on the page, a list of 26 reads as the whole database.
+  const out = [`OUTREACH REPORT — ${TITLE.format(new Date(today + 'T12:00:00Z'))}`,
+               ...(scope ? [scope] : []), user || 'All users', '']
   if (!groups.length) {
     out.push('', 'No outreach on record.')
     return out.join('\n').trimEnd() + '\n'
@@ -217,7 +219,7 @@ export function buildOutreachReport({ now = new Date().toISOString(), user = nul
  * every company touched in the range, not just the rows that fall inside it.
  */
 export function buildReport({ from, to, now = new Date().toISOString(), user = null,
-                              emails = [], inbound = [], audits = [] }) {
+                              emails = [], inbound = [], audits = [], scope = null }) {
   const today = ymd(now)
   const inRange = iso => { const d = ymd(iso); return d >= from && d <= to }
 
@@ -244,7 +246,9 @@ export function buildReport({ from, to, now = new Date().toISOString(), user = n
     ? `DAILY REPORT — ${TITLE.format(new Date(from + 'T12:00:00Z'))}`
     : `ACTIVITY REPORT — ${SHORT.format(new Date(from + 'T12:00:00Z'))} to ${SHORT.format(new Date(to + 'T12:00:00Z'))}`
   // Every body below ends with a blank line, so one more here spaces the sections evenly.
-  const out = [head, user || 'All users', '']
+  const out = [head, ...(scope ? [scope] : []), user || 'All users', '']
+  // Measured, not counted by hand: the header grows when a folder is named.
+  const headerLines = out.length
 
   const section = (title, n, one, many, body) => {
     if (n === 0) return
@@ -308,7 +312,7 @@ export function buildReport({ from, to, now = new Date().toISOString(), user = n
     '',
   ])
 
-  if (out.length === 3) {
+  if (out.length === headerLines) {
     out.push('', 'Nothing recorded for this day.')
     return out.join('\n').trimEnd() + '\n'
   }

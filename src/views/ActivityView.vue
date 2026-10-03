@@ -73,6 +73,10 @@
             <option value="hub">Hub logs only</option>
           </select>
         </template>
+        <select v-model="folder" class="filter-input">
+          <option value="">All folders</option>
+          <option v-for="f in folders" :key="f.id" :value="f.id">{{ f.name }}</option>
+        </select>
         <input v-model="title" class="filter-input title" placeholder="Title (optional)" />
       </div>
       <p v-if="kind === 'outreach'" class="loghint">
@@ -184,6 +188,7 @@ async function compose() {
   body.value = ''
   generated.value = ''
   kind.value = 'daily'
+  folder.value = ''
   setRange(0)
   await Promise.all([loadRange(), loadCompanies()])
 }
@@ -203,10 +208,26 @@ const inRange = iso => {
 // every incoming message. What is left is what the hub itself recorded, which is the
 // version to send when the mailbox sync is behind or noisy.
 const source = ref('all')
-const sends = computed(() => source.value === 'hub'
-  ? data.value.outbound.filter(r => r.source !== 'mailbox')
-  : data.value.outbound)
-const replies = computed(() => (source.value === 'hub' ? [] : data.value.inbound))
+
+// Folders live on manufacturers, so picking one also drops every sourcing provider —
+// a report about Porto has no business carrying a fabric mill from the trade show.
+const folders = ref([])
+const folderOf = ref(new Map())
+const folder = ref('')
+const inFolder = row => !folder.value ||
+  (row.kind === 'manufacturer' && folderOf.value.get(row.entity_id) === folder.value)
+
+const sends = computed(() => {
+  const rows = source.value === 'hub'
+    ? data.value.outbound.filter(r => r.source !== 'mailbox')
+    : data.value.outbound
+  return rows.filter(inFolder)
+})
+
+const replies = computed(() => source.value === 'hub'
+  ? []
+  : data.value.inbound.filter(r =>
+      inFolder({ kind: r.matched_kind, entity_id: r.matched_entity_id })))
 
 const kind = ref('daily')
 
@@ -233,7 +254,7 @@ const candidates = computed(() => {
     }))
   const inboundChips = replies.value.filter(r => inRange(r.received_at))
     .map(r => ({ key: `reply:${r.id}`, kind: 'reply', name: r.entity_name || r.from_email }))
-  const changes = data.value.audits.length
+  const changes = data.value.audits.length && !folder.value
     ? [{ key: 'hub-changes', kind: 'hub changes', name: `${data.value.audits.length} records` }]
     : []
   return [...companies, ...inboundChips, ...changes]
@@ -241,15 +262,20 @@ const candidates = computed(() => {
 
 const kept = computed(() => sends.value.filter(r => !excluded.value.has(`${r.kind}:${r.entity_id}`)))
 
+const scope = computed(() => folders.value.find(f => f.id === folder.value)?.name || null)
+
 const preview = computed(() => kind.value === 'outreach'
-  ? buildOutreachReport({ user: me.value, emails: kept.value })
+  ? buildOutreachReport({ user: me.value, emails: kept.value, scope: scope.value })
   : buildReport({
       from: from.value,
       to: to.value,
       user: me.value,
+      scope: scope.value,
       emails: kept.value,
       inbound: replies.value.filter(r => !excluded.value.has(`reply:${r.id}`)),
-      audits: excluded.value.has('hub-changes') ? [] : data.value.audits,
+      // Record changes are not folder-scoped, so a folder report leaves them out
+      // rather than pretending they belong to it.
+      audits: folder.value || excluded.value.has('hub-changes') ? [] : data.value.audits,
     }))
 
 function togglePick(key) {
@@ -282,12 +308,15 @@ const logNote = ref('')
 const logging = ref(false)
 
 async function loadCompanies() {
-  const [m, s] = await Promise.all([
-    supabase.from('manufacturers').select('id,company_name').order('company_name'),
+  const [m, s, f] = await Promise.all([
+    supabase.from('manufacturers').select('id,company_name,folder_id').order('company_name'),
     supabase.from('sourcing').select('id,provider').order('provider'),
+    supabase.from('folders').select('id,name').eq('section', 'manufacturers').order('name'),
   ])
   manufacturers.value = m.data || []
   sourcing.value = s.data || []
+  folders.value = f.data || []
+  folderOf.value = new Map((m.data || []).map(x => [x.id, x.folder_id]))
 }
 
 // Written into the same table the hub's own emails use, with no subject — which is
