@@ -64,6 +64,10 @@
         <input type="date" v-model="from" class="filter-input" :max="to" />
         <input type="date" v-model="to" class="filter-input" :min="from" />
         <input v-model="title" class="filter-input title" placeholder="Title (optional)" />
+        <select v-model="source" class="filter-input">
+          <option value="all">Hub logs + mailbox</option>
+          <option value="hub">Hub logs only</option>
+        </select>
       </div>
 
       <p v-if="note" class="rep-note">{{ note }}</p>
@@ -184,30 +188,39 @@ const inRange = iso => {
   return d >= from.value && d <= to.value
 }
 
+// "Hub logs only" drops everything the mailbox contributed: the Sent folder's rows and
+// every incoming message. What is left is what the hub itself recorded, which is the
+// version to send when the mailbox sync is behind or noisy.
+const source = ref('all')
+const sends = computed(() => source.value === 'hub'
+  ? data.value.outbound.filter(r => r.source !== 'mailbox')
+  : data.value.outbound)
+const replies = computed(() => (source.value === 'hub' ? [] : data.value.inbound))
+
 // One chip per thing the report would talk about.
 const candidates = computed(() => {
   const now = new Date().toISOString()
-  const companies = timelines(data.value.outbound, now)
+  const companies = timelines(sends.value, now)
     .filter(t => t.sends.some(r => inRange(r.sent_at)))
     .map(t => ({
       key: `${t.kind}:${t.entityId}`,
       kind: inRange(t.sends[0].sent_at) ? 'first contact' : 'follow-up',
       name: t.name,
     }))
-  const replies = data.value.inbound.filter(r => inRange(r.received_at))
+  const inboundChips = replies.value.filter(r => inRange(r.received_at))
     .map(r => ({ key: `reply:${r.id}`, kind: 'reply', name: r.entity_name || r.from_email }))
   const changes = data.value.audits.length
     ? [{ key: 'hub-changes', kind: 'hub changes', name: `${data.value.audits.length} records` }]
     : []
-  return [...companies, ...replies, ...changes]
+  return [...companies, ...inboundChips, ...changes]
 })
 
 const preview = computed(() => buildReport({
   from: from.value,
   to: to.value,
   user: me.value,
-  emails: data.value.outbound.filter(r => !excluded.value.has(`${r.kind}:${r.entity_id}`)),
-  inbound: data.value.inbound.filter(r => !excluded.value.has(`reply:${r.id}`)),
+  emails: sends.value.filter(r => !excluded.value.has(`${r.kind}:${r.entity_id}`)),
+  inbound: replies.value.filter(r => !excluded.value.has(`reply:${r.id}`)),
   audits: excluded.value.has('hub-changes') ? [] : data.value.audits,
 }))
 
