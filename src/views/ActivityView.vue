@@ -26,6 +26,7 @@
               <p class="card-meta">
                 {{ span(r) }} · saved {{ when(r.created_at) }}
                 <span v-if="r.user_email !== me"> · {{ r.user_email }}</span>
+                <span v-if="r.generated && r.generated !== r.body" class="badge">edited by hand</span>
               </p>
             </div>
             <div class="card-actions">
@@ -78,7 +79,41 @@
             <span class="pick-name">{{ c.name }}</span>
           </label>
         </div>
-        <pre class="report">{{ preview }}</pre>
+
+        <!-- A call or a WhatsApp is not in any inbox. Logged here it joins the company's
+             history, so next month's report still knows it happened. -->
+        <div class="logbox">
+          <button @click="showLog = !showLog" class="btn-quiet">
+            {{ showLog ? 'Close' : '+ Log a call, WhatsApp or outside email' }}
+          </button>
+          <div v-if="showLog" class="logform">
+            <select v-model="logTarget" class="filter-input">
+              <option value="">Which company…</option>
+              <optgroup label="Manufacturers">
+                <option v-for="m in manufacturers" :key="m.id" :value="`manufacturer:${m.id}`">{{ m.company_name }}</option>
+              </optgroup>
+              <optgroup label="Sourcing">
+                <option v-for="s in sourcing" :key="s.id" :value="`sourcing:${s.id}`">{{ s.provider }}</option>
+              </optgroup>
+            </select>
+            <input type="date" v-model="logDate" class="filter-input" :max="to" />
+            <input v-model="logNote" class="filter-input grow"
+                   placeholder="What happened — e.g. Called Allan, holds the SS27 slot until Nov 15"
+                   @keyup.enter="addLog" />
+            <button @click="addLog" class="btn-primary" :disabled="!logTarget || !logNote.trim() || logging">
+              {{ logging ? 'Saving…' : 'Log it' }}
+            </button>
+          </div>
+          <p v-if="showLog" class="loghint">
+            Logged contacts are marked in the report as typed by hand, never as tracked email.
+          </p>
+        </div>
+
+        <div class="edit-head">
+          <span>{{ dirty ? 'Edited by hand' : 'Generated from the data' }}</span>
+          <button v-if="dirty" @click="regenerate" class="btn-quiet">Discard edits</button>
+        </div>
+        <textarea v-model="body" class="report editable" rows="22" spellcheck="false"></textarea>
       </template>
     </template>
   </div>
@@ -133,8 +168,10 @@ async function compose() {
   note.value = ''
   title.value = ''
   excluded.value = new Set()
+  body.value = ''
+  generated.value = ''
   setRange(0)
-  await loadRange()
+  await Promise.all([loadRange(), loadCompanies()])
 }
 
 async function loadRange() {
@@ -181,16 +218,71 @@ function togglePick(key) {
   excluded.value = next
 }
 
+// The text is the thing being saved, so once you touch it the generator stops writing
+// over your words. Changing a chip after that would silently undo an edit.
+// `generated` is the last machine draft; `body` is what will be saved. Comparing the two
+// is what "edited by hand" means — comparing against the live preview would call every
+// date change an edit of yours.
+const body = ref('')
+const generated = ref('')
+const dirty = computed(() => body.value !== generated.value)
+watch(preview, text => {
+  const wasClean = !dirty.value
+  generated.value = text
+  if (wasClean) body.value = text
+}, { immediate: true })
+const regenerate = () => { body.value = generated.value }
+
+const manufacturers = ref([])
+const sourcing = ref([])
+const showLog = ref(false)
+const logTarget = ref('')
+const logDate = ref(today())
+const logNote = ref('')
+const logging = ref(false)
+
+async function loadCompanies() {
+  const [m, s] = await Promise.all([
+    supabase.from('manufacturers').select('id,company_name').order('company_name'),
+    supabase.from('sourcing').select('id,provider').order('provider'),
+  ])
+  manufacturers.value = m.data || []
+  sourcing.value = s.data || []
+}
+
+// Written into the same table the hub's own emails use, with no subject — which is
+// exactly what marks it as hand-logged everywhere it is read.
+async function addLog() {
+  const [kind, id] = logTarget.value.split(':')
+  if (!kind || !id || !logNote.value.trim()) return
+  logging.value = true
+  const table = kind === 'manufacturer' ? 'manufacturer_email_logs' : 'sourcing_email_logs'
+  const fk = kind === 'manufacturer' ? 'manufacturer_id' : 'sourcing_id'
+  const { error } = await supabase.from(table).insert([{
+    [fk]: id,
+    template_name: logNote.value.trim(),
+    // Noon, so the row lands on the chosen day in Bogotá whichever way it is read back.
+    sent_at: new Date(`${logDate.value}T12:00:00-05:00`).toISOString(),
+  }])
+  logging.value = false
+  if (error) { note.value = `Could not log it: ${error.message}`; return }
+  logNote.value = ''
+  await loadRange()
+}
+
 // The text is stored, not recomputed. A report is a record of what you sent, and it
 // must not quietly rewrite itself when tomorrow's sync changes the underlying rows.
 async function save() {
   saving.value = true
+  // Both texts are kept: what the data said, and what you sent. A reader can tell they
+  // differ without taking anyone's word for it.
   const { error } = await supabase.from('reports').insert([{
     user_email: me.value,
     title: title.value.trim() || null,
     from_day: from.value,
     to_day: to.value,
-    body: preview.value,
+    body: body.value,
+    generated: generated.value,
     included: candidates.value.filter(c => !excluded.value.has(c.key)).map(c => c.key),
   }])
   saving.value = false
@@ -262,5 +354,13 @@ onMounted(async () => {
 .k-reply { color: #2563eb; }
 .k-first-contact { color: #16a34a; }
 .pick-name { font-weight: 500; }
+.badge { margin-left: 0.4rem; font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.04em; border: 1px solid #d97706; color: #d97706; border-radius: 3px; padding: 0 4px; }
+.logbox { border: 1px dashed var(--border-main); border-radius: 8px; padding: 0.7rem 0.9rem; margin-bottom: 1rem; }
+.logform { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-top: 0.6rem; }
+.logform .grow { flex: 1; min-width: 240px; }
+.loghint { font-size: 0.72rem; color: var(--text-muted); margin: 0.5rem 0 0; }
+.edit-head { display: flex; align-items: center; gap: 0.6rem; font-size: 0.73rem; color: var(--text-muted); margin-bottom: 0.3rem; }
+.edit-head button { margin-left: auto; }
+.editable { width: 100%; resize: vertical; box-sizing: border-box; }
 .report { font-size: 0.8rem; line-height: 1.55; white-space: pre-wrap; background: var(--bg-app); border: 1px solid var(--border-main); border-radius: 8px; padding: 1.1rem 1.3rem; margin: 0.7rem 0 0; color: var(--text-main); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
 </style>

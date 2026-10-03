@@ -169,4 +169,15 @@ assert.match(quiet, /^All users$/m)
 assert.match(quiet, /^Nothing recorded for this day\.$/m)
 assert.doesNotMatch(quiet, /FIRST CONTACT/)
 
+// --- the reader has to be able to tell proof from hearsay ---
+assert.match(report, /^SOURCES$/m)
+assert.match(report, /^ {2}3 emails sent through the hub, delivery tracked$/m)
+assert.match(report, /^ {2}1 email received, read from the mailbox$/m)
+assert.match(report, /^ {2}3 record changes from the audit log$/m)
+assert.match(report, /^ {2}1 contact logged by hand, not verifiable from the system$/m,
+  'the phone call must not pass for a tracked email')
+
+// a quiet day carries no sources block to misread
+assert.doesNotMatch(quiet, /SOURCES/)
+
 console.log('dailyReport: all checks passed')

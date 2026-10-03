@@ -270,6 +270,24 @@ export function buildReport({ from, to, now = new Date().toISOString(), user = n
     '',
   ])
 
-  if (out.length === 3) out.push('', 'Nothing recorded for this day.')
+  if (out.length === 3) {
+    out.push('', 'Nothing recorded for this day.')
+    return out.join('\n').trimEnd() + '\n'
+  }
+
+  // Where each number came from, and which ones nothing in the system can back up.
+  // A report that mixes tracked email with somebody's note about a phone call, without
+  // saying which is which, is worth less than either on its own.
+  const sentRows = touched.flatMap(t => t.sends.filter(r => inRange(r.sent_at)))
+  const src = [
+    [sentRows.filter(isEmail).length, 'email', 'emails', 'sent through the hub, delivery tracked'],
+    [received.length, 'email', 'emails', 'received, read from the mailbox'],
+    [auditsInRange.length, 'record change', 'record changes', 'from the audit log'],
+    [sentRows.filter(r => !isEmail(r)).length, 'contact', 'contacts', 'logged by hand, not verifiable from the system'],
+  ].filter(([n]) => n > 0)
+
+  out.push('', '', 'SOURCES', '')
+  for (const [n, one, many, note] of src) out.push(`  ${n} ${n === 1 ? one : many} ${note}`)
+
   return out.join('\n').trimEnd() + '\n'
 }
